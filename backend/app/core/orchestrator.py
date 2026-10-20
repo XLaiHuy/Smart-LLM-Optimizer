@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+from decimal import Decimal
 from time import perf_counter
 from typing import TYPE_CHECKING, Literal
 
@@ -20,6 +21,7 @@ from app.contracts.dtos import (
     ExecutionRequest,
     MemoryPlan,
     Message,
+    OptimizationState,
     PolicySnapshot,
     Principal,
     ProviderOptions,
@@ -93,6 +95,7 @@ class Orchestrator:
                     self.metering is not None and self.metering.settings.provider_mode == "live"
                 )
                 if is_live:
+                    config = config.model_copy(update={"policy_version": "router-p0-v1"})
                     if request.policy_id == "foundation-mock-v3":
                         raise AppError(
                             "VALIDATION_ERROR", 422, "Mock policy is unavailable in live mode"
@@ -132,13 +135,50 @@ class Orchestrator:
                     raise AppError(
                         "OUTPUT_INVALID", 502, "G0 no-op altered input", execution.request_id
                     )
+                remaining = (
+                    await self.metering.ledger.remaining(
+                        principal,
+                        execution.request_id,
+                        request.constraints.max_total_usd
+                        or self.metering.settings.document_operation_budget_usd,
+                    )
+                    if self.metering
+                    else RemainingBudget()
+                )
+                remaining = remaining.model_copy(
+                    update={
+                        "deadline_ms": request.constraints.deadline_ms
+                        - (perf_counter() - started) * 1000
+                    }
+                )
+                costs = CostSnapshot()
+                if self.metering and self.metering.catalog:
+                    from app.contracts.dtos import RouteRate
+
+                    catalog = self.metering.catalog
+                    costs = CostSnapshot(
+                        version=catalog.version,
+                        rates=tuple(
+                            RouteRate(
+                                config_id=m.config_id,
+                                input_per_million=max(
+                                    m.input_per_million,
+                                    m.cached_per_million or Decimal(0),
+                                    m.cache_write_per_million or Decimal(0),
+                                ),
+                                output_per_million=m.output_per_million,
+                            )
+                            for m in catalog.models
+                            if m.kind == "generation"
+                        ),
+                    )
                 route = self.router.select(
                     profile,
                     prepared,
                     self.registry,
-                    CostSnapshot(),
+                    costs,
                     PolicySnapshot(**config.model_dump()),
-                    RemainingBudget(),
+                    remaining,
                 )
                 call_id = str(uuid4())
                 await self.sessions.mark_dispatched(execution.request_id)
@@ -196,7 +236,13 @@ class Orchestrator:
                     ),
                     calls=calls,
                     optimizations=(
-                        noop_state("router", config.flags.router),
+                        OptimizationState(
+                            module="router",
+                            status="skipped" if route.fallback_used else "applied",
+                            reason=route.reason,
+                        )
+                        if is_live and config.flags.router
+                        else noop_state("router", config.flags.router),
                         rewrite.state,
                         prepared.state,
                         memory.state,

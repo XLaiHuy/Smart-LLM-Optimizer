@@ -61,6 +61,9 @@ class Attempt(Base):
     created_at: Mapped[str] = mapped_column(String(40))
     response_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    research_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("research_runs.id"), nullable=True, index=True
+    )
 
 
 class InferenceCall(Base):
@@ -143,7 +146,7 @@ class UsageRecord(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     operation_id: Mapped[str] = mapped_column(String(64), index=True)
-    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(String(40), index=True)
     category: Mapped[str] = mapped_column(String(40))
     execution_source: Mapped[str] = mapped_column(String(16))
@@ -166,3 +169,38 @@ class QuotaAudit(Base):
     after_usd: Mapped[str] = mapped_column(String(64))
     reason: Mapped[str] = mapped_column(String(300))
     created_at: Mapped[str] = mapped_column(String(40))
+
+
+class Reconciliation(Base):
+    __tablename__ = "billing_reconciliations"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    reservation_id: Mapped[str] = mapped_column(ForeignKey("budget_reservations.id"), unique=True)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    amount_usd: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(String(300))
+    evidence_reference: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[str] = mapped_column(String(40))
+
+
+class ResearchRun(Base):
+    __tablename__ = "research_runs"
+    __table_args__ = (UniqueConstraint("owner_user_id", "client_request_id"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    client_request_id: Mapped[str] = mapped_column(String(128))
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    snapshot_json: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    cancel_requested: Mapped[bool] = mapped_column(default=False)
+    budget_usd: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[str] = mapped_column(String(40))
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class ResearchTrial(Base):
+    __tablename__ = "research_trials"
+    __table_args__ = (UniqueConstraint("run_id", "position"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("research_runs.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    result_json: Mapped[str] = mapped_column(Text)

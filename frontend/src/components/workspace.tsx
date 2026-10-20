@@ -6,7 +6,13 @@ import { Login } from "./login";
 import { ErrorNotice, Spinner } from "./ui";
 import { AuthenticatedWorkspace } from "./workspace-shell";
 
-export function Workspace({ dashboard = false }: { dashboard?: boolean }) {
+export function Workspace({
+  dashboard = false,
+  research = false,
+}: {
+  dashboard?: boolean;
+  research?: boolean;
+}) {
   const client = useQueryClient();
   const [expired, setExpired] = useState(false);
   const [epoch, setEpoch] = useState(0);
@@ -60,6 +66,7 @@ export function Workspace({ dashboard = false }: { dashboard?: boolean }) {
       key={`${me.data.id}-${epoch}`}
       user={me.data}
       dashboard={dashboard}
+      research={research}
       onLogout={() => {
         client.clear();
         client.setQueryData(["me"], null);

@@ -14,6 +14,78 @@ async function login(page: Page, user = "e2e-a") {
   ).toBeVisible();
 }
 
+test("research admin fixture matrix, trace, export, mobile and access control", async ({
+  page,
+}, testInfo) => {
+  await login(page, "e2e-admin");
+  await page
+    .getByRole("link", { name: "Nghiên cứu router", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Thử nghiệm Model Router" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Kiểm tra trước khi chạy" }).click();
+  await expect(page.locator(".research-preflight")).toContainText("120 trials");
+  await page
+    .getByRole("button", { name: "Chạy thử nghiệm", exact: true })
+    .click();
+  await expect(page.locator(".research-progress")).toContainText("Hoàn tất", {
+    timeout: 30000,
+  });
+  await expect(page.locator(".research-progress")).toContainText("120/120");
+  await expect(page.locator(".research-route")).toHaveCount(2);
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Model Router experiments" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Random seed", { exact: true })).toHaveValue(
+    "42",
+  );
+  await page.getByRole("button", { name: "VI", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Xem trace", exact: true })
+    .first()
+    .click();
+  await expect(page.locator(".research-trace")).toContainText("policy_hash");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("link", { name: "Xuất CSV" })).toHaveAttribute(
+    "href",
+    /format=csv/,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".research-page").evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("research-mobile.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator(".research-page").evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: testInfo.outputPath("research-desktop.png"),
+    fullPage: true,
+  });
+  await page.context().clearCookies();
+  await login(page);
+  await expect(
+    page.getByRole("link", { name: "Nghiên cứu router", exact: true }),
+  ).toHaveCount(0);
+  await page.goto("/research");
+  await expect(
+    page.getByRole("heading", { name: "Chỉ dành cho quản trị viên" }),
+  ).toBeVisible();
+});
+
 test("owned chat, no-op flags, trace, locale preserves draft, resume, overview and logout", async ({
   page,
 }, testInfo) => {
@@ -116,7 +188,14 @@ test("mobile, network retry keeps request ID, auth expiry clears private UI", as
     page.getByRole("button", { name: "Xem trace", exact: true }),
   ).toBeVisible();
   expect(new Set(ids).size).toBe(1);
-  await expect.poll(async()=>page.evaluate(()=>({root:document.documentElement.scrollWidth, viewport:window.innerWidth}))).toEqual({root:390, viewport:390});
+  await expect
+    .poll(async () =>
+      page.evaluate(() => ({
+        root: document.documentElement.scrollWidth,
+        viewport: window.innerWidth,
+      })),
+    )
+    .toEqual({ root: 390, viewport: 390 });
   await page.context().clearCookies();
   try {
     await page
@@ -198,7 +277,14 @@ test("documents, citations, full-text jobs and analytics exports", async ({
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(async()=>page.evaluate(()=>({root:document.documentElement.scrollWidth, viewport:window.innerWidth}))).toEqual({root:390, viewport:390});
+  await expect
+    .poll(async () =>
+      page.evaluate(() => ({
+        root: document.documentElement.scrollWidth,
+        viewport: window.innerWidth,
+      })),
+    )
+    .toEqual({ root: 390, viewport: 390 });
 });
 
 test("admin aggregated usage and audited quota update", async ({ page }) => {

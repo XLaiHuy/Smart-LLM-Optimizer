@@ -404,7 +404,7 @@ class SqlTraceStore:
             rows = list(
                 await db.scalars(
                     select(Attempt)
-                    .where(Attempt.owner_user_id == principal.id)
+                    .where(Attempt.owner_user_id == principal.id, Attempt.research_run_id.is_(None))
                     .order_by(Attempt.created_at.desc())
                 )
             )

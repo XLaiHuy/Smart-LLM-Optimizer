@@ -726,7 +726,9 @@ img {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 12px rgba(3, 78, 162, 0.03);
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.03),
+    0 4px 12px rgba(3, 78, 162, 0.03);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
@@ -734,7 +736,9 @@ img {
 .welcome-prompt-card:hover {
   border-color: #387ec1;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(3, 78, 162, 0.1), 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow:
+    0 6px 20px rgba(3, 78, 162, 0.1),
+    0 1px 3px rgba(15, 23, 42, 0.04);
   background: #fbfdff;
 }
 .prompt-icon-wrap {
@@ -747,7 +751,9 @@ img {
   background: rgba(3, 78, 162, 0.08);
   color: var(--brand);
   margin-bottom: 10px;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 .welcome-prompt-card:hover .prompt-icon-wrap {
   background: var(--brand);
@@ -776,13 +782,17 @@ img {
   border: 1px solid #d0dbe7;
   border-radius: 14px;
   padding: 16px 18px 12px;
-  box-shadow: 0 2px 6px rgba(16, 41, 68, 0.04), 0 8px 24px -4px rgba(3, 78, 162, 0.06);
+  box-shadow:
+    0 2px 6px rgba(16, 41, 68, 0.04),
+    0 8px 24px -4px rgba(3, 78, 162, 0.06);
   background: #ffffff;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .composer:focus-within {
   border-color: #387ec1;
-  box-shadow: 0 0 0 3px rgba(3, 78, 162, 0.12), 0 8px 28px -4px rgba(3, 78, 162, 0.12);
+  box-shadow:
+    0 0 0 3px rgba(3, 78, 162, 0.12),
+    0 8px 28px -4px rgba(3, 78, 162, 0.12);
 }
 .composer textarea {
   width: 100%;
@@ -1224,7 +1234,9 @@ img {
   border-radius: 12px;
   padding: 20px;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 12px rgba(3, 78, 162, 0.03);
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.03),
+    0 4px 12px rgba(3, 78, 162, 0.03);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
@@ -1278,7 +1290,9 @@ img {
   max-width: 100%;
   min-width: 0;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 16px rgba(3, 78, 162, 0.03);
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.03),
+    0 4px 16px rgba(3, 78, 162, 0.03);
 }
 .activity-panel > header {
   display: flex;
@@ -1888,4 +1902,213 @@ html[lang="en"] .school-lockup span {
 details.activity-panel {
   max-width: 100%;
   min-width: 0;
+}
+
+/* Router laboratory: measured local activity, clearly separated simulation. */
+.research-page {
+  min-width: 0;
+}
+.research-notice {
+  border-left: 3px solid var(--brand);
+  background: #f2f7fd;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.research-notice p {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+.research-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.research-config h2,
+.research-results h2 {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+.research-config fieldset {
+  border: 0;
+  padding: 0;
+  margin: 20px 0;
+  min-width: 0;
+}
+.research-config legend {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.research-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.research-choice input {
+  accent-color: var(--brand);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.research-choice small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.research-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.research-inputs label,
+.research-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+.research-config input[type="number"] {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  min-width: 0;
+  width: 100%;
+  background: white;
+}
+.research-budget {
+  margin: 16px 0;
+}
+.research-preflight {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.research-preflight p {
+  margin: 8px 0;
+  color: var(--muted);
+}
+.research-results {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.research-results > *,
+.research-config {
+  min-width: 0;
+}
+.research-empty {
+  padding: 24px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.research-run {
+  display: flex;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 15px 20px;
+  text-align: left;
+  justify-content: space-between;
+  gap: 14px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+}
+.research-run:hover,
+.research-run.selected {
+  background: #f0f6fd;
+}
+.research-run small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.research-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.research-progress progress {
+  flex: 1;
+  min-width: 90px;
+  accent-color: var(--brand);
+}
+.research-progress details {
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+}
+.research-progress pre,
+.research-trace {
+  overflow: auto;
+  max-width: 100%;
+  font-size: 11px;
+  line-height: 1.8;
+  padding: 15px;
+  background: #f6f8fb;
+}
+.research-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 30px;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  padding: 10px 0;
+}
+.research-route span {
+  overflow-wrap: anywhere;
+}
+.research-route meter {
+  width: 100%;
+  accent-color: var(--brand);
+}
+.research-progress progress {
+  appearance: none;
+  border: 0;
+  height: 7px;
+  border-radius: 6px;
+  background: #e5edf7;
+}
+.research-progress progress::-webkit-progress-bar {
+  background: #e5edf7;
+  border-radius: 6px;
+}
+.research-progress progress::-webkit-progress-value {
+  background: #034ea2;
+  border-radius: 6px;
+}
+.research-progress progress::-moz-progress-bar {
+  background: #034ea2;
+  border-radius: 6px;
+}
+.research-route meter::-webkit-meter-optimum-value {
+  background: #034ea2;
+}
+.research-progress h2 small {
+  font-size: 10px;
+  margin-left: 8px;
+  color: var(--muted);
+}
+.research-accounting {
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1050px) {
+  .research-layout {
+    grid-template-columns: 1fr;
+  }
 }

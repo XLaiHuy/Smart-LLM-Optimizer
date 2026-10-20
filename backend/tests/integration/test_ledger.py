@@ -56,7 +56,10 @@ async def test_reservation_race_unknown_release_reconcile_and_recovery(
         assert exc.status == 409
     else:
         raise AssertionError("Unresolved charges cannot be released")
-    await c.ledger.reconcile(reservation, Decimal("0.000000001"))
+    admin = await c.auth.create_user("ledger-admin", "ledger-admin-password", "admin")
+    await c.ledger.reconcile(
+        admin, reservation, Decimal("0.000000001"), "fixture statement", "test-evidence-001"
+    )
     async with c.db.sessions() as db:
         row = await db.get(Reservation, reservation)
         assert row.settled_usd == "1E-9" and row.status == "settled"

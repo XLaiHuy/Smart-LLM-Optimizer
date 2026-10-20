@@ -1,5 +1,7 @@
 # MVP extension handoff
 
+Router Lab, registry/ledger hardening và router P0 được mở rộng sau mốc này; xem [Router Lab handoff](ROUTER_LAB_HANDOFF.md) và spec §16. Các con số verification bên dưới là evidence của mốc MVP trước đó.
+
 ## Trạng thái
 
 Mốc 1 có implementation: OpenAI Responses adapter, catalog/pricing, metered generation/embedding, upload/extraction, session-scoped hybrid RAG, full-text/compare jobs, owned analytics/export và admin quota audit. Mock vẫn là default. Mốc 2 (thuật toán Tân/Khoa, same-snapshot optimized comparison và scientific reports) chưa được nhận gate; UI không tạo savings/quality score giả.

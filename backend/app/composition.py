@@ -13,7 +13,10 @@ from app.optimizers.prompt_optimizer import NoOpPromptOptimizer
 from app.providers.catalog import Catalog
 from app.providers.live import OpenAIProvider
 from app.providers.mock_provider import DeterministicMockProvider
-from app.routing.analyzer import UnknownTaskAnalyzer
+from app.routing.experiments.live import LiveResearchWiring
+from app.routing.experiments.service import ResearchService
+from app.routing.features import ObservableTaskAnalyzer
+from app.routing.policies import PolicyRouter
 from app.routing.router import FixedMockRouter
 from app.storage.database import Database
 from app.storage.ledger import SqlBudgetLedger
@@ -58,7 +61,13 @@ class Container:
                         model_id=m.model_id,
                         execution_source="live",
                         context_window=m.context_window,
-                        available=m.verified_access,
+                        available=m.verified_access and m.pricing_verified,
+                        availability_reason="reviewed"
+                        if m.verified_access and m.pricing_verified
+                        else "access_or_pricing_unverified",
+                        max_output_tokens=m.max_output_tokens,
+                        structured_output=m.structured_output,
+                        supported_parameters=m.supported_parameters,
                     )
                     for m in catalog.models
                     if m.kind == "generation"
@@ -67,6 +76,12 @@ class Container:
         self.live = live
         self.provider = live or DeterministicMockProvider()
         self.metering = MeteredCalls(self.db, settings, self.ledger, catalog, live)
+        self.research = ResearchService(
+            self.db,
+            LiveResearchWiring(settings, self.metering, self.provider, self.sessions, self.registry)
+            if live
+            else None,
+        )
         self.documents = DocumentService(
             self.db,
             settings,
@@ -78,11 +93,11 @@ class Container:
         self.orchestrator = Orchestrator(
             self.sessions,
             self.provider,
-            UnknownTaskAnalyzer(),
+            ObservableTaskAnalyzer(),
             NoOpMemoryManager(),
             PassThroughContext(),
             NoOpPromptOptimizer(),
-            FixedMockRouter(),
+            PolicyRouter() if live else FixedMockRouter(),
             self.registry,
         )
         self.orchestrator.metering = self.metering

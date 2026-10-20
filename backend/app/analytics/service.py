@@ -27,9 +27,12 @@ ZONE = ZoneInfo("Asia/Ho_Chi_Minh")
 
 def bucket(key: str, records: list[UsageRecord]) -> MetricBucket:
     calls = [CallRecord.model_validate_json(row.record_json) for row in records]
-    known_costs = [c.cost.serving_usd for c in calls if c.cost.serving_usd is not None]
+    costs = [
+        c.reconciled_usd if c.reconciled_usd is not None else c.cost.serving_usd for c in calls
+    ]
+    known_costs = [value for value in costs if value is not None]
     subtotal = sum(known_costs, Decimal(0))
-    timings = sorted(c.duration_ms for c in calls)
+    timings = sorted(c.duration_ms for c in calls if c.duration_ms is not None)
     return MetricBucket(
         key=key,
         calls=len(calls),
@@ -45,6 +48,8 @@ def bucket(key: str, records: list[UsageRecord]) -> MetricBucket:
             c.cost.status == "unknown" or c.usage.usage_source == "unknown" for c in calls
         ),
         p50_ms=median(timings) if timings else None,
+        timing_samples=len(timings),
+        reconciled_calls=sum(c.reconciliation_id is not None for c in calls),
         p95_ms=timings[min(len(timings) - 1, int((len(timings) - 1) * 0.95 + 0.5))]
         if timings
         else None,
@@ -128,7 +133,7 @@ class AnalyticsService:
             groups["models"][row.model_id].append(row)
             groups["categories"][row.category].append(row)
             # Project admin sees accounting IDs only, never titles or raw content.
-            groups["sessions"][row.session_id].append(row)
+            groups["sessions"][row.session_id or "research"].append(row)
         return Analytics(
             scope="project" if project else "current_user",
             execution_source=source,

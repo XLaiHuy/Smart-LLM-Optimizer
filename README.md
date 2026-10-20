@@ -106,13 +106,13 @@ Tân/Khoa dùng repository/provider ports; không import private ORM hoặc SDK.
 
 ## Hiểu đúng trạng thái G0
 
-True optimizer flag → `not_implemented`; false → `disabled`. Baseline tắt optional transforms nhưng vẫn auth/history/accounting. Các cờ thay đổi request tiếp theo; trace giữ effective configuration lúc chạy. Duplicate succeeded ID/payload trả stored response, không gọi lại provider; in-progress/payload conflict/session busy trả 409.
+Trong chat mock, true optimizer flag → `not_implemented`; false → `disabled`. Live router có feasibility/uncertainty fallback và trace riêng; các transforms khác vẫn no-op. Baseline tắt optional transforms nhưng vẫn auth/history/accounting. Các cờ thay đổi request tiếp theo; trace giữ effective configuration lúc chạy. Duplicate succeeded ID/payload trả stored response, không gọi lại provider; in-progress/payload conflict/session busy trả 409.
 
 Mock cost `not_billable/null`, usage không giả provider tokens; quality/savings null, nonstreaming TTFT null. Dashboard chỉ tổng hợp owned requests. Đổi ngôn ngữ không dịch history hoặc xóa draft. Xóa session purge nội dung/trace, giữ tombstones/accounting tối thiểu để chống replay.
 
 Timing trong mock trace có `measurement_scope=server_through_history_flush`: gồm xử lý và flush history, dừng trước lần ghi/commit trace cuối. HTTP header `Server-Timing` đo tới lúc gửi response headers, gồm transaction commit. Cả hai là local server timings, không phải browser end-to-end hoặc scientific latency comparison; G2 phải đo protocol live riêng theo spec.
 
-Đây là local research foundation, chưa triển khai API thật/classifier/optimization algorithms, streaming/cache/cascade, public benchmark qualification hoặc scientific claims. Các gate tiếp theo ở [Design Spec V3](SMART_LLM_OPTIMIZER_SPEC_V2_COMPLETE.md); [Master Prompt](docs/SKELETON_MASTER_PROMPT.md) ghi implementation brief và thay đổi nhận diện.
+Đây là local research foundation có OpenAI adapter và observable rule analyzer; chưa có qualified live router evidence, rewrite/context/memory algorithms, streaming/cache/cascade hoặc scientific claims. Các gate tiếp theo ở [Design Spec V3](SMART_LLM_OPTIMIZER_SPEC_V2_COMPLETE.md); [Master Prompt](docs/SKELETON_MASTER_PROMPT.md) ghi implementation brief và thay đổi nhận diện.
 
 ## License / assets
 
@@ -126,3 +126,18 @@ Trong chat mở **Tài liệu hội thoại**, upload TXT/MD UTF-8, PDF có ch�
 **Tổng quan** có ngày/model/session/category, nguồn mock/live tách biệt, input/output token charts, USD/model costs, call-latency p50/p95, bảng và CSV/JSON. Quota là lifetime và không đổi theo date filter. Usage trước bản mở rộng có thể chưa có call records; không backfill số liệu giả. Xóa session purge nội dung/tài liệu/job/trace, vẫn giữ usage/accounting tối thiểu. Admin chỉ thấy thống kê và sửa quota có audit; không tự được đọc nội dung riêng.
 
 So sánh baseline–optimized và báo cáo khoa học chờ các module/gates của Tân/Khoa. Không coi mock hoặc no-op là thuật toán đã đạt quality guardrails. Xem [MVP handoff](docs/MVP_HANDOFF.md).
+
+## Router Lab dành cho Huy
+
+Sau migration, đăng nhập admin và mở **Nghiên cứu router** tại `/research`. Chọn model giả lập/policies, preflight, chạy ma trận 20 fixtures, xem trace và xuất CSV/JSONL. Simulation không cần key, không tạo chat giả, không trừ quota thật. Giá trị giả lập có nhãn riêng; không phải research quality hoặc live savings. Live research hiện bị chặn ở server.
+
+CLI và UI dùng chung execution service; từ repo root với venv đã activate:
+
+```text
+python -m app.cli research preflight config/router-run.example.json
+python -m app.cli research run config/router-run.example.json admin
+python -m app.cli research status RUN_ID admin
+python -m app.cli research export RUN_ID admin output/router-run.jsonl --format jsonl
+```
+
+Thay `admin` bằng account admin đã tạo. CLI là công cụ local tin cậy theo quyền truy cập máy/DB, không phải remote login bằng username. Lệnh `run` chỉ enqueue; giữ `npm run dev` chạy để worker xử lý. Đổi `client_request_id` trong manifest cho run mới; retry cùng ID/payload trả run cũ. Export không ghi đè file có sẵn. Xem [Router Lab handoff](docs/ROUTER_LAB_HANDOFF.md).

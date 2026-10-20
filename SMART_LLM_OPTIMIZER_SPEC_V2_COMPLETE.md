@@ -4,6 +4,8 @@ Cập nhật G0 ngày 2026-10-20. Giữ tên file V2 để bảo toàn liên k�
 
 ## Changelog V2 → V3 (cập nhật 20/10/2026)
 
+- **Huy Router Lab:** thêm §16 cho registry validation/capabilities, audited reconciliation, router P0 và research UI/CLI độc lập bằng 20 fixtures. Simulation mặc định, batch live cần server gate riêng; chưa paid pilot hoặc scientific G2/G3 evidence. Làm việc theo `feature → develop → main`.
+
 - **G0 implementation:** foundation backend/frontend/SQLite, typed no-ops/mock, auth/history/ledger/trace/overview, CLI/smoke, locks/CI và handoff. Chuyển UI sang trắng–xanh OU `#034EA2`/`#387EC1`, Roboto local, Việt/Anh. Thêm `GET /v1/overview`; setup Windows, localhost-only, chưa Docker/live adapter. Evidence/giới hạn ở `docs/G0_HANDOFF.md`; Linux CI chưa chạy remote.
 
 - Khóa MVP FastAPI + Next.js + SQLite WAL trên laptop, API server-side; local LLM, tools/agents và Docker để sau.
@@ -357,6 +359,7 @@ Các shapes sau là yêu cầu nghiệp vụ; canonical DTOs/ports G0 hiện có
 | `ProviderOptions`, `ProviderResult` | Validated registry config, request/call identity và bounded generation options; result giữ content, execution_source, native usage categories/provenance/nullability, provider ID/timing/errors |
 | `Usage`, `CostEstimate`, `OptimizationState` | Per-call/all-calls scope và source, partial/unknown totals; Decimal monetary parts/status/catalog version; module status enum/reason. Top-level quality/savings optional nullable, G0 luôn null |
 | `EvalManifest`, `EvalConfig`, `EvalResult` | Purpose/source/namespace và versions, serving input tách evaluator targets; smoke fixtures khác research. Giữ source metadata/multiple gold/turn/checkpoint structures theo §06 khi thêm adapters |
+| `MeteringContext`, `ResearchRequest`, `ResearchRunInfo`, `TrialResult` | Operation không cần chat; research freeze source/manifest/config/seed, trial diagnostics/calls và simulation riêng; RunAccounting giữ cả calls chưa commit trial. Research DTOs nằm tại `contracts/research.py`, serving DTOs tại `contracts/dtos.py`; mỗi type chỉ định nghĩa một lần |
 
 **Signatures duy nhất cần cụ thể hóa trong `protocols.py`:**
 
@@ -1206,6 +1209,38 @@ Migration `b901` additive từ G0, giữ accounts/history. Documents/chunks/jobs
 Default 7 days, today/30/custom tối đa 366 ngày; UTC storage, Asia/Ho_Chi_Minh grouping. Cards input/output/cost/unknown/available, operations, call latency p50/p95 và sample count. Charts input/output/day, USD/day, cost/model, call latency/day; tables + CSV/JSON. Unknown/null không thành zero; known subtotal chỉ khi có measured-priced calls. Quota lifetime độc lập date/source filter. Legacy G0 không backfill usage giả.
 
 Giữ OU trắng–xanh, Roboto local, VI/EN, responsive/focus/loading/error/empty. Traces có effective flags/calls/native usage/catalog/citations. Frontend clearing auth caches áp dụng cả documents/jobs/analytics. Acceptance dùng regression tests, metered fakes, real parser fixtures, UI flows và build; CI không paid calls. Paid pilot riêng kiểm tra actual model/caps/usage/prices và call matrix trong 20 USD trước khi ghi gate live research đạt.
+
+---
+
+# 16 — Huy Router Lab: independent functional experiments
+
+## 16.1. Delivery và ownership
+
+Huy sở hữu `routing/experiments`, API/UI/ledger/registry/router và tooling đi kèm. Không thay scientific runner/graders của Khoa hoặc algorithms của Tân. DatasetSource, PredictionGrader và RoutingEvidenceSource là typed extension ports; fixture runner hoạt động ngay khi các ports nghiên cứu chưa được bàn giao. Đọc [Router Lab handoff](docs/ROUTER_LAB_HANDOFF.md) cho setup, protocol và evidence thực tế.
+
+## 16.2. Registry, route policies và evidence
+
+Catalog offline validation: nonempty/unique IDs, đúng baseline/embedding kind, context/output/endpoint hợp lệ; kiểm tra metadata access riêng, không auto-set review flags. Registry thêm availability reason, endpoint/structured-output/parameters. Provider từ chối model/config mismatch hoặc unsupported parameters trước reservation/dispatch.
+
+P0 policies gồm fixed_reference, per-candidate fixed, cheapest feasible, seeded uniform random và rule_guarded. Production chat chỉ nhận guarded policy, không cho user tự bật unqualified candidate routing. Observable analyzer có JSON/code rules, ngôn ngữ heuristic, UTF-8 byte length; không nhận gold/hidden labels. Capability/context/price/budget/deadline filters và versioned evidence đi trước cost ranking; unknown evidence về reference nếu feasible. Reference cũng không bảo đảm chất lượng từng request. Chưa có learned router/cascade hoặc qualified live profiles.
+
+CostSnapshot/RemainingBudget có giá và ngân sách thực. RouteDecision có rules, exclusions, estimates/provenance, policy hash/evidence version/fallback reason. Ngân sách snapshot phục vụ routing, reserve nguyên tử trước dispatch vẫn là chốt cuối. Mọi input trong đợt router này là original snapshot, transforms giữ no-op; current user vẫn xuất hiện một lần.
+
+## 16.3. Research protocol và API
+
+Admin dùng `/research` hoặc CLI `research preflight/run/status/export`; user thường bị chặn. Research runs thuộc operator tạo run; admin không tự xem runs của admin khác. API: GET configs; POST preflight; GET/POST runs; GET run/trials/summary/export; POST cancel. Lists phân trang, stable error codes và generated OpenAPI/TS. Live gate chỉ cấu hình server, browser không tự nâng quyền.
+
+20 synthetic fixtures phiên bản hóa không là scientific benchmark. Ma trận default 2 candidates × các policies (fixed_candidate triển khai mỗi candidate), 1 repeat có 120 trials; tối đa 1000 trials/run. Freeze messages/constraints, manifest/catalog/evidence versions/hashes, code SHA và seed. Gold chỉ tới checker (exact/JSON fixtures). JSONL giữ nested calls, CSV giữ paired keys/hashes và metrics; mock actual usage/USD null, simulation estimates riêng, không trừ quota thật. Research summary không sinh savings/quality score.
+
+Một research worker, concurrency 1; DB constraint/claim đảm bảo một pending/running run/project. Duplicate ID/payload trả run cũ; ID khác payload conflict. Cancel ở call boundary, không tự retry paid call. Restart chuyển running sang interrupted và giữ trials đã commit; pending chưa dispatch được xử lý từ frozen snapshot nếu catalog/gate còn phù hợp. Không tạo session/chat giả. State succeeded chỉ nghĩa execution hoàn tất, không đồng nghĩa mọi functional checks đạt.
+
+## 16.4. Metering, reconcile và live activation
+
+MeteringContext gồm operation/principal, optional session, category và limit; không cần ChatRequest. Session-free research Attempts có research_run_id để reserve aggregate run/user/project trong transaction. Completion record và settlement commit nguyên tử. Duration chưa đo là null; percentile chỉ dùng timing_samples có giá trị, không dùng pending=0.
+
+Admin GET `/v1/admin/billing/unresolved`, POST `/v1/admin/billing/{id}/reconcile` với amount/reason/evidence reference; ghi actor/time/audit, chỉ unresolved được reconcile một lần. Giữ native usage và immutable traces; billing overlay cập nhật accounting/CSV/JSON/quota, không suy token từ USD. API có reconciled_calls để phân biệt corrections với catalog estimates.
+
+`RESEARCH_LIVE_ENABLED=false` mặc định. Khi operator review gate sau, live pilot còn cần PROVIDER_MODE=live, server key, reviewed catalog và explicit request source live. Cùng runner dispatch qua MeteredCalls/ledger, category evaluation, không gọi provider SDK trực tiếp. Live pilot dùng fixtures vẫn là functional pilot, chưa phải qualified research; fixture profiles không được dùng để qualify live routing. Pending catalog thay đổi hoặc gate tắt → fail, không tự thay model/pricing để replay. Đợt này kiểm tra live path bằng metered fakes có chặn socket, không gọi API trả phí; actual G2/G3 chỉ đạt sau pilot/dataset qualification.
 
 ---
 

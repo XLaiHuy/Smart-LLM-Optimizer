@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test"] = "development"
     database_path: Path = ROOT / "data/smartllm.db"
     provider_mode: Literal["mock", "live"] = "mock"
+    research_live_enabled: bool = False
     mock_config_id: str = "mock-baseline"
     auth_session_hours: int = Field(default=8, ge=1, le=168)
     cookie_secure: bool = False

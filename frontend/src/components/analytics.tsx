@@ -374,8 +374,8 @@ export function AnalyticsPanel({ user }: { user: User }) {
                 </div>
                 <strong>{value}</strong>
                 <small>
-                  {data.execution_source.toUpperCase()} · {data.totals.calls}{" "}
-                  {t("measuredCalls")}
+                  {data.execution_source.toUpperCase()} ·{" "}
+                  {data.totals.timing_samples ?? 0} {t("measuredCalls")}
                 </small>
               </article>
             ))}
@@ -459,6 +459,11 @@ export function AnalyticsPanel({ user }: { user: User }) {
             {table(data.sessions, t("session"))}
           </details>
           <p className="analytics-retention">{t("retention")}</p>
+          {!!data.totals.reconciled_calls && (
+            <p className="analytics-retention">
+              {t("billingCorrections", { count: data.totals.reconciled_calls })}
+            </p>
+          )}
         </>
       )}
       {user.role === "admin" && project && (

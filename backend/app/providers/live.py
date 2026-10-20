@@ -1,7 +1,7 @@
 import json
 from time import perf_counter
 
-from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI, omit
 
 from app.contracts.dtos import Message, ProviderOptions, ProviderResult, Usage
 from app.contracts.errors import AppError
@@ -17,6 +17,15 @@ class OpenAIProvider:
         self, messages: tuple[Message, ...], opts: ProviderOptions
     ) -> ProviderResult:
         entry = self.catalog.entry(opts.config_id)
+        if entry.kind != "generation" or opts.model_id != entry.model_id:
+            raise AppError("NO_COMPATIBLE_MODEL", 422, "Model/configuration mismatch")
+        parameters = {
+            key: value
+            for key, value in (("temperature", opts.temperature), ("top_p", opts.top_p))
+            if value is not None
+        }
+        if any(key not in entry.supported_parameters for key in parameters):
+            raise AppError("VALIDATION_ERROR", 422, "Unsupported generation parameter")
         started = perf_counter()
         try:
             result = await self.client.responses.create(
@@ -25,6 +34,8 @@ class OpenAIProvider:
                 max_output_tokens=entry.max_output_tokens,
                 store=False,
                 truncation="disabled",
+                temperature=opts.temperature if opts.temperature is not None else omit,
+                top_p=opts.top_p if opts.top_p is not None else omit,
             )
         except APITimeoutError as exc:
             raise AppError("PROVIDER_TIMEOUT", 504, "Provider timeout; billing unresolved") from exc

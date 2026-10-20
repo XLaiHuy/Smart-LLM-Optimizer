@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException
 
 from app.api.extended import router as extended_router
 from app.api.middleware import RequestBoundaryMiddleware
+from app.api.research import router as research_router
 from app.api.routes import router
 from app.composition import Container
 from app.config import Settings
@@ -46,9 +47,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Database not migrated. Run npm run db:migrate from repository root."
             ) from exc
         await services.documents.start()
+        await services.research.start()
         try:
             yield
         finally:
+            await services.research.close()
             await services.documents.close()
             if services.live:
                 await services.live.client.close()
@@ -93,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(extended_router)
+    app.include_router(research_router)
     return app
 
 

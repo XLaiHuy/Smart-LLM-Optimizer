@@ -102,6 +102,8 @@ async def usage_export(
             "unknown_calls",
             "p50_ms",
             "p95_ms",
+            "timing_samples",
+            "reconciled_calls",
         ]
     )
     for dimension, rows in (
@@ -125,6 +127,8 @@ async def usage_export(
                     row.unknown_calls,
                     row.p50_ms,
                     row.p95_ms,
+                    row.timing_samples,
+                    row.reconciled_calls,
                 ]
             )
     return Response(

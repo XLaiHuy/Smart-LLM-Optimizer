@@ -13,11 +13,13 @@ from app.auth.service import AuthService
 from app.config import ROOT, Settings
 from app.contracts.errors import AppError
 from app.evaluation.runner import run_smoke, validate_manifest
+from app.routing.experiments.cli import cli as research_cli
 from app.storage.database import Database
 
 cli = typer.Typer(no_args_is_help=True)
 evaluation = typer.Typer(no_args_is_help=True)
 cli.add_typer(evaluation, name="eval")
+cli.add_typer(research_cli, name="research")
 
 
 def migrate(path: Path) -> None:
@@ -129,6 +131,21 @@ def verify_catalog() -> None:
                     raise typer.Exit(1) from None
 
     asyncio.run(verify())
+
+
+@cli.command("validate-catalog")
+def validate_catalog() -> None:
+    """Offline structural validation; does not assert access/pricing review."""
+    from app.providers.catalog import Catalog
+
+    try:
+        catalog = Catalog.load(Settings().model_catalog_path)
+        typer.echo(
+            f"VALID STRUCTURE: {len(catalog.models)} configurations; version {catalog.version}; access/pricing not verified"
+        )
+    except AppError as exc:
+        typer.echo(exc.message, err=True)
+        raise typer.Exit(1) from exc
 
 
 @cli.command("tokenizer-setup")

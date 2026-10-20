@@ -181,6 +181,11 @@ class TaskProfile(DTO):
     domain: str = "unknown"
     difficulty: str = "unknown"
     reason: str = "not_implemented_g0"
+    language: str = "unknown"
+    requires_structured: bool = False
+    rules_matched: tuple[str, ...] = ()
+    input_utf8_bytes: int = 0
+    length_tier: Literal["short", "long"] = "short"
 
 
 class ModelConfiguration(DTO):
@@ -189,6 +194,11 @@ class ModelConfiguration(DTO):
     execution_source: Literal["mock", "live"] = "mock"
     context_window: int | None = None
     available: bool = True
+    availability_reason: str = "configured_mock"
+    endpoint: str = "responses"
+    max_output_tokens: int = 1024
+    structured_output: bool = False
+    supported_parameters: tuple[str, ...] = ()
 
 
 class RegistrySnapshot(DTO):
@@ -198,14 +208,37 @@ class RegistrySnapshot(DTO):
 
 class CostSnapshot(DTO):
     version: str = "g0-no-live-prices"
+    rates: tuple["RouteRate", ...] = ()
+
+
+class RouteRate(DTO):
+    config_id: str
+    input_per_million: Decimal = Field(ge=0, allow_inf_nan=False)
+    output_per_million: Decimal = Field(ge=0, allow_inf_nan=False)
 
 
 class PolicySnapshot(EffectiveConfiguration):
-    pass
+    strategy: Literal[
+        "fixed_reference", "fixed_candidate", "cheapest_feasible", "random_feasible", "rule_guarded"
+    ] = "rule_guarded"
+    candidate_id: str | None = None
+    seed: int = 0
+    sandbox: bool = False
+    evidence: tuple["RouteEvidence", ...] = ()
+    evidence_version: str | None = None
+
+
+class RouteEvidence(DTO):
+    config_id: str
+    domain: str
+    qualifies: bool | None = None
+    latency_ms: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    provenance: Literal["fixture", "qualified_dev"] = "fixture"
 
 
 class RemainingBudget(DTO):
     usd: Decimal | None = None
+    deadline_ms: float | None = None
 
 
 class RouteDecision(DTO):
@@ -215,6 +248,24 @@ class RouteDecision(DTO):
     policy_id: str
     reason: str = "foundation_fixed_mock"
     fallback_used: bool = False
+    rules_matched: tuple[str, ...] = ()
+    exclusions: tuple["CandidateExclusion", ...] = ()
+    estimates: tuple["RouteEstimate", ...] = ()
+    policy_hash: str | None = None
+    evidence_version: str | None = None
+    use_original_context: bool = False
+
+
+class CandidateExclusion(DTO):
+    config_id: str
+    reason: str
+
+
+class RouteEstimate(DTO):
+    config_id: str
+    input_bound: int
+    upper_usd: Decimal | None
+    provenance: str = "utf8_byte_bound_v1"
 
 
 class Usage(DTO):
@@ -246,6 +297,8 @@ class ProviderOptions(DTO):
     call_id: str
     config_id: str
     model_id: str
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    top_p: float | None = Field(default=None, gt=0, le=1)
 
 
 class ProviderResult(DTO):
@@ -266,9 +319,31 @@ class CallRecord(DTO):
         "provider"
     )
     model_id: str
-    usage: Usage
-    cost: CostEstimate
-    duration_ms: float
+    usage: Usage = Field(default_factory=lambda: Usage(scope="call"))
+    cost: CostEstimate = Field(default_factory=lambda: CostEstimate(scope="call"))
+    duration_ms: float | None = None
+    reconciled_usd: Decimal | None = None
+    reconciliation_id: str | None = None
+
+
+class MeteringContext(DTO):
+    operation_id: str
+    principal: Principal
+    session_id: str | None = None
+    category: Literal["serving", "evaluation", "indexing"] = "serving"
+    max_total_usd: Decimal = Field(gt=0)
+
+    @classmethod
+    def from_execution(
+        cls, execution: ExecutionRequest, default_limit: Decimal
+    ) -> "MeteringContext":
+        return cls(
+            operation_id=execution.request_id,
+            principal=execution.principal,
+            session_id=execution.request.session_id,
+            category="evaluation" if execution.namespace == "eval" else "serving",
+            max_total_usd=execution.request.constraints.max_total_usd or default_limit,
+        )
 
 
 class Citation(DTO):
@@ -388,6 +463,8 @@ class MetricBucket(DTO):
     unknown_calls: int
     p50_ms: float | None
     p95_ms: float | None
+    timing_samples: int = 0
+    reconciled_calls: int = 0
 
 
 class Analytics(DTO):

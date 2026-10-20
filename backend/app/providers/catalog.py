@@ -5,15 +5,15 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, HttpUrl
+from pydantic import Field, HttpUrl, model_validator
 
 from app.contracts.dtos import DTO, CostEstimate, Usage
 from app.contracts.errors import AppError
 
 
 class ModelEntry(DTO):
-    config_id: str
-    model_id: str
+    config_id: str = Field(min_length=1, max_length=100)
+    model_id: str = Field(min_length=1, max_length=100)
     kind: Literal["generation", "embedding"]
     context_window: int = Field(gt=0)
     max_output_tokens: int = Field(default=1024, gt=0)
@@ -22,17 +22,43 @@ class ModelEntry(DTO):
     cached_per_million: Decimal | None = Field(default=None, ge=0)
     cache_write_per_million: Decimal | None = Field(default=None, ge=0)
     source_url: HttpUrl
-    effective_at: str
+    effective_at: str = Field(min_length=1)
     verified_access: bool = False
     pricing_verified: bool = False
+    endpoint: Literal["responses", "embeddings"] | None = None
+    structured_output: bool = False
+    supported_parameters: tuple[Literal["temperature", "top_p"], ...] = ()
+
+    @model_validator(mode="after")
+    def capabilities(self) -> "ModelEntry":
+        if self.max_output_tokens > self.context_window:
+            raise ValueError("Output reserve exceeds context window")
+        if self.endpoint and self.endpoint != (
+            "responses" if self.kind == "generation" else "embeddings"
+        ):
+            raise ValueError("Endpoint and model kind disagree")
+        return self
 
 
 class Catalog(DTO):
-    version: str
+    version: str = Field(min_length=1, max_length=100)
     baseline_config: str
     embedding_revision: str = "v1"
     embedding_config: str
     models: tuple[ModelEntry, ...]
+
+    @model_validator(mode="after")
+    def coherent(self) -> "Catalog":
+        entries = {m.config_id: m for m in self.models}
+        if not entries or len(entries) != len(self.models):
+            raise ValueError("Catalog needs nonempty, unique configuration IDs")
+        for key, kind in (
+            (self.baseline_config, "generation"),
+            (self.embedding_config, "embedding"),
+        ):
+            if key not in entries or entries[key].kind != kind:
+                raise ValueError(f"Missing {kind} configuration")
+        return self
 
     @classmethod
     def load(cls, path: Path) -> "Catalog":

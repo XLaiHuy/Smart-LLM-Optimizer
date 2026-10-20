@@ -3,7 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   Plus,
   MessageSquare,
@@ -13,6 +17,7 @@ import {
   Trash2,
   RefreshCw,
   History,
+  FlaskConical,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -22,17 +27,21 @@ import { Drawer, ErrorNotice, Spinner } from "./ui";
 import { TraceInspector } from "./trace-inspector";
 import { OverviewPanel } from "./overview";
 import { ChatPanel } from "./chat-panel";
+import { ResearchPanel } from "./research-panel";
 
 export function AuthenticatedWorkspace({
   user,
   dashboard,
+  research = false,
   onLogout,
 }: {
   user: User;
   dashboard: boolean;
+  research?: boolean;
   onLogout: () => void;
 }) {
   const t = useTranslations("App");
+  const lab = useTranslations("Research");
   const client = useQueryClient();
   const router = useRouter();
   const models = useQuery({
@@ -52,12 +61,18 @@ export function AuthenticatedWorkspace({
   const [requestBusy, setRequestBusy] = useState(false);
   const sessions = useInfiniteQuery({
     queryKey: ["sessions", user.id],
-    initialPageParam:0,
-    queryFn: async ({pageParam}) => unwrap(await api.GET("/v1/sessions",{params:{query:{offset:pageParam,limit:50}}})),
-    getNextPageParam: (last, pages)=>last.length===50?pages.length*50:undefined,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) =>
+      unwrap(
+        await api.GET("/v1/sessions", {
+          params: { query: { offset: pageParam, limit: 50 } },
+        }),
+      ),
+    getNextPageParam: (last, pages) =>
+      last.length === 50 ? pages.length * 50 : undefined,
   });
-  const sessionRows=sessions.data?.pages.flat()??[];
-  const mvp=useTranslations("MVP");
+  const sessionRows = sessions.data?.pages.flat() ?? [];
+  const mvp = useTranslations("MVP");
   async function newSession(title?: string) {
     const created = unwrap(
       await api.POST("/v1/sessions", {
@@ -139,10 +154,16 @@ export function AuthenticatedWorkspace({
         {t("newChat")}
       </button>
       <nav className="main-nav" aria-label={t("workspace")}>
-        <Link href="/" className={!dashboard ? "active" : ""}>
+        <Link href="/" className={!dashboard && !research ? "active" : ""}>
           <MessageSquare size={18} />
           {t("chat")}
         </Link>
+        {user.role === "admin" && (
+          <Link href="/research" className={research ? "active" : ""}>
+            <FlaskConical size={18} />
+            {lab("nav")}
+          </Link>
+        )}
         <Link href="/dashboard" className={dashboard ? "active" : ""}>
           <LayoutDashboard size={18} />
           {t("dashboard")}
@@ -208,7 +229,15 @@ export function AuthenticatedWorkspace({
             </button>
           </div>
         ))}
-        {sessions.hasNextPage&&<button className="button small" disabled={sessions.isFetchingNextPage||requestBusy} onClick={()=>void sessions.fetchNextPage()}>{sessions.isFetchingNextPage?<Spinner/>:mvp("next")}</button>}
+        {sessions.hasNextPage && (
+          <button
+            className="button small"
+            disabled={sessions.isFetchingNextPage || requestBusy}
+            onClick={() => void sessions.fetchNextPage()}
+          >
+            {sessions.isFetchingNextPage ? <Spinner /> : mvp("next")}
+          </button>
+        )}
       </div>
       <div className="sidebar-footer">
         <div className="foundation-note">
@@ -258,12 +287,14 @@ export function AuthenticatedWorkspace({
             </button>
             <span>{t("workspace")}</span>
             <span className="slash">/</span>
-            <strong>{dashboard ? t("dashboard") : t("chat")}</strong>
+            <strong>
+              {research ? lab("nav") : dashboard ? t("dashboard") : t("chat")}
+            </strong>
           </div>
           <div className="topbar-actions">
             <span className="mock-badge">
               <span />
-              {source.toUpperCase()}
+              {research ? "RESEARCH" : source.toUpperCase()}
             </span>
             <LanguageSwitch />
           </div>
@@ -273,7 +304,9 @@ export function AuthenticatedWorkspace({
             <ErrorNotice error={error} />
           </div>
         )}
-        {dashboard ? (
+        {research ? (
+          <ResearchPanel user={user} />
+        ) : dashboard ? (
           <OverviewPanel user={user} onTrace={setTrace} />
         ) : (
           <ChatPanel

@@ -13,6 +13,7 @@ from app.contracts.dtos import (
     CostEstimate,
     ExecutionRequest,
     Message,
+    MeteringContext,
     ProviderOptions,
     ProviderResult,
     Usage,
@@ -78,18 +79,28 @@ class MeteredCalls:
         )
 
     async def _start(
-        self, execution: ExecutionRequest, stage: Stage, model: str, upper: Decimal
+        self,
+        execution: ExecutionRequest | MeteringContext,
+        stage: Stage,
+        model: str,
+        upper: Decimal,
     ) -> tuple[str, str | None]:
+        context = (
+            execution
+            if isinstance(execution, MeteringContext)
+            else MeteringContext.from_execution(
+                execution, self.settings.document_operation_budget_usd
+            )
+        )
         call_id = uid()
         reservation = None
         if self.catalog:
             reservation = await self.ledger.reserve(
-                execution.principal,
-                execution.request_id,
+                context.principal,
+                context.operation_id,
                 call_id,
                 upper,
-                execution.request.constraints.max_total_usd
-                or self.settings.document_operation_budget_usd,
+                context.max_total_usd,
             )
             async with self.db.write() as db:
                 stored = await db.get(PriceSnapshot, self.catalog.version)
@@ -106,21 +117,17 @@ class MeteredCalls:
             model_id=model,
             usage=Usage(scope="call", usage_source="unknown" if self.catalog else "mock"),
             cost=CostEstimate(scope="call", status="unknown" if self.catalog else "not_billable"),
-            duration_ms=0,
+            duration_ms=None,
         )
         async with self.db.write() as db:
             db.add(
                 UsageRecord(
                     id=call_id,
-                    owner_user_id=execution.principal.id,
-                    operation_id=execution.request_id,
-                    session_id=execution.request.session_id,
+                    owner_user_id=context.principal.id,
+                    operation_id=context.operation_id,
+                    session_id=context.session_id,
                     created_at=now(),
-                    category="indexing"
-                    if stage == "indexing"
-                    else "evaluation"
-                    if execution.namespace == "eval"
-                    else "serving",
+                    category="indexing" if stage == "indexing" else context.category,
                     execution_source=self.settings.provider_mode,
                     model_id=model,
                     record_json=record.model_dump_json(),
@@ -131,16 +138,11 @@ class MeteredCalls:
         return call_id, reservation
 
     async def _finish(self, call: CallRecord, reservation: str | None) -> None:
-        async with self.db.write() as db:
-            row = await db.get(UsageRecord, call.call_id)
-            assert row
-            row.record_json = call.model_dump_json()
-        if reservation:
-            await self.ledger.settle(reservation, call.cost.serving_usd)
+        await self.ledger.finish_call(call, reservation)
 
     async def generate(
         self,
-        execution: ExecutionRequest,
+        execution: ExecutionRequest | MeteringContext,
         messages: tuple[Message, ...],
         opts: ProviderOptions,
         provider: LLMProvider,
@@ -150,6 +152,13 @@ class MeteredCalls:
         upper = Decimal(0)
         if self.catalog:
             entry = self.catalog.entry(opts.config_id)
+            if entry.kind != "generation" or opts.model_id != entry.model_id:
+                raise AppError("NO_COMPATIBLE_MODEL", 422, "Model/configuration mismatch")
+            if any(
+                value is not None and name not in entry.supported_parameters
+                for name, value in (("temperature", opts.temperature), ("top_p", opts.top_p))
+            ):
+                raise AppError("VALIDATION_ERROR", 422, "Unsupported generation parameter")
             if bound + entry.max_output_tokens > entry.context_window:
                 raise AppError(
                     "CONTEXT_OVERFLOW",
