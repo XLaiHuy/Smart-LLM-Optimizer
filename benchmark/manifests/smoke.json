@@ -1,0 +1,10 @@
+{
+  "suite_version": "g0-synthetic-smoke-v1",
+  "run_purpose": "smoke",
+  "execution_source": "mock",
+  "cases": [
+    {"case_id": "vi-unicode", "message": "Xin chào Đại học Mở. Giữ nguyên tiếng Việt: không ít hơn 10."},
+    {"case_id": "en-json", "message": "Return this unchanged: {\"mode\":\"mock\"}"},
+    {"case_id": "code", "message": "```python\nprint('OU')\n```"}
+  ]
+}

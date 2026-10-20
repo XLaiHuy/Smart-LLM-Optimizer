@@ -1,0 +1,29 @@
+{
+  "name": "smart-llm-optimizer",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["frontend"],
+  "engines": {"node": ">=24 <25", "npm": ">=11 <12"},
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:backend": "python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "db:migrate": "python -m alembic -c backend/alembic.ini upgrade head",
+    "account:create": "python -m app.cli create-user",
+    "contracts:generate": "node scripts/contracts.mjs",
+    "contracts:check": "node scripts/contracts.mjs --check",
+    "lint": "python -m ruff check backend scripts && npm run lint --workspace frontend",
+    "typecheck": "python -m mypy --config-file backend/pyproject.toml backend/app && npm run typecheck --workspace frontend",
+    "format": "python -m ruff format backend scripts && npm run format --workspace frontend",
+    "format:check": "python -m ruff format --check backend scripts && npm run format:check --workspace frontend",
+    "check:docs": "python scripts/check-docs.py",
+    "test:backend": "python -m pytest backend/tests -q",
+    "test:frontend": "npm run test --workspace frontend",
+    "test:ui": "npm run test:ui --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "eval:smoke": "python -m app.cli eval run --purpose smoke --manifest benchmark/manifests/smoke.json"
+  },
+  "devDependencies": {"concurrently": "^9.2.0", "openapi-typescript": "^7.8.0"}
+}

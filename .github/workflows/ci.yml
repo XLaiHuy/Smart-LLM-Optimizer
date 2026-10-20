@@ -1,0 +1,55 @@
+name: G0 checks
+on: [push, pull_request]
+permissions:
+  contents: read
+env:
+  PROVIDER_MODE: mock
+  APP_ENV: test
+  NEXT_TELEMETRY_DISABLED: '1'
+jobs:
+  backend:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - run: python -m pip install --require-hashes -r backend/requirements.lock
+      - run: python -m pip install --no-build-isolation --no-deps -e "backend[dev]"
+      - run: python -m ruff check backend scripts
+      - run: python -m ruff format --check backend scripts
+      - run: python scripts/check-docs.py
+      - run: python -m mypy --config-file backend/pyproject.toml backend/app
+      - run: python -m pytest backend/tests -q
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --require-hashes -r backend/requirements.lock
+      - run: python -m pip install --no-build-isolation --no-deps -e "backend[dev]"
+      - run: npm ci
+      - run: npm run contracts:check
+      - run: npm run lint --workspace frontend
+      - run: npm run typecheck --workspace frontend
+      - run: npm run format:check --workspace frontend
+      - run: npm run test:frontend
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-failures
+          path: output/playwright
