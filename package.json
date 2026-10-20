@@ -1,9 +1,14 @@
 {
   "name": "smart-llm-optimizer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "workspaces": ["frontend"],
-  "engines": {"node": ">=24 <25", "npm": ">=11 <12"},
+  "workspaces": [
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "doctor": "node scripts/doctor.mjs",
@@ -23,7 +28,12 @@
     "test:frontend": "npm run test --workspace frontend",
     "test:ui": "npm run test:ui --workspace frontend",
     "build": "npm run build --workspace frontend",
-    "eval:smoke": "python -m app.cli eval run --purpose smoke --manifest benchmark/manifests/smoke.json"
+    "eval:smoke": "python -m app.cli eval run --purpose smoke --manifest benchmark/manifests/smoke.json",
+    "tokenizer:setup": "python -m app.cli tokenizer-setup",
+    "catalog:verify": "python -m app.cli verify-catalog"
   },
-  "devDependencies": {"concurrently": "^9.2.0", "openapi-typescript": "^7.8.0"}
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "openapi-typescript": "^7.8.0"
+  }
 }

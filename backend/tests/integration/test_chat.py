@@ -40,6 +40,7 @@ async def test_all_flags_preserve_history_and_one_call(
         "status": "not_billable",
         "serving_usd": None,
         "price_catalog_version": None,
+        "known_subtotal_usd": None,
     }
     assert data["quality_score"] is None and data["cost_saving_ratio"] is None
     assert data["usage"]["input_tokens"] is None and data["timing"]["ttft_ms"] is None

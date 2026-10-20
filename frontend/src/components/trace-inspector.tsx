@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, ArrowUpRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { api, unwrap } from "@/lib/api";
-import { formatMetric } from "@/lib/format";
+import { formatCost, formatMetric } from "@/lib/format";
 import { Drawer, ErrorNotice, Spinner } from "./ui";
 
 export function TraceInspector({
@@ -14,6 +14,7 @@ export function TraceInspector({
   onClose: () => void;
 }) {
   const t = useTranslations("App");
+  const mvp = useTranslations("MVP");
   const locale = useLocale();
   const trace = useQuery({
     queryKey: ["trace", requestId],
@@ -32,7 +33,7 @@ export function TraceInspector({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `mock-trace-${requestId}.json`;
+    link.download = `${data?.execution_source || "unknown"}-trace-${requestId}.json`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -48,7 +49,9 @@ export function TraceInspector({
       {data && (
         <div className="trace-content">
           <div className="trace-top">
-            <span className="mock-badge">MOCK · G0</span>
+            <span className="mock-badge">
+              {data.execution_source.toUpperCase()}
+            </span>
             <button className="button small" onClick={download}>
               <Download size={15} />
               {t("export")}
@@ -64,12 +67,22 @@ export function TraceInspector({
             <dt>{t("latency")}</dt>
             <dd>{formatMetric(data.timing.e2e_ms, locale, " ms")}</dd>
             <dt>{t("cost")}</dt>
-            <dd>{t("notBillable")}</dd>
+            <dd>
+              {formatCost(data.cost.serving_usd, locale) ??
+                (data.cost.status === "not_billable"
+                  ? t("notBillable")
+                  : mvp("unknown"))}{" "}
+              · {data.cost.status}
+            </dd>
             <dt>{t("quality")}</dt>
             <dd>{t("noLive")}</dd>
             <dt>{t("usage")}</dt>
             <dd>
-              {t("unknown")} · {data.usage.usage_source}
+              {mvp("input")}:{" "}
+              {formatMetric(data.usage.input_tokens, locale) ?? "—"} /{" "}
+              {mvp("output")}:{" "}
+              {formatMetric(data.usage.output_tokens, locale) ?? "—"} ·{" "}
+              {data.usage.usage_source}
             </dd>
           </dl>
           <h3 className="section-label">{t("effective")}</h3>
@@ -94,9 +107,32 @@ export function TraceInspector({
                   {call.stage} · {formatMetric(call.duration_ms, locale, " ms")}
                 </small>
               </div>
-              <span className="mock-badge">MOCK</span>
+              <span className="mock-badge">{call.cost.status}</span>
             </div>
           ))}
+          <dl className="trace-details">
+            <dt>Cached input</dt>
+            <dd>{data.usage.cached_input_tokens ?? "—"}</dd>
+            <dt>Reasoning (output subset)</dt>
+            <dd>{data.usage.reasoning_tokens ?? "—"}</dd>
+            <dt>Price version</dt>
+            <dd>{data.cost.price_catalog_version ?? "—"}</dd>
+          </dl>
+          {!!data.citations?.length && (
+            <section>
+              <h3>{mvp("sources")}</h3>
+              <p className="muted">{mvp("sourceHint")}</p>
+              {data.citations.map((c) => (
+                <details className="source-card" key={c.chunk_id}>
+                  <summary>
+                    {c.filename} · {c.location}
+                  </summary>
+                  <small className="mono">[{c.chunk_id}]</small>
+                  <pre className="document-preview">{c.excerpt}</pre>
+                </details>
+              ))}
+            </section>
+          )}
           <details className="json-details">
             <summary>{t("rawTrace")}</summary>
             <pre>{JSON.stringify(data, null, 2)}</pre>

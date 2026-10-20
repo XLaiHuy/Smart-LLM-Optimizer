@@ -1,6 +1,6 @@
 # Smart LLM Optimizer · OU
 
-Foundation G0 cho nghiên cứu tối ưu model, prompt, context và memory. FastAPI + Next.js + SQLite; giao diện trắng–xanh OU, Việt/Anh. **Mock provider mặc định, không gọi model API**; history/auth/ownership/ledger hoạt động thật. Optimizers hiện là typed no-ops, chưa có kết quả tiết kiệm hay chất lượng live.
+MVP mở rộng từ foundation G0 cho nghiên cứu tối ưu model, prompt, context và memory. FastAPI + Next.js + SQLite; giao diện trắng–xanh OU, Việt/Anh. **Mock provider mặc định**; có adapter OpenAI, tài liệu/hybrid RAG, full-text jobs, dashboard usage/USD và admin quota. Live chỉ bật khi có key và catalog được review. Optimizers hiện là typed no-ops, chưa có kết quả tiết kiệm hay chất lượng live.
 
 ## Yêu cầu
 
@@ -52,9 +52,11 @@ UI: **http://localhost:3000** · API docs: **http://127.0.0.1:8000/docs**. Brows
 
 ## Cấu hình và API key
 
-Root `.env` được backend đọc bằng Pydantic Settings. `PROVIDER_MODE=mock`; G0 **từ chối live mode**, kể cả đã điền `OPENAI_API_KEY`/`OPENAI_MODEL`. Hai biến này dành cho G2, không được xuất ra API/log/client bundle. Không đặt key trong biến `NEXT_PUBLIC_*`.
+Root `.env` được backend đọc bằng Pydantic Settings. `PROVIDER_MODE=mock` mặc định không gọi paid API. Để bật live, làm theo [hướng dẫn MVP](docs/MVP_HANDOFF.md): cấu hình server `OPENAI_API_KEY`, catalog model/giá có version, rồi đặt `PROVIDER_MODE=live`. Catalog là nguồn cấu hình chuẩn, `OPENAI_MODEL` chỉ là biến legacy chưa dùng để chọn model. Không đặt key trong `NEXT_PUBLIC_*`, UI hoặc source code.
 
-Các defaults: auth expiry 8 giờ, cookie HttpOnly/SameSite=Lax, Secure=false riêng HTTP local; project budget 20 USD, user budget mặc định 5 USD. Mock là not_billable và không trừ tiền. Các giá trị quota phục vụ foundation, phải review cùng live pricing/call matrix trước G2; không phải cam kết kiểm soát hóa đơn của key dùng ngoài platform.
+Từ root, sau khi activate venv, có thể chạy `python -m app.cli tokenizer-setup` để tải tokenizer công khai một lần. Không có cache, chunker dùng conservative UTF-8 byte-bound splitter offline và ghi version khác; đây không phải usage provider.
+
+Các defaults: auth expiry 8 giờ, cookie HttpOnly/SameSite=Lax, Secure=false riêng HTTP local; project budget 20 USD, user budget mặc định 5 USD. Mock là not_billable và không trừ tiền. Các giá trị quota phải review cùng live pricing/call matrix trước paid pilot; không phải cam kết kiểm soát hóa đơn của key dùng ngoài platform.
 
 Nếu đổi backend port, sửa command chạy backend và copy `frontend/.env.local.example` thành `frontend/.env.local` để đổi `BACKEND_URL`. Không cần frontend env cho cấu hình mặc định. `ALLOWED_ORIGINS` trong backend là JSON array, mặc định `["http://localhost:3000"]`.
 
@@ -82,7 +84,7 @@ Trước lần đầu chạy UI tests:
 npx playwright install chromium
 ```
 
-UI tests chạy service test trên ports **3001/8001**, không đụng DB dev và không dùng lại server đang chạy. Artifacts ở `output/playwright/` (gitignored). Eval smoke xuất `benchmark/reports/smoke.jsonl` (gitignored); chỉ predictions/status tái lập, không yêu cầu timestamps/UUID/timing giống byte-for-byte. `live_research` bị reject trong G0.
+UI tests chạy service test trên ports **3001/8001**, không đụng DB dev và không dùng lại server đang chạy. Artifacts ở `output/playwright/` (gitignored). Eval smoke xuất `benchmark/reports/smoke.jsonl` (gitignored); chỉ predictions/status tái lập, không yêu cầu timestamps/UUID/timing giống byte-for-byte. `live_research` vẫn bị chặn trong smoke runner; chưa có scientific benchmark qualified.
 
 Để cập nhật backend lockfile, maintainer cài uv và chạy từ root:
 
@@ -96,7 +98,7 @@ Không chạy upgrade/format cả repo trong PR thuật toán. Locks và generat
 
 Backend dùng `app/contracts` cho DTOs/ports, `core` cho lifecycle, `storage` cho adapters. Composition root wiring ở `backend/app/composition.py`. Frontend dùng API types sinh tự động; không duy trì schema client viết tay.
 
-- **Huy:** contracts/API/auth/storage/migrations/ledger/provider/router/wiring/frontend/tooling.
+- **Huy:** contracts/API/auth/storage/migrations/ledger/provider/router/wiring/frontend/tooling, document ingestion/RAG và document task service.
 - **Tân:** `backend/app/optimizers/` và module tests, sau handoff G0.
 - **Khoa:** `backend/app/memory/`, `evaluation/`, `benchmark/` và module tests, sau handoff G0.
 
@@ -115,3 +117,12 @@ Timing trong mock trace có `measurement_scope=server_through_history_flush`: g�
 ## License / assets
 
 Code tự viết: MIT. Logo OU và font có quyền/giấy phép riêng; xem [asset provenance](docs/ASSETS.md). Không suy ra MIT cho dữ liệu benchmark, logo trường hoặc model weights.
+
+
+## Tài liệu và thống kê
+
+Trong chat mở **Tài liệu hội thoại**, upload TXT/MD UTF-8, PDF có chữ hoặc DOCX, chọn file rồi **Lập chỉ mục**. Chọn nguồn đã ready để hỏi đáp; các nút **Tóm tắt toàn văn** / **Đối chiếu tài liệu** chạy job riêng có budget và tiến độ. Tóm tắt/đối chiếu xử lý toàn bộ chunks, từ chối trước generation nếu preflight không đủ budget; failed/interrupted không được trình bày như kết quả hoàn chỉnh. Preview trích xuất không cần paid API; live indexing/query embedding có phí. File gốc tạm được xóa sau trích xuất; text/chunks nằm trong DB ngoài public directory.
+
+**Tổng quan** có ngày/model/session/category, nguồn mock/live tách biệt, input/output token charts, USD/model costs, call-latency p50/p95, bảng và CSV/JSON. Quota là lifetime và không đổi theo date filter. Usage trước bản mở rộng có thể chưa có call records; không backfill số liệu giả. Xóa session purge nội dung/tài liệu/job/trace, vẫn giữ usage/accounting tối thiểu. Admin chỉ thấy thống kê và sửa quota có audit; không tự được đọc nội dung riêng.
+
+So sánh baseline–optimized và báo cáo khoa học chờ các module/gates của Tân/Khoa. Không coi mock hoặc no-op là thuật toán đã đạt quality guardrails. Xem [MVP handoff](docs/MVP_HANDOFF.md).

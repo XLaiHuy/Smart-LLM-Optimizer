@@ -32,6 +32,7 @@ class ChatRequest(DTO):
     policy_id: str | None = None
     flags: FeatureFlags | None = None
     constraints: Constraints = Field(default_factory=Constraints)
+    document_ids: tuple[str, ...] = Field(default=(), max_length=5)
 
     @model_validator(mode="after")
     def validate_mode(self) -> "ChatRequest":
@@ -42,7 +43,7 @@ class ChatRequest(DTO):
                 self.flags and any(self.flags.model_dump().values())
             ):
                 raise ValueError("Baseline conflicts with policy/flags")
-        elif self.policy_id not in (None, "foundation-mock-v3"):
+        elif self.policy_id not in (None, "foundation-mock-v3", "quality-guarded-v3"):
             raise ValueError("Only foundation-mock-v3 is available in G0")
         return self
 
@@ -122,6 +123,7 @@ class ExecutionRequest(DTO):
     principal: Principal
     request: ChatRequest
     namespace: Literal["chat", "eval"] = "chat"
+    execution_source: Literal["mock", "live"] = "mock"
 
 
 class OptimizationState(DTO):
@@ -148,6 +150,7 @@ class ContextFeatures(DTO):
     current_turn: Message
     flags: FeatureFlags
     approved_current_content: str | None = None
+    evidence: tuple[Message, ...] = ()
 
 
 class ContextResult(DTO):
@@ -183,7 +186,9 @@ class TaskProfile(DTO):
 class ModelConfiguration(DTO):
     config_id: str
     model_id: str
-    execution_source: Literal["mock"] = "mock"
+    execution_source: Literal["mock", "live"] = "mock"
+    context_window: int | None = None
+    available: bool = True
 
 
 class RegistrySnapshot(DTO):
@@ -226,6 +231,7 @@ class CostEstimate(DTO):
     status: CostStatus = "not_billable"
     serving_usd: Decimal | None = None
     price_catalog_version: str | None = None
+    known_subtotal_usd: Decimal | None = None
 
 
 class Timing(DTO):
@@ -244,26 +250,40 @@ class ProviderOptions(DTO):
 
 class ProviderResult(DTO):
     text: str
-    execution_source: Literal["mock"] = "mock"
+    execution_source: Literal["mock", "live"] = "mock"
+    provider_response_id: str | None = None
+    native_usage_json: str | None = None
     usage: Usage = Field(default_factory=lambda: Usage(scope="call"))
     cost: CostEstimate = Field(default_factory=lambda: CostEstimate(scope="call"))
     duration_ms: float
 
 
 class CallRecord(DTO):
+    provider_response_id: str | None = None
+    native_usage_json: str | None = None
     call_id: str
-    stage: Literal["provider"] = "provider"
+    stage: Literal["provider", "query_embedding", "indexing", "document_map", "document_reduce"] = (
+        "provider"
+    )
     model_id: str
     usage: Usage
     cost: CostEstimate
     duration_ms: float
 
 
+class Citation(DTO):
+    chunk_id: str
+    document_id: str
+    filename: str
+    location: str
+    excerpt: str
+
+
 class ChatResponse(DTO):
     request_id: str
     session_id: str
     session_revision: int
-    execution_source: Literal["mock"] = "mock"
+    execution_source: Literal["mock", "live"] = "mock"
     response: Message
     route: RouteDecision
     requested_flags: FeatureFlags | None = None
@@ -275,6 +295,7 @@ class ChatResponse(DTO):
     optimizations: tuple[OptimizationState, ...]
     quality_score: float | None = None
     cost_saving_ratio: float | None = None
+    citations: tuple["Citation", ...] = ()
 
 
 class RecentRequest(DTO):
@@ -287,7 +308,7 @@ class RecentRequest(DTO):
 
 class Overview(DTO):
     scope: Literal["current_user_all_time"] = "current_user_all_time"
-    execution_source: Literal["mock"] = "mock"
+    execution_source: Literal["mock", "live"] = "mock"
     total_requests: int
     succeeded: int
     failed: int
@@ -320,3 +341,86 @@ class EvalManifest(DTO):
     run_purpose: Literal["smoke", "live_research"]
     execution_source: Literal["mock", "live"]
     cases: tuple[SmokeCase, ...] = Field(min_length=1)
+
+
+class DocumentInfo(DTO):
+    id: str
+    session_id: str
+    filename: str
+    status: str
+    characters: int
+    chunks: int
+    created_at: str
+    error_code: str | None = None
+
+
+class DocumentDetail(DocumentInfo):
+    text: str
+
+
+class JobRequest(DTO):
+    client_request_id: str = Field(min_length=1, max_length=128)
+    task: Literal["index", "summarize", "compare"]
+    document_ids: tuple[str, ...] = Field(min_length=1, max_length=5)
+    instruction: str = Field(default="", max_length=5000)
+    max_total_usd: Decimal = Field(default=Decimal("0.50"), gt=0, le=20)
+
+
+class DocumentJob(DTO):
+    id: str
+    session_id: str
+    task: str
+    status: str
+    completed_steps: int = 0
+    total_steps: int = 0
+    coverage: float = 0
+    error_code: str | None = None
+    response: ChatResponse | None = None
+
+
+class MetricBucket(DTO):
+    key: str
+    calls: int
+    input_tokens: int | None
+    output_tokens: int | None
+    usd: Decimal | None
+    known_subtotal_usd: Decimal | None
+    unknown_calls: int
+    p50_ms: float | None
+    p95_ms: float | None
+
+
+class Analytics(DTO):
+    scope: str
+    execution_source: Literal["mock", "live"]
+    timezone: str = "Asia/Ho_Chi_Minh"
+    start: str
+    end: str
+    totals: MetricBucket
+    daily: tuple[MetricBucket, ...]
+    models: tuple[MetricBucket, ...]
+    categories: tuple[MetricBucket, ...]
+    sessions: tuple[MetricBucket, ...]
+    quota_usd: Decimal
+    settled_usd: Decimal
+    reserved_usd: Decimal
+    available_usd: Decimal
+    project_available_usd: Decimal
+    requests: int
+    succeeded: int
+    failed: int
+    retention_note: str = "Content deletion retains minimal usage and accounting metadata."
+
+
+class AdminUser(DTO):
+    id: str
+    username: str
+    role: str
+    quota_usd: Decimal
+    settled_usd: Decimal
+    reserved_usd: Decimal
+
+
+class QuotaUpdate(DTO):
+    quota_usd: Decimal = Field(gt=0, le=10000)
+    reason: str = Field(min_length=3, max_length=300)

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from starlette.exceptions import HTTPException
 
+from app.api.extended import router as extended_router
 from app.api.middleware import RequestBoundaryMiddleware
 from app.api.routes import router
 from app.composition import Container
@@ -44,14 +45,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise RuntimeError(
                 "Database not migrated. Run npm run db:migrate from repository root."
             ) from exc
+        await services.documents.start()
         try:
             yield
         finally:
+            await services.documents.close()
+            if services.live:
+                await services.live.client.close()
             await services.db.close()
 
     app = FastAPI(
         title="Smart LLM Optimizer",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         responses={
             s: {"model": ErrorEnvelope} for s in (401, 403, 404, 409, 413, 422, 429, 502, 503, 504)
@@ -60,7 +65,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.container = services
     app.state.login_buckets = {}
 
-    app.add_middleware(RequestBoundaryMiddleware, allowed_origins=config.allowed_origins)
+    app.add_middleware(
+        RequestBoundaryMiddleware,
+        allowed_origins=config.allowed_origins,
+        max_upload_bytes=config.max_file_bytes + 65536,
+    )
 
     @app.exception_handler(AppError)
     async def app_error(request: Request, exc: AppError) -> JSONResponse:
@@ -80,9 +89,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "provider_mode": config.provider_mode, "version": "0.1.0"}
+        return {"status": "ok", "provider_mode": config.provider_mode, "version": "0.2.0"}
 
     app.include_router(router)
+    app.include_router(extended_router)
     return app
 
 

@@ -28,3 +28,5 @@ artifacts/
 output/
 *.tsbuildinfo
 .cache/
+
+config/models.json

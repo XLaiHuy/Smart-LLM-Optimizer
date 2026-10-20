@@ -10,7 +10,12 @@ class PassThroughContext:
         if features.approved_current_content is not None:
             current = current.model_copy(update={"content": features.approved_current_content})
         return ContextResult(
-            messages=(*snapshot.server_instructions, *snapshot.raw_turns, current),
+            messages=(
+                *snapshot.server_instructions,
+                *snapshot.raw_turns,
+                *features.evidence,
+                current,
+            ),
             provenance=tuple(m.id or "server_instruction" for m in snapshot.raw_turns)
             + ("current_turn",),
             state=noop_state("context", features.flags.context),

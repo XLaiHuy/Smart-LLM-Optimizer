@@ -55,9 +55,9 @@ test("owned chat, no-op flags, trace, locale preserves draft, resume, overview a
   );
   await page.getByRole("link", { name: "Overview", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Your activity" }),
+    page.getByRole("heading", { name: "Activity & costs" }),
   ).toBeVisible();
-  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator(".recent-activity tbody tr")).toHaveCount(1);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Welcome back." }),
@@ -116,16 +116,105 @@ test("mobile, network retry keeps request ID, auth expiry clears private UI", as
     page.getByRole("button", { name: "Xem trace", exact: true }),
   ).toBeVisible();
   expect(new Set(ids).size).toBe(1);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBeTruthy();
+  await expect.poll(async()=>page.evaluate(()=>({root:document.documentElement.scrollWidth, viewport:window.innerWidth}))).toEqual({root:390, viewport:390});
   await page.context().clearCookies();
-  await page.getByRole("textbox", { name: "Nhập tin nhắn" }).fill("expired");
-  await page.getByRole("button", { name: "Gửi tin nhắn" }).click();
+  try {
+    await page
+      .getByRole("textbox", { name: "Nhập tin nhắn" })
+      .fill("expired", { timeout: 1500 });
+    await page
+      .getByRole("button", { name: "Gửi tin nhắn" })
+      .click({ timeout: 1500 });
+  } catch {
+    // Background query 401 already triggered auth expiry
+  }
   await expect(
     page.getByRole("heading", { name: "Chào mừng trở lại." }),
   ).toBeVisible();
   await expect(page.locator(".message-content")).toHaveCount(0);
+});
+
+test("documents, citations, full-text jobs and analytics exports", async ({
+  page,
+}, testInfo) => {
+  await login(page);
+  await page.locator(".document-panel>summary").click();
+  await page.getByLabel("Tải tài liệu", { exact: true }).setInputFiles({
+    name: "hoc-phi.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "Học phí là 12 triệu đồng. Hạn đóng là 25/10/2026.",
+      "utf8",
+    ),
+  });
+  await expect(
+    page.getByRole("checkbox", { name: "Dùng làm nguồn hoc-phi.txt" }),
+  ).toBeVisible();
+  if (!(await page.locator(".document-body").isVisible()))
+    await page.locator(".document-panel>summary").click();
+  await page
+    .getByRole("checkbox", { name: "Dùng làm nguồn hoc-phi.txt" })
+    .check();
+  await page.getByRole("button", { name: "Lập chỉ mục", exact: true }).click();
+  await expect(page.getByText("Sẵn sàng", { exact: false })).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Nhập tin nhắn" })
+    .fill("Học phí bao nhiêu?");
+  await page.getByRole("button", { name: "Gửi tin nhắn", exact: true }).click();
+  await expect(page.locator(".message.assistant")).toHaveCount(1);
+  await page.getByRole("button", { name: "Xem trace", exact: true }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(
+    drawer.getByRole("heading", { name: "Nguồn được dùng" }),
+  ).toBeVisible();
+  await drawer.locator(".source-card>summary").first().click();
+  await expect(drawer.locator(".source-card pre").first()).toContainText(
+    "12 triệu",
+  );
+  await page.keyboard.press("Escape");
+  if (!(await page.locator(".document-body").isVisible()))
+    await page.locator(".document-panel>summary").click();
+  await page
+    .getByRole("button", { name: "Tóm tắt toàn văn", exact: true })
+    .click();
+  await expect(page.locator(".message.assistant")).toHaveCount(2);
+  await page.screenshot({
+    path: testInfo.outputPath("documents.png"),
+    fullPage: true,
+  });
+  await page.reload();
+  await expect(page.locator(".message.assistant")).toHaveCount(2);
+  await page.getByRole("link", { name: "Tổng quan", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Hoạt động & chi phí" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Xuất CSV" })).toHaveAttribute(
+    "href",
+    /format=csv/,
+  );
+  await expect(page.locator(".chart-grid")).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("analytics.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async()=>page.evaluate(()=>({root:document.documentElement.scrollWidth, viewport:window.innerWidth}))).toEqual({root:390, viewport:390});
+});
+
+test("admin aggregated usage and audited quota update", async ({ page }) => {
+  await login(page, "e2e-admin");
+  await page.getByRole("link", { name: "Tổng quan", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Toàn project", exact: true })
+    .selectOption("project");
+  await expect(
+    page.getByRole("heading", { name: "Tài khoản & quota" }),
+  ).toBeVisible();
+  const row = page
+    .locator(".quota-row")
+    .filter({ has: page.getByText("e2e-b", { exact: true }) });
+  await row.getByLabel("Hạn mức USD").fill("4.50");
+  await row.getByLabel("Lý do thay đổi").fill("E2E quota adjustment");
+  await row.getByRole("button", { name: "Lưu quota", exact: true }).click();
+  await expect(row.getByRole("status")).toContainText("Đã cập nhật quota.");
 });

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   MessageSquare,
@@ -35,6 +35,11 @@ export function AuthenticatedWorkspace({
   const t = useTranslations("App");
   const client = useQueryClient();
   const router = useRouter();
+  const models = useQuery({
+    queryKey: ["models", user.id],
+    queryFn: async () => unwrap(await api.GET("/v1/models")),
+  });
+  const source = models.data?.[0]?.execution_source ?? "mock";
   const selected = useSearchParams().get("session");
   function setSelected(id: string | null) {
     router.replace(id ? `/?session=${encodeURIComponent(id)}` : "/");
@@ -45,10 +50,14 @@ export function AuthenticatedWorkspace({
   const [operation, setOperation] = useState(false);
   const [error, setError] = useState<unknown>();
   const [requestBusy, setRequestBusy] = useState(false);
-  const sessions = useQuery({
+  const sessions = useInfiniteQuery({
     queryKey: ["sessions", user.id],
-    queryFn: async () => unwrap(await api.GET("/v1/sessions")),
+    initialPageParam:0,
+    queryFn: async ({pageParam}) => unwrap(await api.GET("/v1/sessions",{params:{query:{offset:pageParam,limit:50}}})),
+    getNextPageParam: (last, pages)=>last.length===50?pages.length*50:undefined,
   });
+  const sessionRows=sessions.data?.pages.flat()??[];
+  const mvp=useTranslations("MVP");
   async function newSession(title?: string) {
     const created = unwrap(
       await api.POST("/v1/sessions", {
@@ -152,14 +161,14 @@ export function AuthenticatedWorkspace({
       <div className="history-list">
         {sessions.isLoading && <Spinner />}
         {sessions.isError && <ErrorNotice error={sessions.error} />}
-        {!sessions.isLoading && !sessions.data?.length && (
+        {!sessions.isLoading && !sessionRows.length && (
           <div className="history-empty">
             <History size={21} />
             <strong>{t("noHistory")}</strong>
             <p>{t("noHistoryHint")}</p>
           </div>
         )}
-        {sessions.data?.map((session) => (
+        {sessionRows.map((session) => (
           <div
             className={`history-row ${selected === session.id ? "selected" : ""}`}
             key={session.id}
@@ -199,6 +208,7 @@ export function AuthenticatedWorkspace({
             </button>
           </div>
         ))}
+        {sessions.hasNextPage&&<button className="button small" disabled={sessions.isFetchingNextPage||requestBusy} onClick={()=>void sessions.fetchNextPage()}>{sessions.isFetchingNextPage?<Spinner/>:mvp("next")}</button>}
       </div>
       <div className="sidebar-footer">
         <div className="foundation-note">
@@ -253,7 +263,7 @@ export function AuthenticatedWorkspace({
           <div className="topbar-actions">
             <span className="mock-badge">
               <span />
-              {t("mock")}
+              {source.toUpperCase()}
             </span>
             <LanguageSwitch />
           </div>
@@ -264,7 +274,7 @@ export function AuthenticatedWorkspace({
           </div>
         )}
         {dashboard ? (
-          <OverviewPanel userId={user.id} onTrace={setTrace} />
+          <OverviewPanel user={user} onTrace={setTrace} />
         ) : (
           <ChatPanel
             userId={user.id}

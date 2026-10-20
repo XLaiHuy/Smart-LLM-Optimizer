@@ -4,7 +4,7 @@ from time import perf_counter
 from typing import Literal, cast
 from uuid import uuid4
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.dtos import (
@@ -24,10 +24,13 @@ from app.storage.database import Database
 from app.storage.models import (
     Attempt,
     Conversation,
+    Document,
+    DocumentChunk,
     InferenceCall,
     MemoryRevision,
     OptimizationEvent,
     Reservation,
+    StoredJob,
     StoredMessage,
 )
 
@@ -75,12 +78,16 @@ class SqlSessionStore:
             db.add(row)
             return info(row)
 
-    async def list_owned(self, principal: Principal) -> tuple[SessionInfo, ...]:
+    async def list_owned(
+        self, principal: Principal, offset: int = 0, limit: int = 50
+    ) -> tuple[SessionInfo, ...]:
         async with self.db.sessions() as db:
             rows = await db.scalars(
                 select(Conversation)
                 .where(Conversation.owner_user_id == principal.id)
-                .order_by(Conversation.updated_at.desc())
+                .order_by(Conversation.updated_at.desc(), Conversation.id)
+                .offset(offset)
+                .limit(limit)
             )
             return tuple(info(row) for row in rows)
 
@@ -122,10 +129,25 @@ class SqlSessionStore:
             row = await self._owned(db, principal, session_id)
             if row.active_attempt_id:
                 raise AppError("SESSION_BUSY", 409, "Session is busy")
+            await db.execute(
+                text(
+                    "DELETE FROM document_fts WHERE chunk_id IN (SELECT c.id FROM document_chunks c JOIN documents d ON d.id=c.document_id WHERE d.session_id=:id)"
+                ),
+                {"id": session_id},
+            )
+            await db.execute(
+                delete(DocumentChunk).where(
+                    DocumentChunk.document_id.in_(
+                        select(Document.id).where(Document.session_id == session_id)
+                    )
+                )
+            )
+            await db.execute(delete(Document).where(Document.session_id == session_id))
             attempts = list(
                 await db.scalars(select(Attempt).where(Attempt.session_id == session_id))
             )
             for attempt in attempts:
+                await db.execute(delete(StoredJob).where(StoredJob.id == attempt.id))
                 # Retain only minimal accounting/dedupe tombstones, purge all content.
                 attempt.response_json = None
                 attempt.session_id = None
@@ -173,6 +195,7 @@ class SqlSessionStore:
                     payload_hash=payload_hash,
                     status="running",
                     dispatched=False,
+                    execution_source=req.execution_source,
                     created_at=now(),
                 )
             )
@@ -236,6 +259,9 @@ class SqlSessionStore:
             row.revision += 1
             row.active_attempt_id = None
             row.updated_at = now()
+            job = await db.get(StoredJob, req.request_id)
+            if job:
+                job.progress = job.total
             attempt.status = "succeeded"
             attempt.response_json = response.model_dump_json()
             await db.flush()
@@ -259,6 +285,15 @@ class SqlSessionStore:
             if attempt and attempt.status == "running":
                 attempt.status = "failed"
                 attempt.error_code = code
+                for reservation in await db.scalars(
+                    select(Reservation).where(
+                        Reservation.request_id == request_id,
+                        Reservation.status.in_(("reserved", "dispatched")),
+                    )
+                ):
+                    reservation.status = (
+                        "released" if reservation.status == "reserved" else "unresolved"
+                    )
                 row = await db.get(Conversation, attempt.session_id) if attempt.session_id else None
                 if row and row.active_attempt_id == request_id:
                     row.active_attempt_id = None
@@ -391,6 +426,13 @@ class SqlTraceStore:
                 for r in rows[:20]
             )
             return Overview(
+                execution_source="live"
+                if any(
+                    ChatResponse.model_validate_json(r.response_json).execution_source == "live"
+                    for r in rows
+                    if r.response_json
+                )
+                else "mock",
                 total_requests=len(rows),
                 succeeded=sum(r.status == "succeeded" for r in rows),
                 failed=sum(r.status in ("failed", "interrupted") for r in rows),

@@ -1,6 +1,6 @@
 # SMART LLM OPTIMIZER — DESIGN SPEC V3
 
-Cập nhật G0 ngày 2026-10-20. Giữ tên file V2 để bảo toàn liên kết; nội dung là **Design Spec V3**. Workspace nay có implementation foundation G0 và generated OpenAPI/TypeScript. Optimizer algorithms, live API adapter, qualification manifests và scientific benchmark vẫn thuộc gates sau; không suy từ mock thành kết quả nghiên cứu. Xem [README](README.md) và [G0 handoff/evidence](docs/G0_HANDOFF.md) cho trạng thái kiểm tra thực tế, ownership và limitations.
+Cập nhật G0 ngày 2026-10-20. Giữ tên file V2 để bảo toàn liên kết; nội dung là **Design Spec V3**. Workspace nay có implementation foundation G0 và generated OpenAPI/TypeScript. Optimizer algorithms, qualification manifests và scientific benchmark vẫn thuộc gates sau; live adapter/documents/analytics đã có implementation theo §15, paid pilot chưa được xác nhận; không suy từ mock thành kết quả nghiên cứu. Xem [README](README.md) và [G0 handoff/evidence](docs/G0_HANDOFF.md) cho trạng thái kiểm tra thực tế, ownership và limitations.
 
 ## Changelog V2 → V3 (cập nhật 20/10/2026)
 
@@ -12,7 +12,7 @@ Cập nhật G0 ngày 2026-10-20. Giữ tên file V2 để bảo toàn liên k�
 - Đồng bộ ownership: Huy core/backend/router/wiring/frontend; Tân prompt/context/preservation; Khoa memory/evaluation. Tân/Khoa tách feature branches sau toàn bộ G0; estimate G0 1–2 ngày để lập lịch, không cam kết ngày đầu hay không có conflict.
 - G0 có nền tảng thật, deterministic mock provider, optimizer no-op và UI hoàn thiện; live adapter/classifier/thuật toán thật thuộc gate sau. G0 checklist đối chiếu evidence ở handoff; live research chưa chạy.
 - Bốn target suites Việt-first vẫn phải qualification. 140–170 là tổng đơn vị DEV + HOLDOUT, không bảo đảm statistical power hay giá API; pilot chọn call matrix trong envelope khoảng 20 USD. Probes chuyển thể từ hội thoại công khai phải có provenance/review.
-- Đồng bộ hướng dẫn tại `.agents/skills/` và [Master Prompt G0](docs/SKELETON_MASTER_PROMPT.md); đây là tài liệu để triển khai sau, chưa tạo ứng dụng.
+- Đồng bộ hướng dẫn tại `.agents/skills/` và [Master Prompt G0](docs/SKELETON_MASTER_PROMPT.md); Master Prompt lưu brief G0, không dùng để scaffold đè implementation hiện tại.
 
 **Quy ước trạng thái:** `LOCKED` = quyết định sản phẩm/kiến trúc đã thống nhất; `PROPOSED` = tham số/giả thuyết cần khóa trước thí nghiệm; `CANDIDATE` = nguồn/cấu hình đang được xem xét; `QUALIFIED` = đã kiểm tra dữ liệu, grader, quyền sử dụng và khả năng chạy theo protocol; `IMPLEMENTED` = chỉ dùng khi có code và bằng chứng kiểm tra. Nguồn đã đọc không tự động là `QUALIFIED`; V3 là đặc tả; evidence triển khai G0 ở handoff, các nghiên cứu chưa được suy ra từ mock.
 
@@ -24,7 +24,7 @@ Cập nhật G0 ngày 2026-10-20. Giữ tên file V2 để bảo toàn liên k�
 Theo form nộp do người dùng cung cấp: cần kho mã nguồn, giấy phép nguồn mở và slide PDF; link triển khai được khuyến khích, README/cài đặt, PPTX và video là tùy chọn. **Chưa có rubric/barem chi tiết**; tính mới, cách tiếp cận và kết quả là kỳ vọng của đội, chưa phải trọng số chấm chính thức. Yêu cầu dùng thư viện mã nguồn mở không tự suy ra mọi model phải chạy offline.
 
 ## 0.2. Kiến trúc được chọn (team proposal, không phải yêu cầu BTC)
-`LOCKED`: một **modular-monolith LLM Optimization API**, một **evaluation harness**, một **web dashboard**. Python 3.11+/FastAPI/Pydantic V2 backend, TypeScript/Next.js frontend, SQLite cho MVP local trên laptop. Provider đầu tiên là OpenAI native adapter; OpenAI-compatible wrapper là P1. Next.js chỉ làm UI/proxy, nghiệp vụ nằm ở FastAPI. Contracts trước feature; PostgreSQL là hướng nâng cấp theo tải, không phải một deployment phải làm song song.
+`LOCKED`: một **modular-monolith LLM Optimization API**, một **evaluation harness**, một **web dashboard**. Python 3.11+/FastAPI/Pydantic V2 backend, TypeScript/Next.js frontend, SQLite cho MVP local trên laptop. Provider live là OpenAI native adapter; OpenAI-compatible wrapper là P1. Next.js chỉ làm UI/proxy, nghiệp vụ nằm ở FastAPI. Contracts trước feature; PostgreSQL là hướng nâng cấp theo tải, không phải một deployment phải làm song song.
 
 ## 0.3. Phạm vi sản phẩm
 **Must / P0:** (a) nhiều model/config có thể chọn; (b) prompt rewriting có kiểm tra preservation và skip; (c) context selection + summarization/compaction; (d) raw/history/summary tách biệt, server quản lý history; (e) baseline/quality-cost-latency dashboard; (f) local dev reproducible; (g) OSS/license audit; (h) nhiều tài khoản do admin tạo, shared API key phía server, quyền sở hữu session/trace/report; (i) controller tối thiểu quyết định apply/skip và quản lý ngân sách request/user/project. Xem mức hoàn thiện skeleton ở `14`, không đồng nhất skeleton với MVP tối ưu hoàn chỉnh.
@@ -270,7 +270,7 @@ Secrets không vào trace/log. Raw content được lưu trong DB riêng theo ch
 
 ---
 
-# 04 — Module Contracts & API Specification (V3 target, chưa triển khai)
+# 04 — Module Contracts & API Specification (contracts nền và target nghiên cứu; mở rộng tại §15)
 
 ## 1. Immutable DTOs & compatibility
 Pydantic V2 DTOs và typed ports đặt trong `backend/app/contracts/`, Huy (A) điều phối thay đổi. FastAPI OpenAPI sinh frontend TS types bằng openapi-typescript, Huy chạy generator và commit artifact khi schema đổi; không sửa types sinh tự động bằng tay. API mới dùng prefix `/v1`, không có V1 code cũ để migrate. Sau freeze, additive optional fields được review; breaking change phải cập nhật producer/consumer/tests trong cùng PR. Interfaces async nếu I/O, sync cho pure logic; input gốc immutable.
@@ -768,7 +768,7 @@ These must not be conflated: different hypotheses and isolated ablations.
 Ước tính monetary benefit riêng: `saving_usd = downstream_cost_original - (optimizer_calls_usd + downstream_cost_transformed + expected_extra_retry_usd)`. Downstream estimate gồm input/output và provider categories phù hợp; không cộng tokens hoặc milliseconds trực tiếp vào USD. Latency guard kiểm tra riêng bằng estimated stage profile và paired actual e2e. Paid rewrite trên prompt rất ngắn có thể không kinh tế; threshold phải hiệu chỉnh từ DEV rồi skip theo input hợp lệ. Summary amortization báo cả session cumulative cost và per-turn allocation, không double-count một call qua nhiều requests; giữ revision/provenance để invalidation đúng.
 
 ## 7. RAG / vector DB decision
-Full external-document RAG is not compulsory. History retrieval may use exact/lexical/BM25 first. Embeddings/Chroma/FAISS/pgvector after clear missing-relevant-turn regression. Adding retrieval requires a separate benchmark on `Recall@k` of relevant message IDs vs answer correctness, and adds indexing cost.
+External-document RAG nay thuộc mốc mở rộng đã chốt với người dùng (§15); không dùng kết quả RAG để mặc định chứng minh optimizer đã giảm cost/giữ quality. History retrieval may use exact/lexical/BM25 first. Embeddings/Chroma/FAISS/pgvector after clear missing-relevant-turn regression. Adding retrieval requires a separate benchmark on `Recall@k` of relevant message IDs vs answer correctness, and adds indexing cost.
 
 ## 8. Security / failure
 Prompt injection in archived messages and retrieved docs; summarizer invents facts; summaries leaking private identifiers; mixed user sessions; policy mistakenly compresses mandatory instruction; outdated cache answers; recursive rewriting loop; escaping JSON and code corruption. Fail closed on auth/tenant mismatch; fail back to raw context where budget allows on optimizer error.
@@ -1161,6 +1161,51 @@ Boundaries giảm conflict; contract/integration checks phát hiện bất tươ
 - [x] Backend meaningful tests, frontend typecheck/build và automated UI flows đạt; failure injection rollback/history/ledger có kiểm tra. CI offline, không gọi paid API.
 - [x] UI hoàn thiện login/logout, owned history/resume, chat, flags, trace inspector, dashboard; responsive/mobile, loading/empty/error/retry/focus/reduced-motion states. Unknown metrics “chưa có dữ liệu live”, không biểu đồ/badge tiết kiệm giả; toggles phản ánh effective request config.
 - [x] Huy bàn giao foundation commit/ownership/test commands/evidence, known limits và next tickets; Tân/Khoa nhận cùng commit rồi mới tạo feature branches. Live G2 pilot là gate sau, không phải paid requirement cho G0.
+
+---
+
+# 15 — MVP Extension: Live, Documents/RAG & Usage Analytics
+
+## 15.1. Quyết định và trạng thái
+
+Bổ sung sau G0, ngày 20/10/2026: mốc 1 gồm OpenAI live adapter, versioned pricing/accounting, tài liệu theo hội thoại, hybrid RAG, toàn văn/đối chiếu và dashboard user/admin. Code đã có; trạng thái kiểm tra và giới hạn được ghi riêng trong [MVP handoff](docs/MVP_HANDOFF.md). Chưa có paid pilot/model access/quality evidence. Mốc 2 tích hợp thuật toán Tân/Khoa, same-snapshot compare và scientific reports sau các gates; không công bố no-op savings.
+
+Giữ localhost, SQLite một worker, không Docker/GPU/OCR/shared library/streaming/cache. Budget project 20 USD bao gồm serving, indexing và eval. Huy sở hữu phần mở rộng nền, tài liệu, frontend, schema/wiring; Tân prompt/context/preservation; Khoa memory/evaluation. Document summaries không là conversation memory.
+
+## 15.2. Live và token/USD
+
+`PROVIDER_MODE=mock|live`. Live yêu cầu server key và catalog `config/models.json` có generation baseline, embedding entry, capabilities/limits, version, price source/effective time, access/pricing review. Không đoán model IDs hoặc giá theo tên. Adapter Responses không auto-retry, không provider history state, normalize provider usage và lưu native usage/response ID. Thiếu category/giá thì unknown; không cộng cached/reasoning token lần hai. Chi phí từ usage × catalog là estimated USD, không invoice reconciled. Giữ snapshot giá theo version và từ chối thay catalog nhưng giữ version cũ.
+
+Mọi paid call qua reserve/dispatch/settle/reconcile ở operation/user/project; operation gồm chat/index/document task/eval. Calls timeout/uncertain giữ unresolved. Query embedding là serving; document embedding là indexing riêng, không phân bổ trùng cho mỗi lượt. UI/API tách mock/live, scope all-calls, before-call conservative estimate khác provider usage. Guard input dùng UTF-8 byte upper bound + role overhead; không giả đó là exact token count.
+
+## 15.3. Tài liệu và RAG
+
+TXT/MD UTF-8, PDF có chữ, DOCX; mặc định 5 files/session, 10 MiB/file, 200 PDF pages, 200000 extracted chars/file, configurable server-side. Multipart streaming có byte cap; parser subprocess bounded timeout và DOCX decompression caps. Không âm thầm truncate. Preview text, select ready sources, index/delete/status/source drawer. Original upload là temporary input, xóa sau extraction; text/chunks/source metadata lưu DB.
+
+Hybrid FTS5/BM25 + embedding/cosine/RRF, vector lưu SQLite theo owner/session. Embedding model ID cấu hình trong catalog; dự kiến `text-embedding-3-small` khi quyền và giá được review. Chunk target 600 tokens/80 overlap khi có tokenizer cache; offline byte-bound fallback có version riêng. Truy xuất tối đa 8 chunks; lexical filter owner/session/selected docs trước rank/limit. Evidence là untrusted data, ContextManager duy nhất assemble, current user đúng một lần. Chunk position/location/hash/index version được giữ; đổi embedding revision phải reindex, không âm thầm trộn vectors.
+
+Hỏi đáp cần citation nguồn được cung cấp hoặc nêu thiếu evidence. Citation-ID validation chỉ kiểm tra source membership, không là semantic grader. Toàn văn map mọi chunk rồi reduce; đối chiếu tổng hợp từng document rồi synthesis chung. Preflight budget và giới hạn 128 calls/job; intermediate không vừa context thì fail rõ, không dùng prefix/top-k để giả full coverage. Failed/interrupted jobs báo progress/partial, chỉ complete output mới commit user/assistant pair.
+
+## 15.4. API, queue, persistence
+
+OpenAPI/generated TS là executable schema. `ChatRequest.document_ids` optional giữ backward compatibility, identity/history vẫn từ server. Nguồn selected được đọc sau session claim; document mutation/indexing bị chặn khi session active, nên chunk revisions giữ nguyên trong request.
+
+- `POST/GET /v1/sessions/{session_id}/documents`: owned upload/list, có offset/limit cho list.
+- `GET/DELETE /v1/documents/{document_id}`: owned detail/preview/delete.
+- `POST/GET /v1/sessions/{session_id}/document-jobs`: task `index|summarize|compare`, `client_request_id`, selected IDs, instruction, max_total_usd; list có pagination.
+- `GET /v1/document-jobs/{job_id}`: status/progress/error/complete response.
+- `GET /v1/usage`: dates, source mock/live, personal/project (admin); daily/models/categories/session buckets và lifetime quota/reservations. `GET /v1/usage/export?format=json|csv` xuất cùng filter.
+- `GET /v1/admin/users` có pagination; `PATCH /v1/admin/users/{user_id}/quota` yêu cầu reason, audit, không hạ dưới spent+outstanding. Account creation vẫn CLI.
+
+SQLite durable pending queue, một consumer, một active operation/session. Successful duplicate trả kết quả cũ; payload/session khác conflict; ready index cùng version không gọi embedding lại. Startup đánh interrupted cho running, giữ unresolved và không tự replay paid work. Pending chưa dispatched có thể resume, nhưng mode thay đổi thì fail. Không giữ DB transaction qua inference/parser.
+
+Migration `b901` additive từ G0, giữ accounts/history. Documents/chunks/jobs/FTS có ownership; usage/price/quota audit độc lập nội dung. Purge session xóa sources/chunks/FTS/derived/job payload/trace; metadata usage tối thiểu vẫn giữ, được công bố trên UI. Admin thống kê không có prompt, excerpts, titles riêng hoặc quyền đọc foreign content.
+
+## 15.5. Analytics, UI và acceptance
+
+Default 7 days, today/30/custom tối đa 366 ngày; UTC storage, Asia/Ho_Chi_Minh grouping. Cards input/output/cost/unknown/available, operations, call latency p50/p95 và sample count. Charts input/output/day, USD/day, cost/model, call latency/day; tables + CSV/JSON. Unknown/null không thành zero; known subtotal chỉ khi có measured-priced calls. Quota lifetime độc lập date/source filter. Legacy G0 không backfill usage giả.
+
+Giữ OU trắng–xanh, Roboto local, VI/EN, responsive/focus/loading/error/empty. Traces có effective flags/calls/native usage/catalog/citations. Frontend clearing auth caches áp dụng cả documents/jobs/analytics. Acceptance dùng regression tests, metered fakes, real parser fixtures, UI flows và build; CI không paid calls. Paid pilot riêng kiểm tra actual model/caps/usage/prices và call matrix trong 20 USD trước khi ghi gate live research đạt.
 
 ---
 

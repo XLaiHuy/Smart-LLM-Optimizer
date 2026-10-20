@@ -10,7 +10,13 @@ from app.contracts.dtos import ErrorDetail, ErrorEnvelope
 class RequestBoundaryMiddleware:
     """Bound request bodies before JSON parsing; retain no raw-body logs."""
 
-    def __init__(self, app: ASGIApp, allowed_origins: tuple[str, ...]):
+    def __init__(
+        self,
+        app: ASGIApp,
+        allowed_origins: tuple[str, ...],
+        max_upload_bytes: int = 10 * 1024 * 1024 + 65536,
+    ):
+        self.max_upload_bytes = max_upload_bytes
         self.app = app
         self.allowed_origins = allowed_origins
 
@@ -20,6 +26,15 @@ class RequestBoundaryMiddleware:
             return
         started = perf_counter()
         headers = Headers(scope=scope)
+
+        async def measured_send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                output = MutableHeaders(scope=message)
+                output["Cache-Control"] = "no-store"
+                output["X-Content-Type-Options"] = "nosniff"
+                output["Server-Timing"] = f"app;dur={(perf_counter() - started) * 1000:.3f}"
+            await send(message)
+
         source = receive
         if scope["method"] in ("POST", "PUT", "PATCH", "DELETE"):
             origin = headers.get("origin")
@@ -29,6 +44,22 @@ class RequestBoundaryMiddleware:
                 await self.reject(
                     scope, receive, send, 403, "FORBIDDEN_ACTION", "Origin not allowed"
                 )
+                return
+            if scope["path"].endswith("/documents") and scope["method"] == "POST":
+                # Let UploadFile spool multipart data. Count streamed bytes before parsing.
+                size = 0
+
+                async def limited_receive() -> Message:
+                    nonlocal size
+                    message = await receive()
+                    size += len(message.get("body", b""))
+                    if size > self.max_upload_bytes:
+                        from starlette.exceptions import HTTPException
+
+                        raise HTTPException(413, "Upload exceeds limit")
+                    return message
+
+                await self.app(scope, limited_receive, measured_send)
                 return
             chunks: list[bytes] = []
             size = 0
@@ -57,14 +88,6 @@ class RequestBoundaryMiddleware:
                 return await receive()
 
             source = replay
-
-        async def measured_send(message: Message) -> None:
-            if message["type"] == "http.response.start":
-                output = MutableHeaders(scope=message)
-                output["Cache-Control"] = "no-store"
-                output["X-Content-Type-Options"] = "nosniff"
-                output["Server-Timing"] = f"app;dur={(perf_counter() - started) * 1000:.3f}"
-            await send(message)
 
         await self.app(scope, source, measured_send)
 

@@ -1,0 +1,6 @@
+{
+  "version": "replace-with-reviewed-version",
+  "baseline_config": "baseline",
+  "embedding_config": "embedding",
+  "models": []
+}

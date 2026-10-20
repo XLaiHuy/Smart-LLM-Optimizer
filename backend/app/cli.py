@@ -92,12 +92,55 @@ def test_accounts() -> None:
         db = Database(settings)
         try:
             service = AuthService(db, settings)
-            for name in ("e2e-a", "e2e-b"):
-                await service.create_user(name, os.environ["E2E_PASSWORD"])
+            for name in ("e2e-a", "e2e-b", "e2e-admin"):
+                await service.create_user(
+                    name, os.environ["E2E_PASSWORD"], "admin" if name == "e2e-admin" else "user"
+                )
         finally:
             await db.close()
 
     asyncio.run(create())
+
+
+@cli.command("verify-catalog")
+def verify_catalog() -> None:
+    """Read-only provider model access check; never submits generation/embedding."""
+    from openai import AsyncOpenAI
+
+    from app.providers.catalog import Catalog
+
+    settings = Settings()
+    catalog = Catalog.load(settings.model_catalog_path)
+    if not settings.openai_api_key.get_secret_value():
+        raise typer.BadParameter("Set OPENAI_API_KEY on the server first")
+
+    async def verify() -> None:
+        async with AsyncOpenAI(
+            api_key=settings.openai_api_key.get_secret_value(), max_retries=0
+        ) as connection:
+            for model in catalog.models:
+                try:
+                    await connection.models.retrieve(model.model_id)
+                    typer.echo(
+                        f"ACCESS OK: {model.config_id}; manually record verified_access and reviewed prices in a new catalog version"
+                    )
+                except Exception:
+                    typer.echo(f"ACCESS NOT VERIFIED: {model.config_id}", err=True)
+                    raise typer.Exit(1) from None
+
+    asyncio.run(verify())
+
+
+@cli.command("tokenizer-setup")
+def tokenizer_setup() -> None:
+    """Download public tokenizer data once during setup; not a paid API call."""
+    import tiktoken
+
+    from app.documents.chunking import CACHE
+
+    CACHE.mkdir(parents=True, exist_ok=True)
+    tiktoken.get_encoding("cl100k_base")
+    typer.echo("cl100k_base tokenizer cache ready")
 
 
 if __name__ == "__main__":

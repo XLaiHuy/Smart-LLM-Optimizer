@@ -57,6 +57,7 @@ class Attempt(Base):
     payload_hash: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(20))
     dispatched: Mapped[bool] = mapped_column(default=False)
+    execution_source: Mapped[str] = mapped_column(String(16), default="mock")
     created_at: Mapped[str] = mapped_column(String(40))
     response_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -96,3 +97,72 @@ class Reservation(Base):
     reserved_usd: Mapped[str] = mapped_column(String(64))
     settled_usd: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(20))
+
+
+class Document(Base):
+    __tablename__ = "documents"
+    __table_args__ = (UniqueConstraint("session_id", "content_hash"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32), default="extracted")
+    text: Mapped[str] = mapped_column(Text)
+    sections_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(String(40))
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)
+    location: Mapped[str] = mapped_column(String(200))
+    vector_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    version: Mapped[str] = mapped_column(String(100))
+
+
+class StoredJob(Base):
+    __tablename__ = "document_jobs"
+    id: Mapped[str] = mapped_column(ForeignKey("request_attempts.id"), primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    total: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class UsageRecord(Base):
+    # Deliberately independent of content-bearing rows; remains after explicit content purge.
+    __tablename__ = "usage_records"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    operation_id: Mapped[str] = mapped_column(String(64), index=True)
+    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    created_at: Mapped[str] = mapped_column(String(40), index=True)
+    category: Mapped[str] = mapped_column(String(40))
+    execution_source: Mapped[str] = mapped_column(String(16))
+    model_id: Mapped[str] = mapped_column(String(100))
+    record_json: Mapped[str] = mapped_column(Text)
+
+
+class PriceSnapshot(Base):
+    __tablename__ = "price_snapshots"
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    catalog_json: Mapped[str] = mapped_column(Text)
+
+
+class QuotaAudit(Base):
+    __tablename__ = "quota_audit"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    before_usd: Mapped[str] = mapped_column(String(64))
+    after_usd: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[str] = mapped_column(String(40))

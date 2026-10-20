@@ -2,7 +2,7 @@ from collections import deque
 from time import monotonic
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Query, Request, Response
 
 from app.composition import Container
 from app.contracts.dtos import (
@@ -96,8 +96,13 @@ async def create_session(body: SessionCreate, c: ContainerDep, user: UserDep) ->
 
 
 @router.get("/sessions", response_model=tuple[SessionInfo, ...])
-async def list_sessions(c: ContainerDep, user: UserDep) -> tuple[SessionInfo, ...]:
-    return await c.sessions.list_owned(user)
+async def list_sessions(
+    c: ContainerDep,
+    user: UserDep,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+) -> tuple[SessionInfo, ...]:
+    return await c.sessions.list_owned(user, offset, limit)
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail)

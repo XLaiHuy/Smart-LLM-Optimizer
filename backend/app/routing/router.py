@@ -26,5 +26,10 @@ class FixedMockRouter:
         if config is None:
             raise AppError("NO_COMPATIBLE_MODEL", 422, "Mock registry configuration missing")
         return RouteDecision(
-            model_id=config.model_id, config_id=config.config_id, policy_id=policy.policy_id
+            model_id=config.model_id,
+            config_id=config.config_id,
+            policy_id=policy.policy_id,
+            reason="baseline_quality_uncertain"
+            if config.execution_source == "live"
+            else "foundation_fixed_mock",
         )

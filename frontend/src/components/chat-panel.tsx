@@ -9,8 +9,17 @@ import {
   RefreshCw,
   Check,
   FileText,
+  Sparkles,
+  BookOpen,
+  GitCompare,
 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   api,
@@ -21,6 +30,8 @@ import {
   type ChatRequest,
   type Flags,
 } from "@/lib/api";
+import { DocumentsPanel } from "./documents-panel";
+import { MessageMetrics } from "./message-metrics";
 import { ErrorNotice, Spinner } from "./ui";
 
 export function ChatPanel({
@@ -38,6 +49,22 @@ export function ChatPanel({
 }) {
   const t = useTranslations("App");
   const client = useQueryClient();
+  const mvp = useTranslations("MVP");
+  const [documentBusy, setDocumentBusy] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [sources, setSources] = useState<{
+    session: string | null;
+    ids: string[];
+  }>({ session: null, ids: [] });
+  const selectSources = useCallback(
+    (ids: string[]) => setSources({ session: selected, ids }),
+    [selected],
+  );
+  const models = useQuery({
+    queryKey: ["models", userId],
+    queryFn: async () => unwrap(await api.GET("/v1/models")),
+  });
+  const source = models.data?.[0]?.execution_source ?? "mock";
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<"baseline" | "optimized">("baseline");
   const [flags, setFlags] = useState<Flags>(allFlags);
@@ -63,7 +90,8 @@ export function ChatPanel({
   }, [messages.length, busy]);
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (busy || (!draft.trim() && !pending.current)) return;
+    if (documentBusy || busy || (!draft.trim() && !pending.current)) return;
+    setDocumentsOpen(false);
     setBusy(true);
     onBusy(true);
     setError(undefined);
@@ -74,9 +102,17 @@ export function ChatPanel({
           session_id: sessionId,
           client_request_id: crypto.randomUUID(),
           message: draft,
+          document_ids: sources.session === selected ? sources.ids : [],
           mode,
           flags: requestFlags(mode, flags),
-          ...(mode === "optimized" ? { policy_id: "foundation-mock-v3" } : {}),
+          ...(mode === "optimized"
+            ? {
+                policy_id:
+                  source === "live"
+                    ? "quality-guarded-v3"
+                    : "foundation-mock-v3",
+              }
+            : {}),
         };
       }
       const answer = unwrap(
@@ -101,7 +137,10 @@ export function ChatPanel({
       onBusy(pending.current !== null);
     }
   }
-  const locked = busy || retrying;
+  const locked = busy || retrying || documentBusy;
+  useEffect(() => {
+    onBusy(busy || retrying || documentBusy);
+  }, [busy, retrying, documentBusy, onBusy]);
   return (
     <section className="chat-panel">
       <header className="chat-toolbar">
@@ -151,6 +190,17 @@ export function ChatPanel({
           </div>
         </section>
       )}
+      <DocumentsPanel
+        key={selected || "new"}
+        open={documentsOpen}
+        onOpenChange={setDocumentsOpen}
+        sessionId={selected}
+        userId={userId}
+        createSession={() => createSession()}
+        disabled={busy || retrying}
+        onSelected={selectSources}
+        onBusy={setDocumentBusy}
+      />
       <div className="conversation-scroll" aria-live="polite" aria-busy={busy}>
         {detail.isLoading && (
           <div className="center-loader">
@@ -183,6 +233,47 @@ export function ChatPanel({
                 {t("trace")}
               </span>
             </div>
+            <div className="welcome-prompts">
+              <button
+                type="button"
+                className="welcome-prompt-card"
+                onClick={() => setDraft(t("promptQnaSample"))}
+              >
+                <div className="prompt-icon-wrap">
+                  <BookOpen size={16} />
+                </div>
+                <div className="prompt-content">
+                  <strong>{t("promptQna")}</strong>
+                  <p>{t("promptQnaHint")}</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="welcome-prompt-card"
+                onClick={() => setDraft(t("promptSummarySample"))}
+              >
+                <div className="prompt-icon-wrap">
+                  <Sparkles size={16} />
+                </div>
+                <div className="prompt-content">
+                  <strong>{t("promptSummary")}</strong>
+                  <p>{t("promptSummaryHint")}</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="welcome-prompt-card"
+                onClick={() => setDraft(t("promptCompareSample"))}
+              >
+                <div className="prompt-icon-wrap">
+                  <GitCompare size={16} />
+                </div>
+                <div className="prompt-content">
+                  <strong>{t("promptCompare")}</strong>
+                  <p>{t("promptCompareHint")}</p>
+                </div>
+              </button>
+            </div>
           </div>
         )}
         {!!messages.length && (
@@ -209,10 +300,10 @@ export function ChatPanel({
                     <strong>
                       {message.role === "user" ? t("you") : t("assistant")}
                     </strong>
-                    {message.role === "assistant" && (
-                      <span className="mock-badge">MOCK</span>
-                    )}
                   </header>
+                  {message.role === "assistant" && message.request_id && (
+                    <MessageMetrics requestId={message.request_id} />
+                  )}
                   <div className="message-content">{message.content}</div>
                   {message.role === "assistant" && message.request_id && (
                     <button
@@ -281,6 +372,7 @@ export function ChatPanel({
               aria-label={retrying ? t("retry") : t("send")}
               disabled={
                 busy ||
+                documentBusy ||
                 (!draft.trim() && !retrying) ||
                 detail.isLoading ||
                 detail.isError
@@ -298,9 +390,15 @@ export function ChatPanel({
         </form>
         <div className="composer-footer">
           <span>{t("composerHint")}</span>
-          <span>G0 · {t("mockShort")}</span>
+          <span>
+            {source.toUpperCase()} ·{" "}
+            {sources.session === selected ? sources.ids.length : 0}{" "}
+            {mvp("sourceSelected")}
+          </span>
         </div>
-        <p className="mock-disclosure">{t("mockHint")}</p>
+        <p className="mock-disclosure">
+          {source === "mock" ? t("mockHint") : mvp("noOptimizer")}
+        </p>
       </div>
     </section>
   );

@@ -1,3 +1,5 @@
+> **Archived G0 brief.** Không scaffold lại hoặc khôi phục mock-only constraints lên implementation mới. Mốc mở rộng live/documents/analytics theo spec §15 và [MVP handoff](MVP_HANDOFF.md); thuật toán nghiên cứu vẫn theo ownership/gates.
+
 # Master Prompt — Triển khai G0 Smart LLM Optimizer
 
 Trạng thái: **brief G0 đã được hiện thực**, giữ để đối chiếu design/acceptance. [README](../README.md) và [handoff](G0_HANDOFF.md) mô tả code/checks thực tế. Không scaffold lại đè workspace có code. Bản này đồng bộ với [Design Spec V3](../SMART_LLM_OPTIMIZER_SPEC_V2_COMPLETE.md) ngày 20/10/2026; các yêu cầu dưới đây không phải tự động bằng chứng tests đã pass.
