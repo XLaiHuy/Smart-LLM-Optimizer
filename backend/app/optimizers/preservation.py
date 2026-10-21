@@ -1,6 +1,33 @@
 from typing import Literal
+from collections import Counter
+from app.optimizers.prompt_analyzer import ProtectedSpan
+from app.optimizers.compressor import normalize_whitespace
 
-
-def check_preservation(original: str, proposed: str) -> Literal["preserved", "unknown"]:
-    """Only byte-identical content is verified in G0. Tân extends this after handoff."""
-    return "preserved" if original == proposed else "unknown"
+PreservationStatus = Literal[
+    "preserved",
+    "violation",
+    "unknown",
+]
+CompressionStrategy = Literal[
+    "rule_based",
+    "llmlingua2",
+]
+def validate_preservation(
+        original:str,
+        compressed:str,
+        protected_spans: tuple[ProtectedSpan, ...],
+        strategy: CompressionStrategy = "llmlingua2",
+) -> PreservationStatus:
+    if not compressed.strip():
+        return "violation"
+    if original == compressed:
+        return "preserved"
+    required = Counter(span.text for span in protected_spans)
+    for text, count in required.items():
+        if compressed.count(text) < count:
+            return "violation"
+    if strategy == "rule_based":
+        if normalize_whitespace(original) ==compressed:
+            return "preserved"
+        return "unknown"
+    return "unknown"
