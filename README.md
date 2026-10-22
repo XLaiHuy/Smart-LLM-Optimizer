@@ -1,5 +1,17 @@
 # Smart LLM Optimizer · OU
 
+**22/10/2026 — Router final candidate:** đã sửa fallback encoder, nhãn attention, token budget, chia nguồn dữ liệu và routing async. Có artifact kiểm thử với báo cáo cache miss/concurrency; chưa có kết quả chất lượng hoặc tiết kiệm live. Xem [trạng thái và cách tái lập](docs/ROUTER_FINAL_READINESS.md).
+
+**22/10/2026 — Router training:** admin có nút collect → distill từ cache/Gemini → train → HOLDOUT → import ứng viên nghiên cứu. Live cần manifest/catalog đã review, server key và gate; không tự đổi chat. Xem [thiết lập pipeline](docs/ROUTER_TRAINING.md) và [đối chiếu FLASH-ROUTER với plan](docs/FLASH_ROUTER_REVIEW.md).
+
+**22/10/2026 — Lab gọn và tiến trình chat:** một trang thử nghiệm, một nút chạy giả lập; chat xem các bước qua cửa sổ nhỏ; landing hiện lại khi cuộn. Chạy migration `f105` trước khi dùng. Xem [bàn giao trải nghiệm gọn](docs/COMPACT_EXPERIENCE_HANDOFF.md) và [hồ sơ B3/PoF](docs/B3_READINESS.md).
+
+**Cập nhật UI/usage (21/10/2026):** trang giới thiệu hiện dần, dashboard theo giờ/ngày/tháng, thống kê admin theo tài khoản và đường đọc báo cáo benchmark đã duyệt. Chạy migration `e104` trước khi mở app. So sánh chưa có phép đo thật vẫn khóa; xem [hướng dẫn UI và thống kê](docs/UX_USAGE_HANDOFF.md).
+
+**Nâng cấp ba model và tools (21/10/2026):** có policy `ml_multi_model`, artifact JSON V2, calculator/tra cứu nguồn được chọn, landing và hướng dẫn công khai. Xem [bàn giao nền tảng V2](docs/PLATFORM_V2_HANDOFF.md). Mock vẫn mặc định; chưa có artifact nghiên cứu đủ điều kiện hoặc bằng chứng live. Chạy migration trước khi mở ứng dụng hiện có.
+
+Router học máy nhẹ: [train/evaluate offline và gate bật Auto](docs/ML_ROUTER_HANDOFF.md). Chat mặc định “Tự động”; mock không gọi API. Thiếu artifact, policy ML quay về cách chọn hiện có với reason code rõ ràng.
+
 MVP mở rộng từ foundation G0 cho nghiên cứu tối ưu model, prompt, context và memory. FastAPI + Next.js + SQLite; giao diện trắng–xanh OU, Việt/Anh. **Mock provider mặc định**; có adapter OpenAI, tài liệu/hybrid RAG, full-text jobs, dashboard usage/USD và admin quota. Live chỉ bật khi có key và catalog được review. Optimizers hiện là typed no-ops, chưa có kết quả tiết kiệm hay chất lượng live.
 
 ## Yêu cầu
@@ -106,13 +118,13 @@ Tân/Khoa dùng repository/provider ports; không import private ORM hoặc SDK.
 
 ## Hiểu đúng trạng thái G0
 
-True optimizer flag → `not_implemented`; false → `disabled`. Baseline tắt optional transforms nhưng vẫn auth/history/accounting. Các cờ thay đổi request tiếp theo; trace giữ effective configuration lúc chạy. Duplicate succeeded ID/payload trả stored response, không gọi lại provider; in-progress/payload conflict/session busy trả 409.
+Trong chat mock, true optimizer flag → `not_implemented`; false → `disabled`. Live router có feasibility/uncertainty fallback và trace riêng; các transforms khác vẫn no-op. Baseline tắt optional transforms nhưng vẫn auth/history/accounting. Các cờ thay đổi request tiếp theo; trace giữ effective configuration lúc chạy. Duplicate succeeded ID/payload trả stored response, không gọi lại provider; in-progress/payload conflict/session busy trả 409.
 
 Mock cost `not_billable/null`, usage không giả provider tokens; quality/savings null, nonstreaming TTFT null. Dashboard chỉ tổng hợp owned requests. Đổi ngôn ngữ không dịch history hoặc xóa draft. Xóa session purge nội dung/trace, giữ tombstones/accounting tối thiểu để chống replay.
 
 Timing trong mock trace có `measurement_scope=server_through_history_flush`: gồm xử lý và flush history, dừng trước lần ghi/commit trace cuối. HTTP header `Server-Timing` đo tới lúc gửi response headers, gồm transaction commit. Cả hai là local server timings, không phải browser end-to-end hoặc scientific latency comparison; G2 phải đo protocol live riêng theo spec.
 
-Đây là local research foundation, chưa triển khai API thật/classifier/optimization algorithms, streaming/cache/cascade, public benchmark qualification hoặc scientific claims. Các gate tiếp theo ở [Design Spec V3](SMART_LLM_OPTIMIZER_SPEC_V2_COMPLETE.md); [Master Prompt](docs/SKELETON_MASTER_PROMPT.md) ghi implementation brief và thay đổi nhận diện.
+Đây là local research foundation có OpenAI adapter và observable rule analyzer; chưa có qualified live router evidence, rewrite/context/memory algorithms, streaming/cache/cascade hoặc scientific claims. Các gate tiếp theo ở [Design Spec V3](SMART_LLM_OPTIMIZER_SPEC_V2_COMPLETE.md); [Master Prompt](docs/SKELETON_MASTER_PROMPT.md) ghi implementation brief và thay đổi nhận diện.
 
 ## License / assets
 
@@ -126,3 +138,20 @@ Trong chat mở **Tài liệu hội thoại**, upload TXT/MD UTF-8, PDF có ch�
 **Tổng quan** có ngày/model/session/category, nguồn mock/live tách biệt, input/output token charts, USD/model costs, call-latency p50/p95, bảng và CSV/JSON. Quota là lifetime và không đổi theo date filter. Usage trước bản mở rộng có thể chưa có call records; không backfill số liệu giả. Xóa session purge nội dung/tài liệu/job/trace, vẫn giữ usage/accounting tối thiểu. Admin chỉ thấy thống kê và sửa quota có audit; không tự được đọc nội dung riêng.
 
 So sánh baseline–optimized và báo cáo khoa học chờ các module/gates của Tân/Khoa. Không coi mock hoặc no-op là thuật toán đã đạt quality guardrails. Xem [MVP handoff](docs/MVP_HANDOFF.md).
+
+## Router Lab dành cho Huy
+
+Pilot huấn luyện bằng nhãn thực tế, cap toàn campaign 5 USD và đối chứng ML/Attention: [hướng dẫn và kết quả hiện tại](docs/ROUTER_GOLD_PILOT.md). Dữ liệu public đã chuẩn bị; generation hiện dừng vì quyền truy cập model, chưa có artifact train mới từ pilot.
+
+Sau migration, đăng nhập admin và mở **Nghiên cứu router** tại `/research`. Chọn model giả lập/policies, preflight, chạy ma trận 20 fixtures, xem trace và xuất CSV/JSONL. Simulation không cần key, không tạo chat giả, không trừ quota thật. Giá trị giả lập có nhãn riêng; không phải research quality hoặc live savings. Live research hiện bị chặn ở server.
+
+CLI và UI dùng chung execution service; từ repo root với venv đã activate:
+
+```text
+python -m app.cli research preflight config/router-run.example.json
+python -m app.cli research run config/router-run.example.json admin
+python -m app.cli research status RUN_ID admin
+python -m app.cli research export RUN_ID admin output/router-run.jsonl --format jsonl
+```
+
+Thay `admin` bằng account admin đã tạo. CLI là công cụ local tin cậy theo quyền truy cập máy/DB, không phải remote login bằng username. Lệnh `run` chỉ enqueue; giữ `npm run dev` chạy để worker xử lý. Đổi `client_request_id` trong manifest cho run mới; retry cùng ID/payload trả run cũ. Export không ghi đè file có sẵn. Xem [Router Lab handoff](docs/ROUTER_LAB_HANDOFF.md).

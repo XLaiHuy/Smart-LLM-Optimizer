@@ -11,6 +11,7 @@ export default defineConfig([
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   globalIgnores([
     ".next/**",
+    ".next-e2e/**",
     "src/lib/generated/**",
     "playwright-report/**",
     "test-results/**",

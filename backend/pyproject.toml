@@ -13,10 +13,13 @@ dependencies = [
   "aiosqlite>=0.21,<1", "alembic>=1.15,<2",
   "pwdlib[argon2]>=0.2,<1", "typer>=0.15,<1",
   "openai>=2,<3", "tiktoken>=0.12,<1", "numpy>=2,<3",
-  "pypdf>=6,<7", "python-docx>=1.2,<2", "python-multipart>=0.0.22,<1", "tzdata>=2025"
+  "pypdf>=6,<7", "python-docx>=1.2,<2", "python-multipart>=0.0.22,<1", "tzdata>=2025",
+  "scikit-learn>=1.6,<1.8"
 ]
 
 [project.optional-dependencies]
+router_ml = ["onnxruntime==1.22.1", "onnx==1.18.0", "tokenizers==0.21.4", "torch==2.6.0"]
+router_data = ["pyarrow==19.0.1"]
 dev = ["hatchling>=1.27,<2", "editables>=0.5,<1", "pytest>=8,<10", "pytest-asyncio>=0.25,<2", "httpx>=0.28,<1",
        "ruff>=0.11,<1", "mypy>=1.15,<2"]
 

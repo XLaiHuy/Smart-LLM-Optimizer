@@ -107,7 +107,9 @@ export function TraceInspector({
                   {call.stage} · {formatMetric(call.duration_ms, locale, " ms")}
                 </small>
               </div>
-              <span className="mock-badge">{call.cost.status}</span>
+              <span className="mock-badge">
+                {call.cost?.status ?? "unknown"}
+              </span>
             </div>
           ))}
           <dl className="trace-details">
