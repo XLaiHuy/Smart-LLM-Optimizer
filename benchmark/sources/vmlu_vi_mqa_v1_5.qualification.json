@@ -1,0 +1,112 @@
+{
+  "schema_version": "source-qualification-v1",
+  "source_id": "vmlu-vi-mqa-v1-5",
+  "suite_name": "vmlu-vi-mqa",
+  "task_family": "multidisciplinary_mcq",
+  "language": "vi",
+  "qualification_status": "candidate",
+  "decision": "BLOCKED",
+  "accessed_at": "2026-10-22",
+  "official_source": {
+    "paper_url": "https://aclanthology.org/2025.acl-long.563/",
+    "repository_url": "https://github.com/ZaloAI-Jaist/VMLU",
+    "repository_revision": "b0225316f4eaa1e2ca39c4164075d1b1aee4e220",
+    "dataset_page_url": "https://vmlu.ai/#Download",
+    "advertised_dataset_version": "Vi-MQA v1.5",
+    "code_license": "MIT",
+    "dataset_license": null
+  },
+  "candidate_mirror": {
+    "repository_url": "https://huggingface.co/datasets/tridm/VMLU",
+    "repository_revision": "9ed8d5ca21c680783da62e26f499facf47788568",
+    "declared_license": null,
+    "declared_citation": null,
+    "files": [
+      {
+        "name": "train.jsonl",
+        "rows": 303,
+        "has_gold_answers": true,
+        "sha256": "e4eb5a51a75639bdcc080c96556b09fcfb875033aec867844c15d308ed3c1f0b"
+      },
+      {
+        "name": "valid.jsonl",
+        "rows": 744,
+        "has_gold_answers": true,
+        "sha256": "02082d081e8e57b5a1c4c91b11e3caefea2f0f92937d649f5cc61b065bae5e8c"
+      },
+      {
+        "name": "test.jsonl",
+        "rows": 9833,
+        "has_gold_answers": false,
+        "sha256": "f625e503b6e6713759d8f9ae259724a0b0ce2261fb1e0e0428724d52e184aa3e"
+      }
+    ]
+  },
+  "observed_schema": {
+    "gold_rows": [
+      "id",
+      "question",
+      "choices",
+      "answer"
+    ],
+    "hidden_test_rows": [
+      "id",
+      "question",
+      "choices"
+    ],
+    "choice_count_values": [
+      3,
+      4,
+      5
+    ],
+    "answer_key_values": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "subject_field_present": false,
+    "category_field_present": false
+  },
+  "audit": {
+    "total_rows": 10880,
+    "gold_rows": 1047,
+    "hidden_gold_rows": 9833,
+    "duplicate_ids": 0,
+    "duplicate_question_groups_exact_text": 190,
+    "cross_split_exact_payload_duplicate_groups": 1,
+    "invalid_json_rows": 0,
+    "blank_required_values": 0,
+    "answers_outside_visible_options": 0
+  },
+  "blockers": [
+    "The official repository README leaves the dataset license as TBU.",
+    "The MIT license file does not explicitly establish redistribution rights for the externally downloaded exam dataset.",
+    "The candidate mirror declares no dataset license or citation.",
+    "The official dataset download is not pinned to a downloadable immutable revision or checksum.",
+    "The candidate mirror split names are not mapped unambiguously to the development and test protocol described by the paper.",
+    "The candidate mirror test split contains no answer keys.",
+    "The subject ID mapping in the repository dataset_stat.csv conflicts with the mapping in the paper and official website.",
+    "Cross-split duplicate handling and grouping policy have not been frozen."
+  ],
+  "permitted_current_use": [
+    "Local source inspection",
+    "Schema validation development",
+    "Synthetic adapter fixtures that do not copy dataset rows"
+  ],
+  "prohibited_current_use": [
+    "Do not label this source as qualified",
+    "Do not commit or redistribute raw dataset rows",
+    "Do not use this source for live_research results",
+    "Do not report model quality claims from this mirror"
+  ],
+  "required_resolution": [
+    "Obtain an explicit dataset license or written redistribution permission from the official maintainers",
+    "Obtain an immutable official dataset revision and checksums",
+    "Confirm the authoritative split mapping",
+    "Confirm the authoritative subject and category mapping",
+    "Freeze a duplicate grouping and exclusion policy",
+    "Pin the prompt and evaluator protocol version"
+  ]
+}
