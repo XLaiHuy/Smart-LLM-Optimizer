@@ -7,7 +7,7 @@ import tiktoken
 
 # Tokenizer data must be populated at setup, never fetched implicitly by a request.
 CACHE = Path(__file__).resolve().parents[3] / "data/tokenizer"
-os.environ["TIKTOKEN_CACHE_DIR"] = str(CACHE)
+os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(CACHE))
 
 
 @lru_cache(maxsize=1)

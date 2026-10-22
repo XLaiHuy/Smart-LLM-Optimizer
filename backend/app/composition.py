@@ -3,14 +3,15 @@ from app.auth.service import AuthService
 from app.config import Settings
 from app.contracts.dtos import ModelConfiguration, RegistrySnapshot
 from app.contracts.errors import AppError
+from app.contracts.protocols import PromptOptimizer
 from app.core.metering import MeteredCalls
 from app.core.orchestrator import Orchestrator
 from app.core.tools import ToolExecutor
 from app.documents.service import DocumentService
 from app.documents.tasks import DocumentTaskProcessor
 from app.memory.memory_manager import NoOpMemoryManager
-from app.optimizers.context_manager import PassThroughContext
-from app.optimizers.prompt_optimizer import NoOpPromptOptimizer
+from app.optimizers.context_manager import HybridContextManager, PassThroughContext
+from app.optimizers.prompt_optimizer import AdaptivePromptOptimizer, NoOpPromptOptimizer
 from app.providers.catalog import Catalog
 from app.providers.live import OpenAIProvider
 from app.providers.mock_provider import DeterministicMockProvider
@@ -115,13 +116,27 @@ class Container:
             self.provider,
             DocumentTaskProcessor(settings, self.sessions, self.metering, self.provider),
         )
+        if settings.adaptive_prompt_enabled:
+            # Import and load the model only when the feature is explicitly enabled.
+            from app.optimizers.llmlingua_compressor import LLMLinguaCompressor
+
+            prompt_optimizer: PromptOptimizer = AdaptivePromptOptimizer(
+                llm_compressor=LLMLinguaCompressor(),
+            )
+        else:
+            prompt_optimizer = NoOpPromptOptimizer()
+
         self.orchestrator = Orchestrator(
             self.sessions,
             self.provider,
             ObservableTaskAnalyzer(),
             NoOpMemoryManager(),
-            PassThroughContext(),
-            NoOpPromptOptimizer(),
+            (
+                HybridContextManager(settings.context_token_budget)
+                if settings.hybrid_context_enabled
+                else PassThroughContext()
+            ),
+            prompt_optimizer,
             PolicyRouter(self.ml_router, self.router_drift) if live else FixedMockRouter(),
             self.registry,
         )
