@@ -11,12 +11,17 @@ from app.contracts.dtos import (
     LoginRequest,
     ModelConfiguration,
     Overview,
+    PlatformInfo,
     Principal,
+    PublicModel,
     SessionCreate,
     SessionDetail,
     SessionInfo,
+    ToolEvent,
 )
 from app.contracts.errors import AppError
+from app.contracts.feedback import FeedbackRequest, FeedbackResult
+from app.contracts.progress import RequestProgress
 
 router = APIRouter(prefix="/v1")
 COOKIE_NAME = "smartllm_session"
@@ -36,6 +41,51 @@ async def principal(
 
 
 UserDep = Annotated[Principal, Depends(principal)]
+
+
+@router.get("/platform-info")
+def platform_info(c: ContainerDep) -> PlatformInfo:
+    allowlist = (
+        ("gpt-6-luna", "GPT-6 Luna"),
+        ("gpt-5.6-luna", "GPT-5.6 Luna"),
+        ("gpt-5.6-terra", "GPT-5.6 Terra"),
+    )
+    configured = {m.model_id for m in c.registry.configurations if m.execution_source == "live"}
+    return PlatformInfo(
+        execution_mode=c.settings.provider_mode,
+        models=tuple(
+            PublicModel(name=name, status="configured" if model in configured else "planned")
+            for model, name in allowlist
+        ),
+        tools_available=c.settings.provider_mode == "mock" or c.settings.tools_live_approved,
+    )
+
+
+@router.get("/sessions/{session_id}/progress")
+async def progress(
+    session_id: str,
+    c: ContainerDep,
+    user: UserDep,
+    client_request_id: str = Query(min_length=1, max_length=128),
+) -> RequestProgress:
+    return await c.progress.read(user, session_id, client_request_id=client_request_id)
+
+
+@router.get("/sessions/{session_id}/requests/{request_id}/progress")
+async def saved_progress(
+    session_id: str, request_id: str, c: ContainerDep, user: UserDep
+) -> RequestProgress:
+    return await c.progress.read(user, session_id, request_id=request_id)
+
+
+@router.get("/sessions/{session_id}/tool-activity")
+async def tool_activity(
+    session_id: str,
+    c: ContainerDep,
+    user: UserDep,
+    client_request_id: str = Query(min_length=1, max_length=128),
+) -> tuple[ToolEvent, ...]:
+    return await c.tools.activity(user, session_id, client_request_id)
 
 
 @router.post("/auth/login", response_model=Principal)
@@ -128,3 +178,10 @@ async def trace(request_id: str, c: ContainerDep, user: UserDep) -> ChatResponse
 @router.get("/overview", response_model=Overview)
 async def overview(c: ContainerDep, user: UserDep) -> Overview:
     return await c.traces.overview(user)
+
+
+@router.post("/traces/{request_id}/feedback")
+async def router_feedback(
+    request_id: str, body: FeedbackRequest, c: ContainerDep, user: UserDep
+) -> FeedbackResult:
+    return await c.router_feedback.feedback(user, request_id, body)

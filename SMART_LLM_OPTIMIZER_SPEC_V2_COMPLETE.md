@@ -4,6 +4,18 @@ Cập nhật G0 ngày 2026-10-20. Giữ tên file V2 để bảo toàn liên k�
 
 ## Changelog V2 → V3 (cập nhật 20/10/2026)
 
+- **22/10/2026 — Lab thống nhất và tiến trình chat:** §19 thay cách nhúng Router Lab nâng cao và journey dưới câu trả lời; thêm progress port/API, migration `f105`, cửa sổ xem lại, reveal cuộn hai chiều và hồ sơ B3/PoF. [Handoff](docs/COMPACT_EXPERIENCE_HANDOFF.md).
+
+- **21/10/2026 — UI/usage và bằng chứng:** landing tải phần workspace theo nhu cầu, các mục dưới hiện dần khi cuộn; VI/EN, trạng thái tương tác và sơ đồ từng câu trả lời theo trace thật. Usage thêm giờ/ngày/tháng, filter model/hội thoại, cảnh báo 80%/100% hạn mức; admin chỉ xem tổng hợp theo tài khoản. Migration `e104` lưu thời gian độc lập nội dung trace. Xóa kết quả ablation gán cứng; có file dữ liệu không đồng nghĩa qualified. Ước tính benchmark chỉ dành cho admin qua report đã duyệt + gate tắt mặc định; không gọi thêm model cho chat. Chi tiết API, migration, điều kiện report và evidence ở [UX/Usage handoff](docs/UX_USAGE_HANDOFF.md).
+
+- **21/10/2026 — Optimizer Lab readiness UI:** `/research` đổi điểm vào thành Thử nghiệm hiệu năng, giữ Router Lab ở phần nâng cao. API admin `/v1/research/lab` trả readiness; prompt/memory, quy mô 50/200/600 và chạy ablation bị khóa khi chưa có thuật toán/dữ liệu qualified. Không tạo savings/charts giả. Chat hỗ trợ rich text an toàn, typography dễ đọc, nhãn chi tiết tối ưu VI/EN. Đợt này chưa hiện thực runner ablation; hướng dẫn và evidence kiểm thử gọn ở [handoff](docs/PLATFORM_V2_HANDOFF.md).
+
+- **21/10/2026 — Hiệu chỉnh hybrid research candidate:** bổ sung grouped OOF (TF-IDF fit riêng từng fold), compiler giữ precision và semantics float32, validate cây/bounds, fallback có kiểm tra feasibility. Hybrid dùng feature version `intent-recent-rag-hybrid-oof-v3`; artifact hybrid thử nghiệm cũ phải train lại. CLI `train --hybrid/--no-hybrid`, linear mặc định, `evaluate --compare-model` trên cùng HOLDOUT độc lập. Lab đọc importance hai predictor từ frozen run; không gọi đó là giải thích từng câu hoặc xác suất đúng. Không có bằng chứng SOTA/quality/savings/latency live. Xem [handoff cập nhật](docs/PLATFORM_V2_HANDOFF.md).
+
+- **21/10/2026 — Ba model, tools nội bộ và landing:** §17 bổ sung `ml_multi_model`, data-only artifact V2 (giữ V1), Responses continuation, hai tools có giới hạn, recovery lượt sau và public platform metadata. Migration `d103_tools` additive. Đây là mở rộng thay quyết định cũ hoãn toàn bộ tools; chỉ calculator và tra cứu nguồn đã chọn được phép. Local LLM, framework agent và thực thi mã vẫn hoãn. [Handoff V2](docs/PLATFORM_V2_HANDOFF.md) là nguồn trạng thái kiểm thử; chưa có kết quả tiết kiệm/chất lượng live.
+
+- **21/10/2026 — Lightweight ML router:** TF-IDF word/char + numeric + logistic regression offline; DEV train/calibration độc lập và HOLDOUT evaluate; artifact JSON data-only đóng băng theo run. Policy `ml_router` chấm cặp candidate/reference đúng identity; fallback vẫn qua feasibility/ledger. Chat Tự động/Chuẩn, lý do VI/EN; simulation không chứng minh quality/cost. Default strategy vẫn `rule_guarded`, gate ML live tắt. Xem [ML handoff](docs/ML_ROUTER_HANDOFF.md); chưa có qualified training data, paid pilot hoặc artifact nghiên cứu. Mở rộng nghiên cứu có kiểm soát của Huy này thay phần loại trừ learned router cũ khi qua gates; không sửa benchmark/graders của Khoa hay optimizer của Tân.
+
 - **Huy Router Lab:** thêm §16 cho registry validation/capabilities, audited reconciliation, router P0 và research UI/CLI độc lập bằng 20 fixtures. Simulation mặc định, batch live cần server gate riêng; chưa paid pilot hoặc scientific G2/G3 evidence. Làm việc theo `feature → develop → main`.
 
 - **G0 implementation:** foundation backend/frontend/SQLite, typed no-ops/mock, auth/history/ledger/trace/overview, CLI/smoke, locks/CI và handoff. Chuyển UI sang trắng–xanh OU `#034EA2`/`#387EC1`, Roboto local, Việt/Anh. Thêm `GET /v1/overview`; setup Windows, localhost-only, chưa Docker/live adapter. Evidence/giới hạn ở `docs/G0_HANDOFF.md`; Linux CI chưa chạy remote.
@@ -320,7 +332,7 @@ Usage của một call thiếu trường không được bù bằng 0: trường
 ## 2. Business interfaces (I/O, side effects, errors)
 | Contract | Input | Output | Invariants / failure |
 |---|---|---|---|
-| `TaskAnalyzer.analyze(req)` | original messages, metadata | TaskProfile(domain,difficulty,capabilities,protected_constraints) | Never make up missing constraints; unknown allowed |
+| `TaskAnalyzer.analyze(req, prepared=None)` | original request plus full role-preserving prepared messages after assembly | TaskProfile(domain,difficulty,capabilities,protected_constraints, observable size/RAG/code features) | Never make up missing constraints; unknown allowed; never assemble current turn again |
 | `CostCatalog.estimate(model, usage)` | model id, tokens, mode, date | CostEstimate(rate_version, parts) | `unknown` if absent; no silently zero |
 | `ContextManager.prepare(snapshot, budgets, features)` | immutable scoped raw/summary/fact snapshot, current turn, candidate budgets | ContextResult(messages, provenance, token_estimates_by_candidate, summary_needed?) | selection/assembly only; không tự ghi DB hoặc gọi summarizer |
 | `MemoryManager.prepare(snapshot, plan)` | scoped snapshot, controller-approved summary/fact plan | MemoryResult(snapshot, state) với derived facts/summaries/provenance nằm trong snapshot | Khoa (C) owns algorithms; no-op trả nguyên snapshot/raw history; persistence qua MemoryStore, inference qua metered provider; không tự bỏ qua ledger |
@@ -373,7 +385,7 @@ from .dtos import (
 )
 
 class TaskAnalyzer(Protocol):
-    def analyze(self, req: ExecutionRequest) -> TaskProfile: ...
+    def analyze(self, req: ExecutionRequest, prepared: ContextResult | None = None) -> TaskProfile: ...
 
 class PromptOptimizer(Protocol):
     async def optimize(self, req: ExecutionRequest, context: ContextResult,
@@ -1222,7 +1234,7 @@ Huy sở hữu `routing/experiments`, API/UI/ledger/registry/router và tooling 
 
 Catalog offline validation: nonempty/unique IDs, đúng baseline/embedding kind, context/output/endpoint hợp lệ; kiểm tra metadata access riêng, không auto-set review flags. Registry thêm availability reason, endpoint/structured-output/parameters. Provider từ chối model/config mismatch hoặc unsupported parameters trước reservation/dispatch.
 
-P0 policies gồm fixed_reference, per-candidate fixed, cheapest feasible, seeded uniform random và rule_guarded. Production chat chỉ nhận guarded policy, không cho user tự bật unqualified candidate routing. Observable analyzer có JSON/code rules, ngôn ngữ heuristic, UTF-8 byte length; không nhận gold/hidden labels. Capability/context/price/budget/deadline filters và versioned evidence đi trước cost ranking; unknown evidence về reference nếu feasible. Reference cũng không bảo đảm chất lượng từng request. Chưa có learned router/cascade hoặc qualified live profiles.
+P0 policies gồm fixed_reference, per-candidate fixed, cheapest feasible, seeded uniform random và rule_guarded; `ml_router` là mở rộng thử nghiệm offline theo [ML handoff](docs/ML_ROUTER_HANDOFF.md). Production Auto mặc định guarded, chỉ cho ML khi operator chọn policy và qua gate artifact/evidence; user không tự bật unqualified candidates. Analyzer đọc full serving context sau assembly, JSON/code chỉ là heuristic, không nhận gold/hidden labels. Capability/context/price/budget/deadline filters đi trước chọn model; unknown evidence về reference nếu feasible. Reference không bảo đảm đúng từng request. Đã có implementation learned router và CLI nhưng chưa có artifact/dataset nghiên cứu qualified hoặc paid pilot; cascade vẫn chưa triển khai.
 
 CostSnapshot/RemainingBudget có giá và ngân sách thực. RouteDecision có rules, exclusions, estimates/provenance, policy hash/evidence version/fallback reason. Ngân sách snapshot phục vụ routing, reserve nguyên tử trước dispatch vẫn là chốt cuối. Mọi input trong đợt router này là original snapshot, transforms giữ no-op; current user vẫn xuất hiện một lần.
 
@@ -1243,6 +1255,24 @@ Admin GET `/v1/admin/billing/unresolved`, POST `/v1/admin/billing/{id}/reconcile
 `RESEARCH_LIVE_ENABLED=false` mặc định. Khi operator review gate sau, live pilot còn cần PROVIDER_MODE=live, server key, reviewed catalog và explicit request source live. Cùng runner dispatch qua MeteredCalls/ledger, category evaluation, không gọi provider SDK trực tiếp. Live pilot dùng fixtures vẫn là functional pilot, chưa phải qualified research; fixture profiles không được dùng để qualify live routing. Pending catalog thay đổi hoặc gate tắt → fail, không tự thay model/pricing để replay. Đợt này kiểm tra live path bằng metered fakes có chặn socket, không gọi API trả phí; actual G2/G3 chỉ đạt sau pilot/dataset qualification.
 
 ---
+
+# 17 — Three-model routing, bounded internal tools and public UX
+
+`LOCKED`: mở rộng thay các dòng cũ hoãn toàn bộ tools. Chỉ `calculate(expression)` và `search_selected_documents(query)` được phép; không framework agent, thực thi mã, shell hay tìm kiếm web. Ba ứng viên là GPT-6 Luna, GPT-5.6 Luna, GPT-5.6 Terra; reference cấu hình ban đầu Terra không đồng nghĩa chất lượng đã được chứng minh. Qwen/local LLM tiếp tục hoãn.
+
+§04 DTO/ports được mở rộng tại `backend/app/contracts/`: ContextResult/ProviderOptions có tools và native continuation; ProviderResult có typed calls/output items/status; ChatResponse có nullable-compatible tool events; RouteDecision có stages. OpenAPI/generated TS là hợp đồng máy đọc. Trace cũ tiếp tục đọc với defaults; current user turn được assemble đúng một lần.
+
+Policy `ml_multi_model` giữ V1 compatibility: kiểm tra toàn bộ input/schema/output reserve, capability/context/cost/budget/deadline → xếp hai candidate theo projected cost → predictor đầu → predictor sau nếu cần → reference feasible, nếu không trả lỗi. Không gọi thử ba API, không ép phân bổ đều. Hai predictor word/char TF-IDF + numeric dùng current turn, hai cặp gần nhất, selected RAG và full-context statistics; feature cuts được version hóa, không cắt input provider. Không dùng gold/nhãn ẩn hoặc độ dài như bằng chứng độ khó.
+
+V2 DEV tách train/calibration/threshold theo source/document/conversation; HOLDOUT độc lập. Thresholds tối ưu toàn policy dưới guardrails mặc định không giảm pass rate từng nhóm, không critical regression quan sát được, median latency ratio ≤1.10. Artifact JSON V2 đóng băng hai predictors, sigmoid, thresholds, settings/catalog/price identity, sources/grader và latency profiles; thiếu qualification hoặc identity mismatch thì fallback có reason. Không suy statistical significance từ điểm ước lượng hoặc fixtures. CLI train/evaluate và Lab hỗ trợ ba model/stage traces/fallback rates; replay tách khỏi live E2E. Schema và commands ở [handoff V2](docs/PLATFORM_V2_HANDOFF.md).
+
+Tools chạy tuần tự, cùng model/deadline/ngân sách; tối đa ba generation calls, bốn executions, hai tool calls/response. Calculator Decimal có bounds, không eval. Tra cứu chỉ nguồn đã chọn/owned/revision frozen, tối đa tám đoạn có context budget; evidence là dữ liệu không đáng tin, citation IDs phải hợp lệ. Generation/query embeddings đều qua ledger; không tính lại indexing. Native Responses strict schemas, kiểm tra arguments server, giữ opaque continuation/reasoning. Tool transcript thuộc trace, không tạo user turns giả.
+
+Sai arguments/unknown tool ghi sự kiện server và structured error cho model hiện tại; lượt người dùng kế tiếp buộc reference khả thi, chỉ xóa cờ sau một lượt reference hoàn tất sạch. Không đổi model trong loop. Hết giới hạn/incomplete/timeout không commit successful pair giả; accounting phát sinh vẫn giữ. Dedupe operation + call ID, payload khác conflict; restart interrupted không tự replay. Migration `d103_tools` additive giữ accounts/history. `TOOLS_LIVE_APPROVED=false` độc lập gates ML/research.
+
+Chưa đăng nhập tại `/` thấy OU landing + accessible login; đã đăng nhập vào workspace, giữ deep links. `/research-guide` công khai VI/EN; `/v1/platform-info` chỉ metadata allowlist, không secrets/quota/paths/history hoặc probe provider. Chat Tự động/Chuẩn giữ cùng tools/nguồn; lý do ngắn dễ hiểu. Điểm/threshold/hashes nằm trong Lab/trace, không gọi là xác suất trả lời đúng. Không quảng bá savings/quality hay tốc độ chưa đo. Lưu history khác memory optimization chưa triển khai.
+
+`IMPLEMENTED` là code và checks fake được ghi ở handoff; không phải live quality. Lab V2 có 21 functional fixtures với ba model giả; tool case chỉ kiểm tra routing metadata và bị chặn live đến khi có qualified agent protocol. USD20 envelope không đổi; không paid pilot trong triển khai/CI. Local evidence ở [handoff](docs/PLATFORM_V2_HANDOFF.md); remote CI/live vẫn cần gate riêng.
 
 # 90 — Research & Engineering Source Registry (V3 cập nhật 2026-10-20)
 
@@ -1290,3 +1320,47 @@ Admin GET `/v1/admin/billing/unresolved`, POST `/v1/admin/billing/{id}/reconcile
 | Tailwind Next.js installation | documentation | major-compatible PostCSS/Tailwind setup | https://tailwindcss.com/docs/installation/framework-guides/nextjs |
 
 **License caution:** Original benchmark data often ships independently of eval code. Verify each separately; do not republish scraped external corpora as your own dataset. Promptfoo, RouteLLM, LongBench, LangGraph, vLLM repo licenses described in currently available public sources; pin commit/version and re-check before submission. Commercial model API usage doesn't require proprietary weights in your repo, but must disclose required account and costs.
+
+
+# 18 — UX, usage analytics and reviewed benchmark projections
+
+**IMPLEMENTED INTERFACE — 2026-10-21:** Huy owns frontend, analytics contracts/API, metadata persistence and wiring. Tân/Khoa algorithms and scientific qualification remain separate; their unavailable stages are not shown as applied.
+
+- Public landing loads the hero/login first; lower sections mount near the viewport and reveal once. Authenticated workspace/dashboard/advanced Lab are code-split. Motion respects user preferences. Per-answer journey renders saved route/module/call events; it does not simulate live stages.
+- Personal dashboard is actual usage only, split by mock/live. Today is hourly; 7/30 days daily; 12 calendar months monthly. UTC storage and Asia/Ho_Chi_Minh boundaries. API retains daily compatibility and adds timeseries/granularity, model/session filters and scoped exports. Unknown is distinct from measured zero; known subtotal and sample counts remain explicit.
+- Budget feedback uses lifetime settled plus outstanding reservations, not the date-filtered charts. In-app warning thresholds are 80% and 100%; no email/extra model call. Indexing, serving and evaluation costs remain distinct.
+- Admin has project and per-account aggregates only; user prompts, document text and conversation titles are not exposed. New admin usage and benchmark-impact endpoints require admin authorization, as do selected-account exports.
+- `e104` stores measured request e2e_ms independently of purgeable traces. Existing measurements can be copied; old purged measurements stay unknown. The measurement ends at server history flush, not browser roundtrip or TTFT.
+- Standard/optimized comparison belongs to admin experiments. Fixed ablation numbers are removed and that endpoint returns BENCHMARK_NOT_READY until a qualified runner is integrated. A dataset file alone never unlocks comparison.
+- Admin benchmark projection is opt-in, read-only and live-accounting-only. It requires an operator-reviewed paired independent HOLDOUT report, checked quality guardrails, all-in costs, exact category/reference-model/price-version matching, validity period and source evidence metadata. It applies the observed benchmark cost ratio to eligible baseline spend; displays monetary coverage, scope and limitations. It is an estimate conditional on benchmark/workload similarity, not actual saved money or proof of quality. No report is installed/qualified by this UI delivery. Gate defaults false; mock results never become live savings.
+
+See [UX/Usage handoff](docs/UX_USAGE_HANDOFF.md) for contracts, reproducibility and local verification.
+
+
+## 19. Trải nghiệm gọn, tiến trình xử lý và hồ sơ trình bày — 22/10/2026
+
+Quyết định này thay UX giữ Router Lab trong phần nâng cao ở §18 và các handoff trước. Giữ nguyên router policies/artifacts, gates, quyền và các ranh giới module; không thay thuật toán của Tân/Khoa.
+
+### 19.1 Một màn hình thử nghiệm
+
+`/research` chỉ có chọn module, chạy kiểm tra và lịch sử/kết quả. Không nhúng trang Lab trong hàng flex. Default fixture V2 ba model, seed 42, một lần lặp; fixed_reference/fixed_candidate/cheapest_feasible/random_feasible/rule_guarded. Preflight và tạo run cùng một thao tác. Tùy chọn thu gọn cho suite/configs/policies/seed/repeats; raw trace/feature importances chỉ trong vùng chi tiết. Tắt chọn mô hình thì chỉ chạy fixed_reference. Prompt/memory chưa có thuật toán vẫn khóa. Trial đúng logic và thời gian mock không chứng minh chất lượng hoặc tiết kiệm live; đánh giá kết hợp còn khóa.
+
+### 19.2 Progress contracts và privacy
+
+DTO/ports chuẩn nằm ở contracts; ProgressSink chỉ nhận stage và trạng thái, không chứa prompt/answer hay reasoning nội bộ. `processing_events` lưu stage/status/timestamps, FK attempt và session; migration `f105` additive sau `e104`. Orchestrator phát stage trước thao tác thật: history, documents (nếu có nguồn), prepare, route, generate và calculate/search khi có tool. Prepare không đồng nghĩa optimizer no-op đã tối ưu thành công. Tool lỗi lưu bước failed, không đổi model giữa vòng tools.
+
+- `GET /v1/sessions/{session_id}/progress?client_request_id=...`: principal sở hữu session; trả request_id/status/current_stage/events theo thứ tự.
+- `GET /v1/sessions/{session_id}/requests/{request_id}/progress`: đọc lại các bước của câu trả lời đã lưu, cùng quyền.
+- SessionDetail thêm `active_client_request_id` nullable cho resume theo dõi; không tự gửi lại POST chat.
+- Đọc trước khi claim trả pending rỗng. Attempt cũ không có events thì UI báo chưa có lịch sử xử lý. Commit/fail/restart đóng bước đang chạy trong transaction trạng thái; restart giữ interrupted, không replay. Xóa session purge events; accounting tombstones giữ riêng theo §15/18.
+- POST chat giữ nonstreaming. Poll khoảng 700 ms khi đang chạy, dừng ở terminal/expiry; TypeScript sinh từ OpenAPI.
+
+### 19.3 Hành vi chat và landing
+
+Một dòng tên bước phổ thông với spinner, không phần trăm hoặc delay giả; bước nhanh vẫn lưu để xem lại. Mũi tên cạnh dòng xử lý chuyển thành nút xem lại ở góc phải dưới câu trả lời. Popup ≤340 px, tự chọn hướng trong vùng chat, cuộn nội bộ, theo bước mới trừ khi người dùng cuộn xem cũ. Escape/ngoài popup/trigger ra khỏi vùng chat đóng cửa sổ; keyboard trả focus. Không sticky, không chiếm diện tích luồng câu trả lời, không còn link Chi tiết tối ưu hay danh sách journey dưới answer. Metrics thực tế vẫn giữ; chat không tự kéo người đang đọc phía trên xuống cuối.
+
+Landing tách loaded (chỉ tăng một lần) và in-view (đảo được cả hai chiều). Rời viewport không unmount/refetch; opacity/translate nhẹ 230 ms, giữ kích thước. Reduced motion và section đang được focus không bị ẩn. Header/hero/login luôn sẵn sàng.
+
+### 19.4 B3 và nghiệm thu
+
+[Hồ sơ B3](docs/B3_READINESS.md) đối chiếu ảnh nhóm cung cấp với giấy phép, assets, metadata dependencies, cài đặt, kênh lỗi, versioned release và PoF. PoF tham khảo VFOSSA, chưa phải kết quả chấm của trường; điểm và mục chưa rõ phải ghi unknown. Không tự nhận PoF ≤60/5 điểm, không tự publish hoặc đổi quyền repo. No paid calls và không thay live gates. [Handoff](docs/COMPACT_EXPERIENCE_HANDOFF.md) ghi bằng chứng kiểm tra thực tế; full suite/live/remote CI không mặc định đã đạt.

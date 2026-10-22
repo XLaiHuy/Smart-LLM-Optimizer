@@ -1,0 +1,190 @@
+{
+  "purpose": "software_test",
+  "readiness": "local_module_integration_only",
+  "live_qualified": false,
+  "cuda_verified": false,
+  "runtime": {
+    "status": "ML_ARTIFACT_READY",
+    "artifact_path": "config/router_final_candidate.json",
+    "artifact_file_sha256": "16e408322bdba9576afbe31085bdd55e6685b72c88859af2ef342a6488e28bad",
+    "runtime_artifact_hash": "e6a30dbfd9e7f66c54c21597e577e377fde6b8a193b92f29aeec10850846a62b",
+    "purpose": "software_test",
+    "provider_mode": "mock",
+    "live_approved": false,
+    "auto_routing_strategy": "rule_guarded",
+    "default_chat_uses_ml": false,
+    "encoder_recipe": "feature-view-v2-balanced-token-budget",
+    "thresholds": {
+      "fixture-small": 1.0,
+      "fixture-medium": 1.0
+    }
+  },
+  "dataset_audit": {
+    "purpose": "software_test",
+    "samples": 2711,
+    "independent_source_families": 1198,
+    "splits": {
+      "calibration": 431,
+      "train": 1161,
+      "threshold": 515,
+      "holdout": 604
+    },
+    "domains": {
+      "coding_algorithms": 24,
+      "math_reasoning": 632,
+      "vmlu_multidisciplinary_mcq": 1000,
+      "viquad_reading_comprehension": 995,
+      "legal_regulations": 20,
+      "medical_bio": 20,
+      "dialogue_chat": 20
+    },
+    "duplicate_inputs_removed": 4289,
+    "cross_split_content_overlap": 0,
+    "cross_split_source_family_overlap": 0,
+    "limitations": [
+      "Simulation outcomes and prices are not real benchmark evidence",
+      "Original source licenses and deterministic graders remain to be qualified",
+      "No fixed class proportions or artificial sample count guarantee",
+      "VMLU public test has no answer keys; cannot measure accuracy from it"
+    ],
+    "source_files": [
+      {
+        "repository": "tridm/VMLU",
+        "revision": "9ed8d5ca21c680783da62e26f499facf47788568",
+        "path": "data/router-corpus-v1/raw/tridm--VMLU/train.jsonl",
+        "sha256": "e4eb5a51a75639bdcc080c96556b09fcfb875033aec867844c15d308ed3c1f0b",
+        "license_status": "original_license_review_required"
+      },
+      {
+        "repository": "tridm/VMLU",
+        "revision": "9ed8d5ca21c680783da62e26f499facf47788568",
+        "path": "data/router-corpus-v1/raw/tridm--VMLU/valid.jsonl",
+        "sha256": "02082d081e8e57b5a1c4c91b11e3caefea2f0f92937d649f5cc61b065bae5e8c",
+        "license_status": "original_license_review_required"
+      },
+      {
+        "repository": "tridm/VMLU",
+        "revision": "9ed8d5ca21c680783da62e26f499facf47788568",
+        "path": "data/router-corpus-v1/raw/tridm--VMLU/test.jsonl",
+        "sha256": "f625e503b6e6713759d8f9ae259724a0b0ce2261fb1e0e0428724d52e184aa3e",
+        "license_status": "original_license_review_required"
+      },
+      {
+        "repository": "taidng/UIT-ViQuAD2.0",
+        "revision": "406f09a45cc106a8f7b7fd0c25078883fe58cb1f",
+        "path": "data/router-corpus-v1/raw/taidng--UIT-ViQuAD2.0/data/train-00000-of-00001.parquet",
+        "sha256": "6e68a0c8fb6fa3c7f89e5b3825e3b3e96fd66913db89a9bdfcaf8fa2b5469e19",
+        "license_status": "original_license_review_required"
+      },
+      {
+        "repository": "taidng/UIT-ViQuAD2.0",
+        "revision": "406f09a45cc106a8f7b7fd0c25078883fe58cb1f",
+        "path": "data/router-corpus-v1/raw/taidng--UIT-ViQuAD2.0/data/validation-00000-of-00001.parquet",
+        "sha256": "8c81bdd75bd39eeff98df769f2282453397fa8c7004085e4fe3fc6e419733ae0",
+        "license_status": "original_license_review_required"
+      }
+    ],
+    "builder_sha256": "ff2066a4082f046cb4db9bec3726ff06f78d786c0a3cb2ff44fb6daca5a24675",
+    "router-final-dev-v3.json.sha256": "ce5ecfec29d3ec9b62b4e128bea3e8f81ec416fcb9dfb03f3800b6c6a958f4e7",
+    "router-final-holdout-v3.json.sha256": "4b02c5378d7b08dcd981398730dcf1d612ec7e7e9a3fd926f4d1d81798a3b756"
+  },
+  "profile": {
+    "environment": {
+      "python": "3.11.9",
+      "platform": "Windows-10-10.0.26200-SP0",
+      "logical_cpus": 8,
+      "numpy": "2.4.6"
+    },
+    "measurement": "local_policy_selection_excludes_http_db_and_provider",
+    "purpose": "software_test",
+    "backend": "numpy",
+    "artifact_hash": "e6a30dbfd9e7f66c54c21597e577e377fde6b8a193b92f29aeec10850846a62b",
+    "samples": 30,
+    "concurrency": 4,
+    "load_ms": 3941.805,
+    "cache_miss": {
+      "p50_ms": 85.507,
+      "p95_ms": 122.801,
+      "p99_ms": 130.797
+    },
+    "cache_hit": {
+      "p50_ms": 12.211,
+      "p95_ms": 21.604,
+      "p99_ms": 26.662
+    },
+    "concurrent_cache_miss": {
+      "p50_ms": 124.376,
+      "p95_ms": 149.943,
+      "p99_ms": 150.663
+    },
+    "concurrent_requests_per_second": 34.04,
+    "limitations": [
+      "Local timings depend on hardware and load",
+      "No LLM quality, savings or TTFT overhead percentage is inferred",
+      "CPU pooling does not prove CUDA FlashAttention"
+    ]
+  },
+  "holdout_report": {
+    "samples": 604.0,
+    "serving_usd": 0.375711,
+    "reference_usd": 0.375711,
+    "observed_pass_rate": 1.0,
+    "reference_pass_rate": 1.0,
+    "p50_ratio": 1.0,
+    "critical_regressions": 0.0,
+    "stage_two_reached": 601.0,
+    "quality_delta:math_reasoning": 0.0,
+    "quality_delta:medical_bio": 0.0,
+    "quality_delta:vmlu_multidisciplinary_mcq": 0.0,
+    "quality_delta:coding_algorithms": 0.0,
+    "quality_delta:dialogue_chat": 0.0,
+    "quality_delta:legal_regulations": 0.0,
+    "quality_delta:viquad_reading_comprehension": 0.0,
+    "selected:fixture-small": 0.0,
+    "selected:fixture-medium": 0.0,
+    "selected:fixture-reference": 604.0,
+    "guardrails_observed": 1.0
+  },
+  "verification": {
+    "backend_full_suite": {
+      "passed": 164
+    },
+    "additional_cli_and_regression_checks": {
+      "passed": 12
+    },
+    "source_checks": {
+      "passed": 2
+    },
+    "frontend_unit_tests": {
+      "passed": 5
+    },
+    "mypy": "pass",
+    "ruff": "pass",
+    "frontend_typecheck": "pass",
+    "frontend_lint": "pass",
+    "generated_contracts": "pass",
+    "docs": "pass",
+    "migration": "g106"
+  },
+  "source_file_hashes": {
+    "backend/app/core/orchestrator.py": "3663c27f49eaefaa6837e8febc79542994406433b804d82a16d08f57519c5f25",
+    "backend/app/routing/policies.py": "7b2281503eedc2088020269cecb0fde2b14d369d5378bb467af42a65606a184a",
+    "backend/app/routing/ml/encoder.py": "a0fbb4a88b8f87b052a0b9655c7a5e0b1524dee01c354b755d396a0eac776375",
+    "backend/app/routing/ml/semantic.py": "f8c9072a817124ac4a305cdcf39383a01967785bc58d08760b98acb07ca06ad7",
+    "backend/app/routing/ml/attention.py": "3836ae33796d964bd511996bf08fbe33f234154a85824f468b6cc641cf32a230",
+    "backend/app/routing/ml/multi.py": "df189c20590b89bb2299b2bd19e8734f2c7dd2444deac420dcf818d90f61d523",
+    "backend/app/routing/ml/multi_training.py": "3874e11b62d165c8c4e881ce61dfb2ab476a8a32bfdf9d72d2a85b465d04c7ed",
+    "backend/app/routing/ml/independence.py": "82c3a5a46aea46f82dd70d5736521a36200a5073e3726589cf8380ab25d66038",
+    "backend/app/routing/ml/pipeline.py": "2660317c5d29b0e7fbd3eea99fb4ddd62fd494eeef3cac08c284c150e7c28854",
+    "backend/app/routing/ml/cli.py": "b0d3192dba50ded02b5220ca5c496a506d18c4964a27488da7ec32ec0d76e41d",
+    "scripts/prepare_final_router_dataset.py": "ff2066a4082f046cb4db9bec3726ff06f78d786c0a3cb2ff44fb6daca5a24675",
+    "scripts/prepare_golden_5k_dataset.py": "6c5c5b19c136453a4887eabf8dc911e7ba2020c99bf7ecad58bba146b12e6933",
+    "scripts/prepare_flash_resources.py": "290ac39f08846e6be31f2892709efaedd79a3b6678243944915ffa97cb950c72",
+    "scripts/profile_router_cpu.py": "d324eea41ba5221482f7a08dc75f53b54da7d2efe162092ca11e9703dad04638"
+  },
+  "limitations": [
+    "All provider observations in this candidate are simulated",
+    "Frozen thresholds select reference for all HOLDOUT cases; no savings established",
+    "Tan adapter pending; standalone encoder fallback available"
+  ]
+}

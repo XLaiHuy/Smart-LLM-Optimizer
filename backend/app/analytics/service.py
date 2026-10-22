@@ -6,6 +6,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
+from sqlalchemy.orm import load_only
 
 from app.config import Settings
 from app.contracts.dtos import (
@@ -19,7 +20,7 @@ from app.contracts.dtos import (
 from app.contracts.errors import AppError
 from app.storage.database import Database
 from app.storage.ledger import charged
-from app.storage.models import Attempt, QuotaAudit, Reservation, UsageRecord, User
+from app.storage.models import Attempt, Conversation, QuotaAudit, Reservation, UsageRecord, User
 from app.storage.repositories import now, uid
 
 ZONE = ZoneInfo("Asia/Ho_Chi_Minh")
@@ -61,6 +62,32 @@ def administrator(principal: Principal) -> None:
         raise AppError("FORBIDDEN_ACTION", 403, "Administrator role required")
 
 
+def series_keys(start: date, end: date, granularity: str) -> list[str]:
+    cursor = datetime.combine(start, time.min, ZONE)
+    stop = datetime.combine(end + timedelta(days=1), time.min, ZONE)
+    if granularity == "month":
+        cursor = cursor.replace(day=1)
+    result = []
+    while cursor < stop:
+        result.append(series_key(cursor, granularity))
+        if granularity == "month":
+            cursor = cursor.replace(
+                year=cursor.year + (cursor.month == 12), month=cursor.month % 12 + 1
+            )
+        else:
+            cursor += timedelta(hours=1) if granularity == "hour" else timedelta(days=1)
+    return result
+
+
+def series_key(value: datetime, granularity: str) -> str:
+    local = value.astimezone(ZONE)
+    if granularity == "hour":
+        return local.replace(minute=0, second=0, microsecond=0).isoformat()
+    if granularity == "month":
+        return local.date().replace(day=1).isoformat()
+    return local.date().isoformat()
+
+
 class AnalyticsService:
     def __init__(self, db: Database, settings: Settings):
         self.db, self.settings = db, settings
@@ -72,9 +99,16 @@ class AnalyticsService:
         end: date | None,
         project: bool = False,
         source: Literal["mock", "live"] | None = None,
+        user_id: str | None = None,
+        granularity: Literal["auto", "hour", "day", "month"] = "auto",
+        model_id: str | None = None,
+        session_id: str | None = None,
     ) -> Analytics:
-        if project:
+        if project or user_id:
             administrator(principal)
+        target_id = user_id or principal.id
+        if project and user_id:
+            raise AppError("VALIDATION_ERROR", 422, "Choose project or user scope")
         source = source or self.settings.provider_mode
         today = datetime.now(ZONE).date()
         end = end or today
@@ -83,6 +117,10 @@ class AnalyticsService:
             raise AppError(
                 "VALIDATION_ERROR", 422, "Date range must be ordered and at most 366 days"
             )
+        if granularity == "auto":
+            granularity = "hour" if start == end else "day" if (end - start).days <= 61 else "month"
+        if granularity == "hour" and (end - start).days > 6:
+            raise AppError("VALIDATION_ERROR", 422, "Hourly series is limited to seven days")
         lower = datetime.combine(start, time.min, ZONE).astimezone(UTC).isoformat()
         upper = (
             datetime.combine(end + timedelta(days=1), time.min, ZONE).astimezone(UTC).isoformat()
@@ -93,21 +131,46 @@ class AnalyticsService:
                 UsageRecord.created_at < upper,
                 UsageRecord.execution_source == source,
             )
-            attempts_query = select(Attempt).where(
-                Attempt.created_at >= lower,
-                Attempt.created_at < upper,
-                Attempt.execution_source == source,
+            attempts_query = (
+                select(Attempt)
+                .options(
+                    load_only(
+                        Attempt.id,
+                        Attempt.owner_user_id,
+                        Attempt.status,
+                        Attempt.created_at,
+                        Attempt.execution_source,
+                    )
+                )
+                .where(
+                    Attempt.created_at >= lower,
+                    Attempt.created_at < upper,
+                    Attempt.execution_source == source,
+                )
             )
             if not project:
-                query = query.where(UsageRecord.owner_user_id == principal.id)
-                attempts_query = attempts_query.where(Attempt.owner_user_id == principal.id)
+                query = query.where(UsageRecord.owner_user_id == target_id)
+                attempts_query = attempts_query.where(Attempt.owner_user_id == target_id)
+            if session_id:
+                session = await db.get(Conversation, session_id)
+                if session is None or (not project and session.owner_user_id != target_id):
+                    raise AppError("SESSION_NOT_FOUND", 404, "Session not found")
+                query = query.where(UsageRecord.session_id == session_id)
+                attempts_query = attempts_query.where(Attempt.session_id == session_id)
+            if model_id:
+                query = query.where(UsageRecord.model_id == model_id)
             records = list(await db.scalars(query))
+            if model_id:
+                attempts_query = attempts_query.where(
+                    Attempt.id.in_([r.operation_id for r in records])
+                )
             attempts = list(await db.scalars(attempts_query))
             reservations = list(await db.scalars(select(Reservation)))
-            user = await db.get(User, principal.id)
-            assert user
+            user = await db.get(User, target_id)
+            if not user:
+                raise AppError("USER_NOT_FOUND", 404, "User not found")
             quota = self.settings.project_budget_usd if project else Decimal(user.quota_usd)
-        scoped = reservations if project else [r for r in reservations if r.user_id == principal.id]
+        scoped = reservations if project else [r for r in reservations if r.user_id == target_id]
         settled = sum(
             (
                 Decimal(r.settled_usd)
@@ -134,8 +197,15 @@ class AnalyticsService:
             groups["categories"][row.category].append(row)
             # Project admin sees accounting IDs only, never titles or raw content.
             groups["sessions"][row.session_id or "research"].append(row)
+        series: dict[str, list[UsageRecord]] = {
+            key: [] for key in series_keys(start, end, granularity)
+        }
+        for row in records:
+            series[series_key(datetime.fromisoformat(row.created_at), granularity)].append(row)
         return Analytics(
-            scope="project" if project else "current_user",
+            granularity=granularity,
+            timeseries=tuple(bucket(k, v) for k, v in series.items()),
+            scope="project" if project else "selected_user" if user_id else "current_user",
             execution_source=source,
             start=start.isoformat(),
             end=end.isoformat(),

@@ -28,6 +28,7 @@ from app.contracts.errors import AppError
 from app.contracts.research import (
     ExperimentSnapshot,
     PolicySummary,
+    PredictorImportance,
     ResearchConfigs,
     ResearchPreflight,
     ResearchRequest,
@@ -41,16 +42,15 @@ from app.contracts.research import (
 )
 from app.core.metering import input_bound
 from app.routing.experiments.fixtures import (
-    COSTS,
-    EVIDENCE,
-    REGISTRY,
     FixtureProvider,
     digest,
+    fixture_setup,
     grade_fixture,
     manifest,
 )
 from app.routing.experiments.live import LiveResearchWiring
-from app.routing.features import extract_features
+from app.routing.features import extract_context_features
+from app.routing.ml.service import MLRouterService
 from app.routing.policies import PolicyRouter, RoutingRejected
 from app.storage.database import Database
 from app.storage.models import Attempt, ResearchRun, ResearchTrial, UsageRecord, User
@@ -62,32 +62,56 @@ STRATEGIES: tuple[Strategy, ...] = (
     "cheapest_feasible",
     "random_feasible",
     "rule_guarded",
+    "ml_router",
+    "ml_multi_model",
 )
 
 
 class ResearchService:
-    def __init__(self, db: Database, live: LiveResearchWiring | None = None):
+    def __init__(
+        self,
+        db: Database,
+        live: LiveResearchWiring | None = None,
+        *,
+        ml: MLRouterService | None = None,
+    ):
         self.db = db
         self.provider = FixtureProvider()
-        self.router = PolicyRouter()
+        self.ml = ml or MLRouterService()
+        # Server approval is stable for frozen runs when a new Lab candidate is imported.
+        self.ml_live_approved = self.ml.live_approved
+        self.router = PolicyRouter(self.ml)
         self.task: asyncio.Task[None] | None = None
         self.wake = asyncio.Event()
         self.live = live
 
-    def configs(self, principal: Principal) -> ResearchConfigs:
+    def configs(
+        self, principal: Principal, suite_id: str = "huy-router-fixtures-v1"
+    ) -> ResearchConfigs:
         administrator(principal)
+        registry, _, _ = fixture_setup(suite_id)
         return ResearchConfigs(
-            cases=len(manifest().cases),
-            models=REGISTRY.configurations,
+            suite_id=suite_id,
+            cases=len(manifest(suite_id).cases),
+            models=registry.configurations,
             policies=STRATEGIES,
             live_enabled=bool(self.live and self.live.enabled),
             live_models=self.live.registry.configurations if self.live else (),
             live_reference_id=self.live.registry.mock_config_id if self.live else None,
+            ml_status=self.ml.status,
+            ml_artifact_hash=self.ml.hash,
         )
 
     def freeze(self, request: ResearchRequest) -> ExperimentSnapshot:
-        source_registry, costs, evidence, catalog_json = REGISTRY, COSTS, EVIDENCE, None
+        source_registry, costs, evidence = fixture_setup(request.suite_id)
+        catalog_json = None
         if request.execution_source == "live":
+            if request.suite_id == "huy-router-fixtures-v2":
+                raise AppError(
+                    "LIVE_RESEARCH_DISABLED",
+                    422,
+                    "V2 fixture tools are routing metadata, not a qualified live agent dataset",
+                )
             if not self.live or not self.live.enabled:
                 raise AppError(
                     "LIVE_RESEARCH_DISABLED",
@@ -113,7 +137,7 @@ class ResearchService:
                 422,
                 "Select configured candidates including the fixture reference",
             )
-        suite = manifest()
+        suite = manifest(request.suite_id)
         registry = source_registry.model_copy(
             update={
                 "configurations": tuple(
@@ -147,6 +171,12 @@ class ResearchService:
             ),
             code_sha=code,
             price_catalog_json=catalog_json,
+            ml_artifact_json=self.ml.artifact_json
+            if set(request.policies) & {"ml_router", "ml_multi_model"}
+            else None,
+            ml_artifact_hash=self.ml.hash
+            if set(request.policies) & {"ml_router", "ml_multi_model"}
+            else None,
         )
 
     def preflight(self, principal: Principal, request: ResearchRequest) -> ResearchPreflight:
@@ -168,7 +198,7 @@ class ResearchService:
                 (
                     max(
                         (
-                            Decimal(input_bound(case.messages))
+                            Decimal(input_bound(case.messages, case.tools))
                             * rates[m.config_id].input_per_million
                             + Decimal(m.max_output_tokens) * rates[m.config_id].output_per_million
                         )
@@ -310,6 +340,7 @@ class ResearchService:
                 request=snapshot.request,
                 manifest_hash=snapshot.manifest_hash,
                 catalog_hash=snapshot.catalog_hash,
+                ml_artifact_hash=snapshot.ml_artifact_hash,
                 code_sha=snapshot.code_sha,
                 checker_version=snapshot.checker_version,
                 error_code=run.error_code,
@@ -379,6 +410,11 @@ class ResearchService:
                     calls=sum(len(r.calls) for r in group),
                     functional_passes=sum(r.functional_pass for r in group),
                     errors=sum(r.error_code is not None for r in group),
+                    fallbacks=sum(bool(r.route and r.route.fallback_used) for r in group),
+                    fallback_rate=sum(bool(r.route and r.route.fallback_used) for r in group)
+                    / len(group)
+                    if group
+                    else None,
                     p50_ms=median(timings) if timings else None,
                     p95_ms=timings[min(len(timings) - 1, int((len(timings) - 1) * 0.95 + 0.5))]
                     if timings
@@ -407,7 +443,28 @@ class ResearchService:
                     else None,
                 )
             )
-        return ResearchSummary(routes=routes, policies=tuple(summaries))
+        # Historical runs must retain their own artifact even after an operator replaces it.
+        async with self.db.sessions() as db:
+            stored = await db.get(ResearchRun, run_id)
+            assert stored
+            snapshot = ExperimentSnapshot.model_validate_json(stored.snapshot_json)
+        frozen = MLRouterService(snapshot.ml_artifact_json)
+        artifact = frozen.multi.artifact
+        importances = (
+            tuple(
+                PredictorImportance(config_id=p.config_id, importances=dict(p.feature_importances))
+                for p in artifact.predictors
+                if p.is_hybrid
+            )
+            if artifact and "ml_multi_model" in snapshot.request.policies
+            else ()
+        )
+        return ResearchSummary(
+            routes=routes,
+            policies=tuple(summaries),
+            predictor_importances=importances,
+            feature_importance_artifact_hash=snapshot.ml_artifact_hash if importances else None,
+        )
 
     async def start(self) -> None:
         async with self.db.write() as db:
@@ -457,6 +514,10 @@ class ResearchService:
                         )
 
     async def _execute(self, run_id: str, snapshot: ExperimentSnapshot) -> None:
+        # Pending runs use their frozen data-only artifact, never a newly trained file.
+        router = PolicyRouter(
+            MLRouterService(snapshot.ml_artifact_json, live_approved=self.ml_live_approved)
+        )
         position, simulated_spend = 0, Decimal(0)
         request = snapshot.request
         is_live = request.execution_source == "live"
@@ -484,9 +545,12 @@ class ResearchService:
                                 return
                             owner_id = row.owner_user_id
                         started = perf_counter()
-                        profile = extract_features(case.messages[-1].content)
+                        profile = extract_context_features(case.messages).model_copy(
+                            update={"tool_count": len(case.tools)}
+                        )
                         prepared = ContextResult(
                             messages=case.messages,
+                            tools=case.tools,
                             provenance=(),
                             state=OptimizationState(
                                 module="context", status="disabled", reason="router_isolation"
@@ -497,11 +561,14 @@ class ResearchService:
                             policy_version="router-p0-v1",
                             flags=FeatureFlags(router=True),
                             strategy=strategy,
-                            sandbox=True,
+                            sandbox=not is_live
+                            if strategy in ("ml_router", "ml_multi_model")
+                            else True,
                             seed=int(digest(f"{request.seed}:{case.case_id}:{repeat}")[:8], 16),
                             candidate_id=candidate,
                             evidence=snapshot.evidence,
                             evidence_version=None if is_live else "fixture-only-v1",
+                            ml_artifact_hash=snapshot.ml_artifact_hash,
                         )
                         calls: tuple[CallRecord, ...] = ()
                         route, error, prediction, projected = None, None, None, None
@@ -557,7 +624,7 @@ class ResearchService:
                                 )
                             ).model_copy(update={"deadline_ms": case.deadline_ms})
                         try:
-                            route = self.router.select(
+                            route = router.select(
                                 profile,
                                 prepared,
                                 snapshot.registry,
@@ -653,7 +720,7 @@ class ResearchService:
                             calls=calls,
                             duration_ms=(perf_counter() - started) * 1000,
                             simulation=SimulationMetrics(
-                                estimated_input_bound=input_bound(case.messages),
+                                estimated_input_bound=input_bound(case.messages, case.tools),
                                 estimated_upper_usd=projected,
                                 functional_pass=functional,
                             )

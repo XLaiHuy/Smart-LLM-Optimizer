@@ -65,9 +65,70 @@ EVIDENCE = tuple(
 )
 
 
-def manifest() -> FixtureManifest:
-    return FixtureManifest.model_validate_json(
+def fixture_setup(
+    suite_id: str,
+) -> tuple[RegistrySnapshot, CostSnapshot, tuple[RouteEvidence, ...]]:
+    if suite_id == "huy-router-fixtures-v1":
+        return REGISTRY, COSTS, EVIDENCE
+    configurations = tuple(
+        m.model_copy(update={"function_calling": m.config_id == "fixture-reference"})
+        for m in REGISTRY.configurations
+    ) + (
+        ModelConfiguration(
+            config_id="fixture-medium",
+            model_id="fixture-medium-v2",
+            context_window=6000,
+            max_output_tokens=192,
+            structured_output=True,
+            function_calling=True,
+        ),
+    )
+    registry = REGISTRY.model_copy(update={"configurations": configurations})
+    costs = COSTS.model_copy(
+        update={
+            "version": "simulation-rates-v2",
+            "rates": (
+                *COSTS.rates,
+                RouteRate(
+                    config_id="fixture-medium",
+                    input_per_million=Decimal("0.5"),
+                    output_per_million=Decimal("2"),
+                ),
+            ),
+        }
+    )
+    evidence = (
+        *EVIDENCE,
+        *(
+            RouteEvidence(
+                config_id="fixture-medium",
+                domain=domain,
+                qualifies=True,
+                latency_ms=10,
+                provenance="fixture",
+            )
+            for domain in ("general", "structured", "code")
+        ),
+    )
+    return registry, costs, evidence
+
+
+def manifest(suite_id: str = "huy-router-fixtures-v1") -> FixtureManifest:
+    original = FixtureManifest.model_validate_json(
         (ROOT / "config/router-fixtures.json").read_text(encoding="utf-8")
+    )
+    if suite_id == "huy-router-fixtures-v1":
+        return original
+    from app.core.tools import tool_definitions
+
+    case = FixtureCase(
+        case_id="vi-v2-tools",
+        messages=(Message(role="user", content="Tra lai ma OU-21"),),
+        expected="OU-21",
+        tools=tool_definitions(False),
+    )
+    return original.model_copy(
+        update={"version": "huy-router-fixtures-v2", "cases": (*original.cases, case)}
     )
 
 

@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.contracts.dtos import (
     ChatResponse,
@@ -32,7 +33,9 @@ from app.storage.models import (
     Reservation,
     StoredJob,
     StoredMessage,
+    ToolInvocation,
 )
+from app.storage.progress import close_steps
 
 
 def now() -> str:
@@ -99,8 +102,14 @@ class SqlSessionStore:
                 .where(StoredMessage.session_id == session_id)
                 .order_by(StoredMessage.position)
             )
+            active_attempt = (
+                await db.get(Attempt, row.active_attempt_id) if row.active_attempt_id else None
+            )
             return SessionDetail(
                 **info(row).model_dump(),
+                active_client_request_id=active_attempt.client_request_id
+                if active_attempt
+                else None,
                 messages=tuple(
                     Message(
                         id=m.id,
@@ -147,6 +156,9 @@ class SqlSessionStore:
                 await db.scalars(select(Attempt).where(Attempt.session_id == session_id))
             )
             for attempt in attempts:
+                await db.execute(
+                    delete(ToolInvocation).where(ToolInvocation.operation_id == attempt.id)
+                )
                 await db.execute(delete(StoredJob).where(StoredJob.id == attempt.id))
                 # Retain only minimal accounting/dedupe tombstones, purge all content.
                 attempt.response_json = None
@@ -262,7 +274,13 @@ class SqlSessionStore:
             job = await db.get(StoredJob, req.request_id)
             if job:
                 job.progress = job.total
+            await close_steps(db, req.request_id, "succeeded")
             attempt.status = "succeeded"
+            if response.route.reason_code == "ROUTE_TOOL_RECOVERY" and not any(
+                e.error_code in ("TOOL_ARGUMENTS_INVALID", "TOOL_NOT_ALLOWED")
+                for e in response.tool_events
+            ):
+                row.tool_recovery_required = False
             attempt.response_json = response.model_dump_json()
             await db.flush()
             # Trace stops just before its own final update/commit. HTTP Server-Timing
@@ -277,12 +295,14 @@ class SqlSessionStore:
                 }
             )
             attempt.response_json = response.model_dump_json()
+            attempt.e2e_ms = response.timing.e2e_ms
         return response
 
     async def fail(self, request_id: str, code: str) -> None:
         async with self.db.write() as db:
             attempt = await db.get(Attempt, request_id)
             if attempt and attempt.status == "running":
+                await close_steps(db, request_id, "failed")
                 attempt.status = "failed"
                 attempt.error_code = code
                 for reservation in await db.scalars(
@@ -300,7 +320,19 @@ class SqlSessionStore:
 
     async def recover_interrupted(self) -> None:
         async with self.db.write() as db:
+            for tool in await db.scalars(
+                select(ToolInvocation).where(ToolInvocation.status == "running")
+            ):
+                from app.contracts.dtos import ToolEvent
+
+                event = ToolEvent.model_validate_json(tool.event_json)
+                tool.status = "interrupted"
+                tool.event_json = event.model_copy(
+                    update={"status": "interrupted", "error_code": "PROCESS_INTERRUPTED"}
+                ).model_dump_json()
+        async with self.db.write() as db:
             for attempt in await db.scalars(select(Attempt).where(Attempt.status == "running")):
+                await close_steps(db, attempt.id, "interrupted")
                 attempt.status = "interrupted"
                 attempt.error_code = "PROCESS_INTERRUPTED"
                 row = await db.get(Conversation, attempt.session_id) if attempt.session_id else None
@@ -404,34 +436,35 @@ class SqlTraceStore:
             rows = list(
                 await db.scalars(
                     select(Attempt)
+                    .options(
+                        load_only(
+                            Attempt.id,
+                            Attempt.session_id,
+                            Attempt.status,
+                            Attempt.created_at,
+                            Attempt.e2e_ms,
+                            Attempt.execution_source,
+                        )
+                    )
                     .where(Attempt.owner_user_id == principal.id, Attempt.research_run_id.is_(None))
                     .order_by(Attempt.created_at.desc())
                 )
             )
-            timings = [
-                ChatResponse.model_validate_json(r.response_json).timing.e2e_ms
-                for r in rows
-                if r.response_json
-            ]
+            timings = [r.e2e_ms for r in rows if r.e2e_ms is not None]
             recent = tuple(
                 RecentRequest(
                     request_id=r.id,
                     session_id=r.session_id or "",
                     status=r.status,
                     created_at=r.created_at,
-                    e2e_ms=ChatResponse.model_validate_json(r.response_json).timing.e2e_ms
-                    if r.response_json
-                    else None,
+                    e2e_ms=r.e2e_ms,
+                    execution_source=cast(Literal["mock", "live"], r.execution_source),
                 )
                 for r in rows[:20]
             )
             return Overview(
                 execution_source="live"
-                if any(
-                    ChatResponse.model_validate_json(r.response_json).execution_source == "live"
-                    for r in rows
-                    if r.response_json
-                )
+                if any(r.execution_source == "live" for r in rows)
                 else "mock",
                 total_requests=len(rows),
                 succeeded=sum(r.status == "succeeded" for r in rows),

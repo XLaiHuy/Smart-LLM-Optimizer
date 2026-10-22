@@ -3,8 +3,14 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
+from app.analytics.service import administrator
 from app.api.routes import ContainerDep, UserDep
+from app.contracts.errors import AppError
 from app.contracts.research import (
+    AblationRequest,
+    AblationRunResponse,
+    LabModule,
+    OptimizerLabInfo,
     ReconcileRequest,
     ResearchConfigs,
     ResearchPreflight,
@@ -13,14 +19,102 @@ from app.contracts.research import (
     ResearchSummary,
     TrialResult,
 )
+from app.contracts.training import (
+    TrainingInfo,
+    TrainingJob,
+    TrainingRequest,
+    TrainingResume,
+    TrainingReviewCase,
+    TrainingReviews,
+)
 from app.routing.experiments.exports import encode_export
 
 router = APIRouter(prefix="/v1")
 
 
+@router.get("/research/training")
+def training_info(c: ContainerDep, user: UserDep) -> TrainingInfo:
+    return c.training.info(user)
+
+
+@router.get("/research/training/latest")
+async def latest_training(c: ContainerDep, user: UserDep) -> TrainingJob | None:
+    return await c.training.latest(user)
+
+
+@router.post("/research/training/jobs", status_code=202)
+async def start_training(body: TrainingRequest, c: ContainerDep, user: UserDep) -> TrainingJob:
+    return await c.training.start(user, body)
+
+
+@router.get("/research/training/jobs/{job_id}")
+async def training_job(job_id: str, c: ContainerDep, user: UserDep) -> TrainingJob:
+    return await c.training.get(user, job_id)
+
+
+@router.post("/research/training/jobs/{job_id}/import")
+async def import_training(job_id: str, c: ContainerDep, user: UserDep) -> TrainingJob:
+    return await c.training.import_job(user, job_id)
+
+
+@router.post("/research/training/jobs/{job_id}/resume", status_code=202)
+async def resume_training(
+    job_id: str, body: TrainingResume, c: ContainerDep, user: UserDep
+) -> TrainingJob:
+    return await c.training.resume(user, job_id, body)
+
+
+@router.get("/research/training/jobs/{job_id}/reviews")
+async def training_reviews(job_id: str, c: ContainerDep, user: UserDep) -> list[TrainingReviewCase]:
+    return [
+        TrainingReviewCase.model_validate(r) for r in await c.training.review_queue(user, job_id)
+    ]
+
+
+@router.post("/research/training/jobs/{job_id}/reviews")
+async def submit_training_reviews(
+    job_id: str, body: TrainingReviews, c: ContainerDep, user: UserDep
+) -> TrainingJob:
+    return await c.training.review(user, job_id, body)
+
+
+@router.get("/research/training/jobs/{job_id}/artifact")
+async def training_artifact(job_id: str, c: ContainerDep, user: UserDep) -> Response:
+    raw = await c.training.artifact(user, job_id)
+    return Response(
+        raw,
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="router-candidate.json"'},
+    )
+
+
+@router.get("/research/lab")
+def optimizer_lab(user: UserDep) -> OptimizerLabInfo:
+    administrator(user)
+    return OptimizerLabInfo(
+        modules=(
+            LabModule(id="router", implemented=True, status="requires_qualified_data"),
+            LabModule(id="prompt", implemented=False, status="not_implemented"),
+            LabModule(id="memory", implemented=False, status="not_implemented"),
+        ),
+    )
+
+
+@router.post("/research/ablation")
+def run_ablation(body: AblationRequest, user: UserDep) -> AblationRunResponse:
+    administrator(user)
+    raise AppError("BENCHMARK_NOT_READY", 409, "A qualified paired evaluation runner is required")
+
+
 @router.get("/research/configs")
-def configs(c: ContainerDep, user: UserDep) -> ResearchConfigs:
-    return c.research.configs(user)
+def configs(
+    c: ContainerDep,
+    user: UserDep,
+    suite_id: Literal[
+        "huy-router-fixtures-v1", "huy-router-fixtures-v2"
+    ] = "huy-router-fixtures-v1",
+) -> ResearchConfigs:
+    return c.research.configs(user, suite_id)
 
 
 @router.post("/research/preflight")

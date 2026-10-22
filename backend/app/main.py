@@ -46,11 +46,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise RuntimeError(
                 "Database not migrated. Run npm run db:migrate from repository root."
             ) from exc
+        await services.router_feedback.start()
         await services.documents.start()
         await services.research.start()
         try:
             yield
         finally:
+            await services.training.close()
             await services.research.close()
             await services.documents.close()
             if services.live:

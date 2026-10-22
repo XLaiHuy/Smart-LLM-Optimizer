@@ -27,6 +27,8 @@ class ModelEntry(DTO):
     pricing_verified: bool = False
     endpoint: Literal["responses", "embeddings"] | None = None
     structured_output: bool = False
+    function_calling: bool = False
+    reasoning_effort: Literal["none", "low", "medium", "high", "xhigh", "max"] | None = None
     supported_parameters: tuple[Literal["temperature", "top_p"], ...] = ()
 
     @model_validator(mode="after")

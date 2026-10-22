@@ -14,8 +14,10 @@ from app.contracts.dtos import (
     ExecutionRequest,
     Message,
     MeteringContext,
+    ProviderItem,
     ProviderOptions,
     ProviderResult,
+    ToolDefinition,
     Usage,
 )
 from app.contracts.errors import AppError
@@ -30,9 +32,18 @@ from app.storage.repositories import now, uid
 Stage = Literal["provider", "query_embedding", "indexing", "document_map", "document_reduce"]
 
 
-def input_bound(messages: tuple[Message, ...]) -> int:
+def input_bound(
+    messages: tuple[Message, ...],
+    tools: tuple[ToolDefinition, ...] = (),
+    items: tuple[ProviderItem, ...] = (),
+) -> int:
     # Conservative UTF-8 byte bound plus role overhead, not provider usage.
-    return sum(len(m.content.encode("utf-8")) + 64 for m in messages) + 128
+    return (
+        sum(len(m.content.encode("utf-8")) + 64 for m in messages)
+        + 128
+        + sum(len(t.model_dump_json().encode("utf-8")) + 64 for t in tools)
+        + sum(len(i.payload_json.encode("utf-8")) + 64 for i in items)
+    )
 
 
 def aggregate(calls: tuple[CallRecord, ...]) -> tuple[Usage, CostEstimate]:
@@ -148,12 +159,16 @@ class MeteredCalls:
         provider: LLMProvider,
         stage: Stage = "provider",
     ) -> ProviderResult:
-        bound = input_bound(messages)
+        bound = input_bound(messages, opts.tools, opts.continuation_items)
         upper = Decimal(0)
         if self.catalog:
             entry = self.catalog.entry(opts.config_id)
             if entry.kind != "generation" or opts.model_id != entry.model_id:
                 raise AppError("NO_COMPATIBLE_MODEL", 422, "Model/configuration mismatch")
+            if opts.tools and not entry.function_calling:
+                raise AppError(
+                    "NO_COMPATIBLE_MODEL", 422, "Model does not support configured tools"
+                )
             if any(
                 value is not None and name not in entry.supported_parameters
                 for name, value in (("temperature", opts.temperature), ("top_p", opts.top_p))

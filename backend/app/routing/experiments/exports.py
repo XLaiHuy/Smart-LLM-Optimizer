@@ -43,6 +43,12 @@ def encode_export(
         "calls",
         "snapshot_hash",
         "policy_hash",
+        "reason_code",
+        "ml_score",
+        "calibrated_threshold",
+        "ml_artifact_hash",
+        "ml_model_version",
+        "routing_stages",
         "calculated_usd",
         "known_subtotal_usd",
         "input_tokens",
@@ -100,6 +106,14 @@ def encode_export(
                 "calls": len(row.calls),
                 "snapshot_hash": row.snapshot_hash,
                 "policy_hash": row.route.policy_hash if row.route else None,
+                "reason_code": row.route.reason_code if row.route else None,
+                "ml_score": row.route.ml_score if row.route else None,
+                "calibrated_threshold": row.route.calibrated_threshold if row.route else None,
+                "ml_artifact_hash": row.route.ml_artifact_hash if row.route else None,
+                "ml_model_version": row.route.ml_model_version if row.route else None,
+                "routing_stages": json.dumps([s.model_dump() for s in row.route.stages])
+                if row.route
+                else None,
                 "calculated_usd": sum(
                     (c.cost.serving_usd for c in row.calls if c.cost.serving_usd is not None),
                     Decimal(0),

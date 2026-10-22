@@ -1,5 +1,11 @@
 # Router Lab — Huy handoff
 
+**Cập nhật 22/10/2026:** giao diện Lab nâng cao/journey ở bản trước đã được thay bởi [Lab thống nhất và popup tiến trình](COMPACT_EXPERIENCE_HANDOFF.md). Backend policies, evidence gates và các kết quả kiểm tra lịch sử bên dưới vẫn là ghi nhận của thời điểm đó.
+
+Three-model suite, artifact V2, stage decisions and fallback rates are described in [Platform V2 handoff](PLATFORM_V2_HANDOFF.md). V1 remains available; default policies exclude learned policies until explicitly selected. Functional tool metadata in the V2 suite is not a live agent benchmark.
+
+Update 2026-10-21: policy `ml_router`, offline train/evaluate, frozen JSON artifacts and honest VI/EN Auto reasons are documented in [ML router handoff](ML_ROUTER_HANDOFF.md). Missing artifacts visibly fall back; no qualified live data or paid pilot is implied.
+
 ## Trạng thái và cách chạy
 
 Nhánh triển khai: `feature/huy-router-lab`, xuất phát từ develop. API/auth/history/documents giữ nguyên; migration additive `c102` thêm research runs/trials, reconciliation audit, nullable accounting session và run-budget linkage. Không reset DB hoặc tự tạo tài khoản mặc định.

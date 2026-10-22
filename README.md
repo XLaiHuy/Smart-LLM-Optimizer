@@ -1,5 +1,17 @@
 # Smart LLM Optimizer · OU
 
+**22/10/2026 — Router final candidate:** đã sửa fallback encoder, nhãn attention, token budget, chia nguồn dữ liệu và routing async. Có artifact kiểm thử với báo cáo cache miss/concurrency; chưa có kết quả chất lượng hoặc tiết kiệm live. Xem [trạng thái và cách tái lập](docs/ROUTER_FINAL_READINESS.md).
+
+**22/10/2026 — Router training:** admin có nút collect → distill từ cache/Gemini → train → HOLDOUT → import ứng viên nghiên cứu. Live cần manifest/catalog đã review, server key và gate; không tự đổi chat. Xem [thiết lập pipeline](docs/ROUTER_TRAINING.md) và [đối chiếu FLASH-ROUTER với plan](docs/FLASH_ROUTER_REVIEW.md).
+
+**22/10/2026 — Lab gọn và tiến trình chat:** một trang thử nghiệm, một nút chạy giả lập; chat xem các bước qua cửa sổ nhỏ; landing hiện lại khi cuộn. Chạy migration `f105` trước khi dùng. Xem [bàn giao trải nghiệm gọn](docs/COMPACT_EXPERIENCE_HANDOFF.md) và [hồ sơ B3/PoF](docs/B3_READINESS.md).
+
+**Cập nhật UI/usage (21/10/2026):** trang giới thiệu hiện dần, dashboard theo giờ/ngày/tháng, thống kê admin theo tài khoản và đường đọc báo cáo benchmark đã duyệt. Chạy migration `e104` trước khi mở app. So sánh chưa có phép đo thật vẫn khóa; xem [hướng dẫn UI và thống kê](docs/UX_USAGE_HANDOFF.md).
+
+**Nâng cấp ba model và tools (21/10/2026):** có policy `ml_multi_model`, artifact JSON V2, calculator/tra cứu nguồn được chọn, landing và hướng dẫn công khai. Xem [bàn giao nền tảng V2](docs/PLATFORM_V2_HANDOFF.md). Mock vẫn mặc định; chưa có artifact nghiên cứu đủ điều kiện hoặc bằng chứng live. Chạy migration trước khi mở ứng dụng hiện có.
+
+Router học máy nhẹ: [train/evaluate offline và gate bật Auto](docs/ML_ROUTER_HANDOFF.md). Chat mặc định “Tự động”; mock không gọi API. Thiếu artifact, policy ML quay về cách chọn hiện có với reason code rõ ràng.
+
 MVP mở rộng từ foundation G0 cho nghiên cứu tối ưu model, prompt, context và memory. FastAPI + Next.js + SQLite; giao diện trắng–xanh OU, Việt/Anh. **Mock provider mặc định**; có adapter OpenAI, tài liệu/hybrid RAG, full-text jobs, dashboard usage/USD và admin quota. Live chỉ bật khi có key và catalog được review. Optimizers hiện là typed no-ops, chưa có kết quả tiết kiệm hay chất lượng live.
 
 ## Yêu cầu
@@ -128,6 +140,8 @@ Trong chat mở **Tài liệu hội thoại**, upload TXT/MD UTF-8, PDF có ch�
 So sánh baseline–optimized và báo cáo khoa học chờ các module/gates của Tân/Khoa. Không coi mock hoặc no-op là thuật toán đã đạt quality guardrails. Xem [MVP handoff](docs/MVP_HANDOFF.md).
 
 ## Router Lab dành cho Huy
+
+Pilot huấn luyện bằng nhãn thực tế, cap toàn campaign 5 USD và đối chứng ML/Attention: [hướng dẫn và kết quả hiện tại](docs/ROUTER_GOLD_PILOT.md). Dữ liệu public đã chuẩn bị; generation hiện dừng vì quyền truy cập model, chưa có artifact train mới từ pilot.
 
 Sau migration, đăng nhập admin và mở **Nghiên cứu router** tại `/research`. Chọn model giả lập/policies, preflight, chạy ma trận 20 fixtures, xem trace và xuất CSV/JSONL. Simulation không cần key, không tạo chat giả, không trừ quota thật. Giá trị giả lập có nhãn riêng; không phải research quality hoặc live savings. Live research hiện bị chặn ở server.
 

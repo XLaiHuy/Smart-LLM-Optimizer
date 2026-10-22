@@ -4,6 +4,9 @@ permissions:
   contents: read
 env:
   PROVIDER_MODE: mock
+  RESEARCH_LIVE_ENABLED: 'false'
+  ML_ROUTER_LIVE_APPROVED: 'false'
+  TOOLS_LIVE_APPROVED: 'false'
   APP_ENV: test
   NEXT_TELEMETRY_DISABLED: '1'
 jobs:

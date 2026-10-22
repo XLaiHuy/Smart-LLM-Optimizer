@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Query, Response, UploadFile
 
+from app.analytics.impact import BenchmarkImpact, benchmark_impact
 from app.api.routes import ContainerDep, UserDep
 from app.contracts.dtos import (
     AdminUser,
@@ -67,8 +68,20 @@ async def usage(
     end: date | None = None,
     project: bool = False,
     source: Literal["mock", "live"] | None = None,
+    granularity: Literal["auto", "hour", "day", "month"] = "auto",
+    model_id: str | None = None,
+    session_id: str | None = None,
 ) -> Analytics:
-    return await c.analytics.report(user, start, end, project, source)
+    return await c.analytics.report(
+        user,
+        start,
+        end,
+        project,
+        source,
+        granularity=granularity,
+        model_id=model_id,
+        session_id=session_id,
+    )
 
 
 @router.get("/usage/export")
@@ -79,9 +92,23 @@ async def usage_export(
     end: date | None = None,
     project: bool = False,
     source: Literal["mock", "live"] | None = None,
+    granularity: Literal["auto", "hour", "day", "month"] = "auto",
+    model_id: str | None = None,
+    session_id: str | None = None,
     format: Literal["json", "csv"] = "json",
+    user_id: str | None = None,
 ) -> Response:
-    report = await c.analytics.report(user, start, end, project, source)
+    report = await c.analytics.report(
+        user,
+        start,
+        end,
+        project,
+        source,
+        user_id=user_id,
+        granularity=granularity,
+        model_id=model_id,
+        session_id=session_id,
+    )
     if format == "json":
         return Response(
             report.model_dump_json(),
@@ -108,7 +135,7 @@ async def usage_export(
     )
     for dimension, rows in (
         ("total", (report.totals,)),
-        ("daily", report.daily),
+        ("timeseries_" + report.granularity, report.timeseries),
         ("model", report.models),
         ("category", report.categories),
         ("session", report.sessions),
@@ -178,3 +205,30 @@ async def jobs(
             )
         )
     return tuple([await c.documents.get_job(user, id) for id in ids])
+
+
+@router.get("/admin/users/{user_id}/usage", response_model=Analytics)
+async def user_usage(
+    user_id: str,
+    user: UserDep,
+    c: ContainerDep,
+    start: date | None = None,
+    end: date | None = None,
+    source: Literal["mock", "live"] | None = None,
+    granularity: Literal["auto", "hour", "day", "month"] = "auto",
+    model_id: str | None = None,
+) -> Analytics:
+    return await c.analytics.report(
+        user, start, end, source=source, user_id=user_id, granularity=granularity, model_id=model_id
+    )
+
+
+@router.get("/admin/benchmark-impact", response_model=BenchmarkImpact)
+async def impact(
+    user: UserDep,
+    c: ContainerDep,
+    start: date | None = None,
+    end: date | None = None,
+    user_id: str | None = None,
+) -> BenchmarkImpact:
+    return await benchmark_impact(c.db, c.settings, user, start, end, user_id)

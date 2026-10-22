@@ -4,20 +4,34 @@ import { useEffect, useState } from "react";
 import { api, unwrap, type User } from "@/lib/api";
 import { Login } from "./login";
 import { ErrorNotice, Spinner } from "./ui";
-import { AuthenticatedWorkspace } from "./workspace-shell";
+import dynamic from "next/dynamic";
+const AuthenticatedWorkspace = dynamic(
+  () => import("./workspace-shell").then((m) => m.AuthenticatedWorkspace),
+  {
+    loading: () => (
+      <main className="app-loading" role="status">
+        <Spinner />
+      </main>
+    ),
+  },
+);
 
 export function Workspace({
   dashboard = false,
   research = false,
+  initialSignedOut = false,
 }: {
   dashboard?: boolean;
   research?: boolean;
+  initialSignedOut?: boolean;
 }) {
   const client = useQueryClient();
   const [expired, setExpired] = useState(false);
   const [epoch, setEpoch] = useState(0);
   const me = useQuery<User | null>({
     queryKey: ["me"],
+    initialData: initialSignedOut ? null : undefined,
+    initialDataUpdatedAt: 0,
     retry: false,
     queryFn: async () => {
       const response = await api.GET("/v1/auth/me");
@@ -54,6 +68,7 @@ export function Workspace({
   if (!me.data)
     return (
       <Login
+        key={expired ? "expired" : "signed-out"}
         expired={expired}
         onSuccess={(user) => {
           setExpired(false);

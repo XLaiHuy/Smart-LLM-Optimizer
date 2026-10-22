@@ -12,6 +12,42 @@ class DTO(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class ToolDefinition(DTO):
+    name: str
+    description: str
+    parameters_json: str
+
+
+class ProviderItem(DTO):
+    type: str
+    payload_json: str
+
+
+class ToolCall(DTO):
+    call_id: str
+    name: str
+    arguments: str
+
+
+class ToolEvent(DTO):
+    call_id: str
+    name: str
+    status: Literal["succeeded", "failed", "interrupted", "running"]
+    error_code: str | None = None
+    arguments_json: str | None = None
+    output_json: str | None = None
+    duration_ms: float | None = None
+
+
+class RoutingStage(DTO):
+    config_id: str
+    score: float | None = Field(default=None, ge=0, le=1)
+    threshold: float | None = Field(default=None, ge=0, le=1)
+    status: str
+    base_threshold: float | None = Field(default=None, ge=0, le=1)
+    drift_shift: float = Field(default=0, ge=0, le=1)
+
+
 class FeatureFlags(DTO):
     router: bool = False
     rewrite: bool = False
@@ -110,6 +146,7 @@ class SessionSnapshot(DTO):
 
 class SessionDetail(SessionInfo):
     messages: tuple[Message, ...]
+    active_client_request_id: str | None = None
 
 
 class DerivedMemory(DTO):
@@ -157,6 +194,8 @@ class ContextResult(DTO):
     messages: tuple[Message, ...]
     provenance: tuple[str, ...]
     state: OptimizationState
+    tools: tuple[ToolDefinition, ...] = ()
+    continuation_items: tuple[ProviderItem, ...] = ()
     token_estimates: tuple[TokenEstimate, ...] = ()
     summary_needed: bool = False
 
@@ -186,6 +225,12 @@ class TaskProfile(DTO):
     rules_matched: tuple[str, ...] = ()
     input_utf8_bytes: int = 0
     length_tier: Literal["short", "long"] = "short"
+    total_input_bytes: int = 0
+    has_rag_context: bool = False
+    code_ratio: float = Field(default=0, ge=0, le=1)
+    json_schema_required: bool = False
+    tool_count: int = 0
+    tool_recovery_required: bool = False
 
 
 class ModelConfiguration(DTO):
@@ -199,6 +244,8 @@ class ModelConfiguration(DTO):
     max_output_tokens: int = 1024
     structured_output: bool = False
     supported_parameters: tuple[str, ...] = ()
+    function_calling: bool = False
+    reasoning_effort: str | None = None
 
 
 class RegistrySnapshot(DTO):
@@ -219,13 +266,20 @@ class RouteRate(DTO):
 
 class PolicySnapshot(EffectiveConfiguration):
     strategy: Literal[
-        "fixed_reference", "fixed_candidate", "cheapest_feasible", "random_feasible", "rule_guarded"
+        "fixed_reference",
+        "fixed_candidate",
+        "cheapest_feasible",
+        "random_feasible",
+        "rule_guarded",
+        "ml_router",
+        "ml_multi_model",
     ] = "rule_guarded"
     candidate_id: str | None = None
     seed: int = 0
     sandbox: bool = False
     evidence: tuple["RouteEvidence", ...] = ()
     evidence_version: str | None = None
+    ml_artifact_hash: str | None = None
 
 
 class RouteEvidence(DTO):
@@ -254,6 +308,12 @@ class RouteDecision(DTO):
     policy_hash: str | None = None
     evidence_version: str | None = None
     use_original_context: bool = False
+    ml_score: float | None = Field(default=None, ge=0, le=1)
+    calibrated_threshold: float | None = Field(default=None, ge=0, le=1)
+    reason_code: str | None = None
+    ml_artifact_hash: str | None = None
+    ml_model_version: str | None = None
+    stages: tuple[RoutingStage, ...] = ()
 
 
 class CandidateExclusion(DTO):
@@ -299,6 +359,8 @@ class ProviderOptions(DTO):
     model_id: str
     temperature: float | None = Field(default=None, ge=0, le=2)
     top_p: float | None = Field(default=None, gt=0, le=1)
+    tools: tuple[ToolDefinition, ...] = ()
+    continuation_items: tuple[ProviderItem, ...] = ()
 
 
 class ProviderResult(DTO):
@@ -309,6 +371,9 @@ class ProviderResult(DTO):
     usage: Usage = Field(default_factory=lambda: Usage(scope="call"))
     cost: CostEstimate = Field(default_factory=lambda: CostEstimate(scope="call"))
     duration_ms: float
+    status: Literal["completed", "tool_calls", "incomplete"] = "completed"
+    tool_calls: tuple[ToolCall, ...] = ()
+    output_items: tuple[ProviderItem, ...] = ()
 
 
 class CallRecord(DTO):
@@ -371,9 +436,23 @@ class ChatResponse(DTO):
     quality_score: float | None = None
     cost_saving_ratio: float | None = None
     citations: tuple["Citation", ...] = ()
+    tool_events: tuple[ToolEvent, ...] = ()
+
+
+class PublicModel(DTO):
+    name: str
+    status: Literal["planned", "configured", "simulated"]
+
+
+class PlatformInfo(DTO):
+    name: str = "Smart LLM Optimizer"
+    execution_mode: Literal["mock", "live"]
+    models: tuple[PublicModel, ...]
+    tools_available: bool
 
 
 class RecentRequest(DTO):
+    execution_source: Literal["mock", "live"] = "mock"
     request_id: str
     session_id: str
     status: str
@@ -475,6 +554,8 @@ class Analytics(DTO):
     end: str
     totals: MetricBucket
     daily: tuple[MetricBucket, ...]
+    granularity: Literal["hour", "day", "month"] = "day"
+    timeseries: tuple[MetricBucket, ...] = ()
     models: tuple[MetricBucket, ...]
     categories: tuple[MetricBucket, ...]
     sessions: tuple[MetricBucket, ...]

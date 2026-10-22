@@ -17,11 +17,58 @@ from app.contracts.dtos import (
     RouteEstimate,
     RouteEvidence,
     TaskProfile,
+    ToolDefinition,
 )
 
 Strategy = Literal[
-    "fixed_reference", "fixed_candidate", "cheapest_feasible", "random_feasible", "rule_guarded"
+    "fixed_reference",
+    "fixed_candidate",
+    "cheapest_feasible",
+    "random_feasible",
+    "rule_guarded",
+    "ml_router",
+    "ml_multi_model",
 ]
+
+
+class LabModule(DTO):
+    id: Literal["router", "prompt", "memory"]
+    implemented: bool
+    status: Literal["requires_qualified_data", "not_implemented", "ready"] = (
+        "requires_qualified_data"
+    )
+
+
+class OptimizerLabInfo(DTO):
+    modules: tuple[LabModule, ...]
+    qualified_samples: int = 0
+    requested_sizes: tuple[int, ...] = (50, 200, 600)
+    dataset_status: Literal["not_qualified", "qualified"] = "not_qualified"
+    comparison_available: bool = False
+
+
+class MetricItem(DTO):
+    baseline: float
+    optimized: float
+    delta_percent: float
+    unit: str = ""
+
+
+class AblationRunResponse(DTO):
+    size: int
+    evaluated_samples: int
+    cost_usd: MetricItem
+    latency_ms: MetricItem
+    tokens: MetricItem
+    pass_rate: MetricItem
+    summary: str
+
+
+class AblationRequest(DTO):
+    size: Literal[50, 200, 600] = 50
+    router: bool = True
+    prompt: bool = False
+    memory: bool = False
 
 
 class FixtureCase(DTO):
@@ -32,6 +79,7 @@ class FixtureCase(DTO):
     check: Literal["exact", "json_code"] = "exact"
     max_usd: Decimal = Decimal("0.05")
     deadline_ms: int = 15000
+    tools: tuple[ToolDefinition, ...] = ()
 
 
 class FixtureManifest(DTO):
@@ -42,7 +90,7 @@ class FixtureManifest(DTO):
 
 class ResearchRequest(DTO):
     client_request_id: str = Field(min_length=1, max_length=128)
-    suite_id: Literal["huy-router-fixtures-v1"] = "huy-router-fixtures-v1"
+    suite_id: Literal["huy-router-fixtures-v1", "huy-router-fixtures-v2"] = "huy-router-fixtures-v1"
     execution_source: Literal["simulation", "live"] = "simulation"
     config_ids: tuple[str, ...] = Field(
         default=("fixture-reference", "fixture-small"), min_length=1, max_length=8
@@ -56,7 +104,7 @@ class ResearchRequest(DTO):
             "rule_guarded",
         ),
         min_length=1,
-        max_length=5,
+        max_length=7,
     )
     seed: int = Field(default=42, ge=0, le=2147483647)
     repeats: int = Field(default=1, ge=1, le=5)
@@ -88,6 +136,8 @@ class ResearchConfigs(DTO):
     live_enabled: bool = False
     live_models: tuple[ModelConfiguration, ...] = ()
     live_reference_id: str | None = None
+    ml_status: str = "ML_ARTIFACT_MISSING_FALLBACK"
+    ml_artifact_hash: str | None = None
 
 
 class SimulationMetrics(DTO):
@@ -131,6 +181,7 @@ class ResearchRunInfo(DTO):
     checker_version: str = "fixture-checks-v1"
     error_code: str | None = None
     accounting: "RunAccounting | None" = None
+    ml_artifact_hash: str | None = None
 
 
 class UncommittedCall(DTO):
@@ -152,15 +203,25 @@ class PolicySummary(DTO):
     calls: int
     functional_passes: int
     errors: int
+    fallbacks: int = 0
+    fallback_rate: float | None = None
     p50_ms: float | None
     p95_ms: float | None
     simulation_upper_usd: Decimal | None
     calculated_usd: Decimal | None = None
 
 
+class PredictorImportance(DTO):
+    config_id: str
+    importances: dict[str, float]
+
+
 class ResearchSummary(DTO):
     routes: dict[str, int]
     policies: tuple[PolicySummary, ...]
+    feature_importances: dict[str, float] = Field(default_factory=dict)
+    predictor_importances: tuple[PredictorImportance, ...] = ()
+    feature_importance_artifact_hash: str | None = None
 
 
 class ReconcileRequest(DTO):
@@ -186,6 +247,8 @@ class ExperimentSnapshot(DTO):
     code_sha: str
     checker_version: str = "fixture-checks-v1"
     price_catalog_json: str | None = None
+    ml_artifact_json: str | None = None
+    ml_artifact_hash: str | None = None
 
 
 class DatasetSource(Protocol):

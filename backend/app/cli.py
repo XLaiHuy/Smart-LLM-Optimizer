@@ -14,12 +14,14 @@ from app.config import ROOT, Settings
 from app.contracts.errors import AppError
 from app.evaluation.runner import run_smoke, validate_manifest
 from app.routing.experiments.cli import cli as research_cli
+from app.routing.ml.cli import cli as router_cli
 from app.storage.database import Database
 
 cli = typer.Typer(no_args_is_help=True)
 evaluation = typer.Typer(no_args_is_help=True)
 cli.add_typer(evaluation, name="eval")
 cli.add_typer(research_cli, name="research")
+cli.add_typer(router_cli, name="router")
 
 
 def migrate(path: Path) -> None:

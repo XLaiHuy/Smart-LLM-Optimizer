@@ -24,10 +24,13 @@ from app.contracts.dtos import (
     OptimizationState,
     PolicySnapshot,
     Principal,
+    ProviderItem,
     ProviderOptions,
     RegistrySnapshot,
     RemainingBudget,
+    RouteDecision,
     Timing,
+    ToolEvent,
     Usage,
 )
 from app.contracts.errors import AppError
@@ -36,11 +39,14 @@ from app.contracts.protocols import (
     LLMProvider,
     MemoryManager,
     ModelRouter,
+    ProgressSink,
     PromptOptimizer,
+    RouterOutcomeSink,
     SessionStore,
     TaskAnalyzer,
 )
 from app.core.policy import noop_state, resolve_configuration
+from app.core.tools import ToolExecutor, tool_definitions
 
 
 class Orchestrator:
@@ -55,8 +61,11 @@ class Orchestrator:
         router: ModelRouter,
         registry: RegistrySnapshot,
     ):
+        self.progress: ProgressSink | None = None
+        self.outcomes: RouterOutcomeSink | None = None
         self.metering: MeteredCalls | None = None
         self.documents: DocumentService | None = None
+        self.tools: ToolExecutor | None = None
         self.sessions = sessions
         self.provider = provider
         self.analyzer = analyzer
@@ -87,8 +96,30 @@ class Orchestrator:
         saved = await self.sessions.claim(execution, payload_hash)
         if saved is not None:
             return saved
+        from app.contracts.progress import ProgressStage
+
+        async def stage(name: ProgressStage) -> None:
+            if self.progress:
+                await self.progress.start(execution.request_id, name)
+
+        route: RouteDecision | None = None
+
+        async def record_outcome(success: bool, tool_error: bool = False) -> None:
+            if self.outcomes and route is not None:
+                try:
+                    await self.outcomes.observe(
+                        execution, route, success=success, tool_error=tool_error
+                    )
+                except Exception:
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        "Router outcome persistence failed; request=%s", execution.request_id
+                    )
+
         try:
             async with asyncio.timeout(request.constraints.deadline_ms / 1000):
+                await stage("history")
                 snapshot = await self.sessions.snapshot(principal, request.session_id)
                 config = resolve_configuration(request)
                 is_live = (
@@ -102,9 +133,20 @@ class Orchestrator:
                         )
                     if request.mode == "optimized":
                         config = config.model_copy(update={"policy_id": "quality-guarded-v3"})
+                if request.document_ids:
+                    await stage("documents")
                 evidence, citations = (
                     await self.documents.retrieve(execution) if self.documents else ((), ())
                 )
+                revisions = None
+                if request.document_ids and self.documents:
+                    docs, chunks = await self.documents.sources(
+                        principal, request.session_id, request.document_ids
+                    )
+                    revisions = (
+                        tuple((d.id, d.content_hash) for d in docs),
+                        tuple((c.id, c.version) for c in chunks),
+                    )
                 if evidence:
                     snapshot = snapshot.model_copy(
                         update={
@@ -117,7 +159,7 @@ class Orchestrator:
                             )
                         }
                     )
-                profile = self.analyzer.analyze(execution)
+                await stage("prepare")
                 memory = await self.memory.prepare(
                     snapshot, MemoryPlan(enabled=config.flags.memory)
                 )
@@ -131,6 +173,27 @@ class Orchestrator:
                     ),
                 )
                 rewrite = await self.prompt.optimize(execution, prepared, config.flags)
+                profile = self.analyzer.analyze(execution, prepared)
+                tools_available = bool(
+                    self.tools
+                    and (
+                        not self.metering
+                        or self.metering.catalog is None
+                        or (self.metering and self.metering.settings.tools_live_approved)
+                    )
+                )
+                definitions = (
+                    tool_definitions(bool(request.document_ids)) if tools_available else ()
+                )
+                prepared = prepared.model_copy(update={"tools": definitions})
+                recovery = (
+                    await self.tools.store.recovery_required(principal, request.session_id)
+                    if self.tools
+                    else False
+                )
+                profile = profile.model_copy(
+                    update={"tool_count": len(definitions), "tool_recovery_required": recovery}
+                )
                 if rewrite.proposed != request.message:
                     raise AppError(
                         "OUTPUT_INVALID", 502, "G0 no-op altered input", execution.request_id
@@ -172,14 +235,31 @@ class Orchestrator:
                             if m.kind == "generation"
                         ),
                     )
-                route = self.router.select(
+                selected_strategy = (
+                    self.metering.settings.auto_routing_strategy
+                    if self.metering and request.mode == "optimized" and config.flags.router
+                    else "fixed_reference"
+                )
+                if recovery:
+                    selected_strategy = "fixed_reference"
+                await stage("route")
+                route = await asyncio.to_thread(
+                    self.router.select,
                     profile,
                     prepared,
                     self.registry,
                     costs,
-                    PolicySnapshot(**config.model_dump()),
+                    PolicySnapshot(**config.model_dump(), strategy=selected_strategy),
                     remaining,
                 )
+                if recovery:
+                    route = route.model_copy(
+                        update={
+                            "reason": "ROUTE_TOOL_RECOVERY",
+                            "reason_code": "ROUTE_TOOL_RECOVERY",
+                            "fallback_used": True,
+                        }
+                    )
                 call_id = str(uuid4())
                 await self.sessions.mark_dispatched(execution.request_id)
                 options = ProviderOptions(
@@ -187,27 +267,138 @@ class Orchestrator:
                     call_id=call_id,
                     config_id=route.config_id,
                     model_id=route.model_id,
+                    tools=definitions,
                 )
-                if self.metering:
-                    result = await self.metering.generate(
-                        execution, prepared.messages, options, self.provider
+                tool_events: list[ToolEvent] = []
+                fallback_calls: list[CallRecord] = []
+                continuation: tuple[ProviderItem, ...] = ()
+                tool_executions = 0
+
+                async def search(query: str) -> str:
+                    nonlocal citations
+                    assert self.documents
+                    docs, chunks = await self.documents.sources(
+                        principal, request.session_id, request.document_ids
                     )
+                    current_revision = (
+                        tuple((d.id, d.content_hash) for d in docs),
+                        tuple((c.id, c.version) for c in chunks),
+                    )
+                    if current_revision != revisions:
+                        raise AppError("DOCUMENT_NOT_READY", 409, "Selected sources changed")
+                    _, found = await self.documents.retrieve(execution, query)
+                    by_id = {c.chunk_id: c for c in (*citations, *found)}
+                    citations = tuple(by_id.values())
+                    return json.dumps(
+                        {"untrusted_evidence": [c.model_dump() for c in found]}, ensure_ascii=False
+                    )
+
+                for generation in range(3):
+                    await stage("generate")
+                    current_options = options.model_copy(
+                        update={"continuation_items": continuation, "call_id": str(uuid4())}
+                    )
+                    if self.metering:
+                        result = await self.metering.generate(
+                            execution, prepared.messages, current_options, self.provider
+                        )
+                    else:
+                        result = await self.provider.generate(prepared.messages, current_options)
+                        fallback_calls.append(
+                            CallRecord(
+                                call_id=current_options.call_id,
+                                model_id=route.model_id,
+                                usage=result.usage,
+                                cost=result.cost,
+                                duration_ms=result.duration_ms,
+                            )
+                        )
+                    if result.status == "incomplete":
+                        raise AppError(
+                            "OUTPUT_INCOMPLETE",
+                            502,
+                            "Provider output incomplete",
+                            execution.request_id,
+                        )
+                    if not result.tool_calls:
+                        break
+                    if not definitions or not self.tools:
+                        raise AppError(
+                            "TOOL_NOT_ALLOWED", 422, "Tools are unavailable", execution.request_id
+                        )
+                    if (
+                        generation == 2
+                        or len(result.tool_calls) > 2
+                        or tool_executions
+                        + len(
+                            {
+                                c.call_id
+                                for c in result.tool_calls
+                                if c.call_id not in {event.call_id for event in tool_events}
+                            }
+                        )
+                        > 4
+                    ):
+                        raise AppError(
+                            "TOOL_LOOP_LIMIT",
+                            422,
+                            "No complete answer within tool limits",
+                            execution.request_id,
+                        )
+                    prior_call_ids = {
+                        json.loads(item.payload_json).get("call_id")
+                        for item in continuation
+                        if item.type == "function_call"
+                    }
+                    continuation = (
+                        *continuation,
+                        *(
+                            item
+                            for item in result.output_items
+                            if item.type != "function_call"
+                            or json.loads(item.payload_json).get("call_id") not in prior_call_ids
+                        ),
+                    )
+                    for tool_call in result.tool_calls:
+                        await stage(
+                            "calculate"
+                            if tool_call.name == "calculate"
+                            else "search"
+                            if tool_call.name == "search_selected_documents"
+                            else "prepare"
+                        )
+                        event = await self.tools.execute(
+                            execution, tool_call, search if request.document_ids else None
+                        )
+                        if self.progress:
+                            await self.progress.finish(
+                                execution.request_id,
+                                "failed" if event.status == "failed" else "succeeded",
+                            )
+                        if any(old.call_id == event.call_id for old in tool_events):
+                            continue
+                        tool_events.append(event)
+                        tool_executions += 1
+                        continuation = (
+                            *continuation,
+                            ProviderItem(
+                                type="function_call_output",
+                                payload_json=json.dumps(
+                                    {
+                                        "type": "function_call_output",
+                                        "call_id": tool_call.call_id,
+                                        "output": event.output_json or "{}",
+                                    }
+                                ),
+                            ),
+                        )
+                if self.metering:
                     calls = await self.metering.records(execution.request_id)
                     from app.core.metering import aggregate
 
                     usage, cost = aggregate(calls)
                 else:
-                    result = await self.provider.generate(prepared.messages, options)
-                    calls = (
-                        CallRecord(
-                            call_id=call_id,
-                            model_id=route.model_id,
-                            usage=result.usage,
-                            cost=result.cost,
-                            duration_ms=result.duration_ms,
-                        ),
-                    )
-                    usage, cost = Usage(), CostEstimate()
+                    calls, usage, cost = tuple(fallback_calls), Usage(), CostEstimate()
                 if citations:
                     from app.documents.service import validate_citations
 
@@ -231,8 +422,14 @@ class Orchestrator:
                     cost=cost,
                     execution_source=result.execution_source,
                     citations=citations,
+                    tool_events=tuple(tool_events),
                     timing=Timing(
-                        e2e_ms=(perf_counter() - started) * 1000, provider_ms=result.duration_ms
+                        e2e_ms=(perf_counter() - started) * 1000,
+                        provider_ms=sum(
+                            c.duration_ms
+                            for c in calls
+                            if c.stage == "provider" and c.duration_ms is not None
+                        ),
                     ),
                     calls=calls,
                     optimizations=(
@@ -248,19 +445,24 @@ class Orchestrator:
                         memory.state,
                     ),
                 )
-                return await self.sessions.commit(execution, response)
+                committed = await self.sessions.commit(execution, response)
+                await record_outcome(True, any(event.status == "failed" for event in tool_events))
+                return committed
         except asyncio.CancelledError:
             await asyncio.shield(self.sessions.fail(execution.request_id, "REQUEST_CANCELLED"))
             raise
         except TimeoutError as exc:
+            await record_outcome(False)
             await self.sessions.fail(execution.request_id, "PROVIDER_TIMEOUT")
             raise AppError(
                 "PROVIDER_TIMEOUT", 504, "Request deadline exceeded", execution.request_id
             ) from exc
         except AppError as exc:
+            await record_outcome(False)
             await self.sessions.fail(execution.request_id, exc.code)
             raise
         except Exception as exc:
+            await record_outcome(False)
             await self.sessions.fail(execution.request_id, "DEPENDENCY_UNAVAILABLE")
             raise AppError(
                 "DEPENDENCY_UNAVAILABLE", 503, "Dependency unavailable", execution.request_id

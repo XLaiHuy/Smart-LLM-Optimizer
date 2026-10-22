@@ -24,10 +24,31 @@ import { useTranslations } from "next-intl";
 import { api, unwrap, type User, type SessionInfo } from "@/lib/api";
 import { LanguageSwitch } from "./language-switch";
 import { Drawer, ErrorNotice, Spinner } from "./ui";
-import { TraceInspector } from "./trace-inspector";
-import { OverviewPanel } from "./overview";
+import dynamic from "next/dynamic";
+const TraceInspector = dynamic(() =>
+  import("./trace-inspector").then((m) => m.TraceInspector),
+);
+const OverviewPanel = dynamic(
+  () => import("./overview").then((m) => m.OverviewPanel),
+  {
+    loading: () => (
+      <div className="metric-skeleton">
+        <Spinner />
+      </div>
+    ),
+  },
+);
 import { ChatPanel } from "./chat-panel";
-import { ResearchPanel } from "./research-panel";
+const OptimizerLab = dynamic(
+  () => import("./optimizer-lab").then((m) => m.OptimizerLab),
+  {
+    loading: () => (
+      <div className="metric-skeleton">
+        <Spinner />
+      </div>
+    ),
+  },
+);
 
 export function AuthenticatedWorkspace({
   user,
@@ -49,8 +70,11 @@ export function AuthenticatedWorkspace({
     queryFn: async () => unwrap(await api.GET("/v1/models")),
   });
   const source = models.data?.[0]?.execution_source ?? "mock";
-  const selected = useSearchParams().get("session");
+  const queryParamSession = useSearchParams().get("session");
+  const [createdSession, setCreatedSession] = useState<string | null>(null);
+  const selected = queryParamSession ?? createdSession;
   function setSelected(id: string | null) {
+    setCreatedSession(id);
     router.replace(id ? `/?session=${encodeURIComponent(id)}` : "/");
   }
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -250,7 +274,7 @@ export function AuthenticatedWorkspace({
           </span>
           <div>
             <strong>{user.username}</strong>
-            <span>{user.role}</span>
+            <span>{t(user.role === "admin" ? "roleAdmin" : "roleUser")}</span>
           </div>
           <button
             className="icon-button"
@@ -294,7 +318,13 @@ export function AuthenticatedWorkspace({
           <div className="topbar-actions">
             <span className="mock-badge">
               <span />
-              {research ? "RESEARCH" : source.toUpperCase()}
+              {t(
+                research
+                  ? "researchArea"
+                  : source === "mock"
+                    ? "simulationMode"
+                    : "liveMode",
+              )}
             </span>
             <LanguageSwitch />
           </div>
@@ -305,7 +335,7 @@ export function AuthenticatedWorkspace({
           </div>
         )}
         {research ? (
-          <ResearchPanel user={user} />
+          <OptimizerLab user={user} />
         ) : dashboard ? (
           <OverviewPanel user={user} onTrace={setTrace} />
         ) : (
