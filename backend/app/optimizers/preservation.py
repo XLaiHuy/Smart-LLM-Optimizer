@@ -2,7 +2,7 @@ from collections import Counter
 from typing import Literal
 
 from app.optimizers.compressor import normalize_whitespace
-from app.optimizers.prompt_analyzer import ProtectedSpan
+from app.optimizers.prompt_analyzer import ProtectedSpan, analyze_prompt
 
 PreservationStatus = Literal[
     "preserved",
@@ -34,3 +34,13 @@ def validate_preservation(
             return "preserved"
         return "unknown"
     return "unknown"
+
+
+def check_preservation(original: str, compressed: str) -> PreservationStatus:
+    """Backward-compatible facade for callers that do not precompute spans."""
+    analysis = analyze_prompt(original, compression_threshold=0)
+    return validate_preservation(
+        original,
+        compressed,
+        analysis.protected_spans,
+    )

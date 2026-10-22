@@ -35,7 +35,7 @@ class PassThroughContext:
         return ContextResult(
             messages=messages,
             provenance=tuple(message.id or message.role for message in messages),
-            state=noop_state("context", False),
+            state=noop_state("context", features.flags.context),
             token_estimates=budgets.estimates,
         )
 
@@ -78,7 +78,7 @@ class HybridContextManager:
             return ContextResult(
                 messages=messages,
                 provenance=tuple(message.id or message.role for message in messages),
-                state=noop_state("context", False),
+                state=noop_state("context", features.flags.context),
                 token_estimates=budgets.estimates,
             )
 
