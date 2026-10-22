@@ -1,10 +1,12 @@
+from importlib import import_module
 from typing import Any
 
 import tiktoken
-from llmlingua import PromptCompressor  # type: ignore[import-untyped]
 
 from app.optimizers.preservation import validate_preservation
 from app.optimizers.prompt_analyzer import analyze_prompt
+
+PromptCompressor: Any = import_module("llmlingua").PromptCompressor
 
 
 class LLMLinguaCompressor:
