@@ -80,7 +80,7 @@ def _serialize_run(run: FixtureRun) -> bytes:
     return ("\n".join(serialized_rows) + "\n").encode("utf-8")
 
 
-def _write_atomic(
+def write_atomic_artifact(
     *,
     output_path: Path,
     content: bytes,
@@ -119,7 +119,7 @@ def _write_atomic(
     except ExportError:
         raise
     except OSError as exc:
-        raise ExportError(f"Could not export eval JSONL: {output_path}") from exc
+        raise ExportError(f"Could not export evaluation artifact: {output_path}") from exc
     finally:
         if temporary_path is not None:
             try:
@@ -139,7 +139,7 @@ def export_jsonl(
     _validate_run_rows(run)
 
     content = _serialize_run(run)
-    overwrote_existing = _write_atomic(
+    overwrote_existing = write_atomic_artifact(
         output_path=output_path,
         content=content,
         overwrite=overwrite,
