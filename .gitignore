@@ -30,3 +30,20 @@ output/
 .cache/
 
 config/models.json
+config/router_model.json
+config/router_model.joblib
+
+.next-e2e/
+config/benchmark-impact.json
+# Ignored test files (local pilot / unit / research tests)
+backend/tests/unit/
+backend/tests/integration/test_native_tools.py
+backend/tests/integration/test_optimizer_lab.py
+backend/tests/integration/test_progress.py
+backend/tests/integration/test_router_feedback.py
+backend/tests/integration/test_router_gold_pilot.py
+backend/tests/integration/test_router_training.py
+backend/tests/integration/test_tools.py
+backend/tests/integration/test_usage_experience.py
+frontend/src/lib/presentation.test.ts
+frontend/tests/compact-experience.spec.ts

@@ -8,6 +8,7 @@ import "@fontsource/roboto/700.css";
 import "@fontsource/roboto/900.css";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+import "./experience.css";
 
 export const metadata: Metadata = {
   title: "Smart LLM Optimizer · OU",
@@ -20,7 +21,7 @@ export default async function RootLayout({
 }) {
   const locale = await getLocale();
   return (
-    <html lang={locale}>
+    <html lang={locale} data-scroll-behavior="smooth">
       <body>
         <NextIntlClientProvider locale={locale} messages={await getMessages()}>
           <Providers>{children}</Providers>

@@ -14,15 +14,31 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test"] = "development"
     database_path: Path = ROOT / "data/smartllm.db"
     provider_mode: Literal["mock", "live"] = "mock"
+    research_live_enabled: bool = False
+    auto_routing_strategy: Literal["rule_guarded", "ml_router", "ml_multi_model"] = "rule_guarded"
+    ml_router_artifact_path: Path = ROOT / "config/router_model.json"
+    ml_router_live_approved: bool = False
+    router_training_manifest_path: Path = ROOT / "data/router-training/manifest.json"
+    router_training_directory: Path = ROOT / "data/router-training"
+    tools_live_approved: bool = False
     mock_config_id: str = "mock-baseline"
     auth_session_hours: int = Field(default=8, ge=1, le=168)
     cookie_secure: bool = False
-    allowed_origins: tuple[str, ...] = ("http://localhost:3000",)
-    project_budget_usd: Decimal = Field(default=Decimal("20"), gt=0)
+    allowed_origins: tuple[str, ...] = (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    )
     default_user_budget_usd: Decimal = Field(default=Decimal("5"), gt=0)
+    project_budget_usd: Decimal = Field(default=Decimal("20"), gt=0)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = ""
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_model: str = "gemini-3.5-flash-lite"
+    benchmark_impact_path: Path = ROOT / "config/benchmark-impact.json"
+    benchmark_impact_approved: bool = False
     model_catalog_path: Path = ROOT / "config/models.json"
     upload_directory: Path = ROOT / "data/uploads"
     max_file_bytes: int = Field(default=10 * 1024 * 1024, ge=1, le=50 * 1024 * 1024)
@@ -32,7 +48,15 @@ class Settings(BaseSettings):
     parser_timeout_seconds: int = Field(default=30, ge=1, le=120)
     document_operation_budget_usd: Decimal = Field(default=Decimal("1.00"), gt=0, le=20)
 
-    @field_validator("database_path", "model_catalog_path", "upload_directory")
+    @field_validator(
+        "database_path",
+        "model_catalog_path",
+        "upload_directory",
+        "ml_router_artifact_path",
+        "benchmark_impact_path",
+        "router_training_manifest_path",
+        "router_training_directory",
+    )
     @classmethod
     def resolve_db(cls, value: Path) -> Path:
         return value if value.is_absolute() else ROOT / value

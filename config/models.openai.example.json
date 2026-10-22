@@ -1,0 +1,35 @@
+{
+  "version": "openai-standard-docs-2026-10-21-UNREVIEWED",
+  "baseline_config": "terra56-none-1024-v1",
+  "embedding_config": "embedding-small-v1",
+  "models": [
+    {
+      "config_id": "luna6-none-1024-v1", "model_id": "gpt-6-luna", "kind": "generation",
+      "endpoint": "responses", "context_window": 64000, "max_output_tokens": 1024,
+      "input_per_million": "0.10", "cached_per_million": "0.01", "cache_write_per_million": "0.125", "output_per_million": "0.50",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-6-luna", "effective_at": "2026-10-21-documentation-snapshot",
+      "verified_access": false, "pricing_verified": false, "structured_output": true, "function_calling": true, "reasoning_effort": "none"
+    },
+    {
+      "config_id": "luna56-none-1024-v1", "model_id": "gpt-5.6-luna", "kind": "generation",
+      "endpoint": "responses", "context_window": 64000, "max_output_tokens": 1024,
+      "input_per_million": "0.20", "cached_per_million": "0.02", "cache_write_per_million": "0.25", "output_per_million": "1.20",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna", "effective_at": "2026-10-21-documentation-snapshot",
+      "verified_access": false, "pricing_verified": false, "structured_output": true, "function_calling": true, "reasoning_effort": "none"
+    },
+    {
+      "config_id": "terra56-none-1024-v1", "model_id": "gpt-5.6-terra", "kind": "generation",
+      "endpoint": "responses", "context_window": 64000, "max_output_tokens": 1024,
+      "input_per_million": "2.00", "cached_per_million": "0.20", "cache_write_per_million": "2.50", "output_per_million": "12.00",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra", "effective_at": "2026-10-21-documentation-snapshot",
+      "verified_access": false, "pricing_verified": false, "structured_output": true, "function_calling": true, "reasoning_effort": "none"
+    },
+    {
+      "config_id": "embedding-small-v1", "model_id": "text-embedding-3-small", "kind": "embedding",
+      "endpoint": "embeddings", "context_window": 8191, "max_output_tokens": 1,
+      "input_per_million": "0.02", "output_per_million": "0",
+      "source_url": "https://developers.openai.com/api/docs/models/text-embedding-3-small", "effective_at": "2026-10-21-documentation-snapshot",
+      "verified_access": false, "pricing_verified": false
+    }
+  ]
+}

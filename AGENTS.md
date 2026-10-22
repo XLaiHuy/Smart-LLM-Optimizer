@@ -4,6 +4,8 @@ Read the root spec, README and relevant `.agents/skills/` before changes. User d
 
 Huy owns contracts/API/auth/storage/migrations/ledger/provider/router/wiring/frontend and shared tooling. Tân owns optimizers after G0 handoff; Khoa memory/evaluation/benchmark. Use ports and generated TS; affected owners review contract changes. Do not edit another module or dependency lock incidentally.
 
+Huy also owns routing/experiments and the admin Router Lab (§16; docs/ROUTER_LAB_HANDOFF.md). Fixtures/simulation are functional only. RESEARCH_LIVE_ENABLED defaults false; never activate or spend from tests/CI. Branch flow is feature → develop → main; keep main for the accepted submission build.
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 

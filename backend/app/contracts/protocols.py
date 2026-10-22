@@ -27,10 +27,13 @@ from .dtos import (
     SessionSnapshot,
     TaskProfile,
 )
+from .progress import ProgressStage, ProgressStatus
 
 
 class TaskAnalyzer(Protocol):
-    def analyze(self, req: ExecutionRequest) -> TaskProfile: ...
+    def analyze(
+        self, req: ExecutionRequest, prepared: ContextResult | None = None
+    ) -> TaskProfile: ...
 
 
 class PromptOptimizer(Protocol):
@@ -99,9 +102,33 @@ class BudgetLedger(Protocol):
     ) -> str: ...
     async def settle(self, reservation_id: str, actual_usd: Decimal | None) -> None: ...
     async def release(self, reservation_id: str) -> None: ...
-    async def reconcile(self, reservation_id: str, actual_usd: Decimal) -> None: ...
+    async def reconcile(
+        self,
+        principal: Principal,
+        reservation_id: str,
+        actual_usd: Decimal,
+        reason: str,
+        evidence_reference: str,
+    ) -> str: ...
 
 
 class MemoryStore(Protocol):
     async def load(self, principal: Principal, session_id: str) -> "DerivedMemory": ...
     async def save(self, principal: Principal, session_id: str, state: "DerivedMemory") -> None: ...
+
+
+class RouterOutcomeSink(Protocol):
+    async def observe(
+        self,
+        execution: ExecutionRequest,
+        route: RouteDecision,
+        *,
+        success: bool,
+        tool_error: bool = False,
+    ) -> None: ...
+
+
+class ProgressSink(Protocol):
+    async def start(self, request_id: str, stage: ProgressStage) -> None: ...
+
+    async def finish(self, request_id: str, status: ProgressStatus) -> None: ...

@@ -267,7 +267,7 @@ class DocumentService:
             return docs, chunks
 
     async def retrieve(
-        self, execution: ExecutionRequest
+        self, execution: ExecutionRequest, query_text: str | None = None
     ) -> tuple[tuple[Message, ...], tuple[Citation, ...]]:
         ids = execution.request.document_ids
         if not ids:
@@ -279,7 +279,11 @@ class DocumentService:
                 "DOCUMENT_NOT_READY", 409, "Embedding revision changed; reindex selected documents"
             )
         query = (
-            await self.metering.embed(execution, [execution.request.message], "query_embedding")
+            await self.metering.embed(
+                execution,
+                [query_text if query_text is not None else execution.request.message],
+                "query_embedding",
+            )
         )[0]
         q = np.array(query)
         q = q / (np.linalg.norm(q) or 1)
@@ -292,7 +296,11 @@ class DocumentService:
                 )
             vectors.append((chunk.id, float(np.dot(v, q) / (np.linalg.norm(v) or 1))))
         vector_rank = [key for key, _ in sorted(vectors, key=lambda p: (-p[1], p[0]))[:30]]
-        words = re.findall(r"\w+", execution.request.message, flags=re.UNICODE)[:30]
+        words = re.findall(
+            r"\w+",
+            query_text if query_text is not None else execution.request.message,
+            flags=re.UNICODE,
+        )[:30]
         lexical: list[str] = []
         if words:
             match = " OR ".join('"' + word + '"' for word in words)
@@ -316,7 +324,16 @@ class DocumentService:
                 scores[key] = scores.get(key, 0) + 1 / (60 + i + 1)
         by_id = {c.id: c for c in chunks}
         names = {d.id: d.filename for d in docs}
-        selected = [by_id[key] for key in sorted(scores, key=lambda k: (-scores[k], k))[:8]]
+        selected = []
+        used = 0
+        for key in sorted(scores, key=lambda k: (-scores[k], k)):
+            chunk = by_id[key]
+            size = len(chunk.content.encode("utf-8")) + 256
+            if used + size <= 16000:
+                selected.append(chunk)
+                used += size
+            if len(selected) == 8:
+                break
         citations = tuple(
             Citation(
                 chunk_id=c.id,

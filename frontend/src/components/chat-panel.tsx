@@ -8,7 +8,6 @@ import {
   SlidersHorizontal,
   RefreshCw,
   Check,
-  FileText,
   Sparkles,
   BookOpen,
   GitCompare,
@@ -32,13 +31,14 @@ import {
 } from "@/lib/api";
 import { DocumentsPanel } from "./documents-panel";
 import { MessageMetrics } from "./message-metrics";
+import { ProcessingProgress } from "./processing-progress";
+import { FormattedMessage } from "./formatted-message";
 import { ErrorNotice, Spinner } from "./ui";
 
 export function ChatPanel({
   userId,
   selected,
   createSession,
-  onTrace,
   onBusy,
 }: {
   userId: string;
@@ -66,17 +66,23 @@ export function ChatPanel({
   });
   const source = models.data?.[0]?.execution_source ?? "mock";
   const [draft, setDraft] = useState("");
-  const [mode, setMode] = useState<"baseline" | "optimized">("baseline");
+  const [mode, setMode] = useState<"baseline" | "optimized">("optimized");
   const [flags, setFlags] = useState<Flags>(allFlags);
   const [configOpen, setConfigOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flight, setFlight] = useState<{
+    session: string;
+    request: string;
+  } | null>(null);
   const [error, setError] = useState<unknown>();
   const [retrying, setRetrying] = useState(false);
   const pending = useRef<ChatRequest | null>(null);
   const end = useRef<HTMLDivElement>(null);
+  const nearBottom = useRef(true);
   const detail = useQuery({
     queryKey: ["session", userId, selected],
     enabled: !!selected,
+    refetchInterval: (q) => (q.state.data?.active ? 700 : false),
     queryFn: async () =>
       unwrap(
         await api.GET("/v1/sessions/{session_id}", {
@@ -85,12 +91,23 @@ export function ChatPanel({
       ),
   });
   const messages = detail.data?.messages ?? [];
+  const resumedRequest = detail.data?.active_client_request_id;
+  const processing = busy || !!resumedRequest;
+  const currentFlight =
+    flight && busy
+      ? flight
+      : resumedRequest && selected
+        ? { session: selected, request: resumedRequest }
+        : null;
   useEffect(() => {
-    end.current?.scrollIntoView({ behavior: "instant", block: "end" });
+    if (messages.length > 0 && nearBottom.current) {
+      end.current?.scrollIntoView({ behavior: "instant", block: "end" });
+    }
   }, [messages.length, busy]);
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (documentBusy || busy || (!draft.trim() && !pending.current)) return;
+    if (documentBusy || processing || (!draft.trim() && !pending.current))
+      return;
     setDocumentsOpen(false);
     setBusy(true);
     onBusy(true);
@@ -115,6 +132,10 @@ export function ChatPanel({
             : {}),
         };
       }
+      setFlight({
+        session: pending.current.session_id,
+        request: pending.current.client_request_id,
+      });
       const answer = unwrap(
         await api.POST("/v1/chat", { body: pending.current }),
       );
@@ -137,10 +158,10 @@ export function ChatPanel({
       onBusy(pending.current !== null);
     }
   }
-  const locked = busy || retrying || documentBusy;
+  const locked = processing || retrying || documentBusy;
   useEffect(() => {
-    onBusy(busy || retrying || documentBusy);
-  }, [busy, retrying, documentBusy, onBusy]);
+    onBusy(processing || retrying || documentBusy);
+  }, [processing, retrying, documentBusy, onBusy]);
   return (
     <section className="chat-panel">
       <header className="chat-toolbar">
@@ -190,142 +211,171 @@ export function ChatPanel({
           </div>
         </section>
       )}
-      <DocumentsPanel
-        key={selected || "new"}
-        open={documentsOpen}
-        onOpenChange={setDocumentsOpen}
-        sessionId={selected}
-        userId={userId}
-        createSession={() => createSession()}
-        disabled={busy || retrying}
-        onSelected={selectSources}
-        onBusy={setDocumentBusy}
-      />
-      <div className="conversation-scroll" aria-live="polite" aria-busy={busy}>
-        {detail.isLoading && (
-          <div className="center-loader">
-            <Spinner />
-          </div>
-        )}
-        {detail.isError && (
-          <div className="message-list">
-            <ErrorNotice error={detail.error} />
-            <button className="button" onClick={() => detail.refetch()}>
-              {t("retry")}
-            </button>
-          </div>
-        )}
-        {!detail.isLoading && !messages.length && !detail.isError && (
-          <div className="welcome">
-            <span className="welcome-mark">
-              <Image src="/brand/ou-logo.jpg" width={89} height={54} alt="OU" />
-            </span>
-            <p className="eyebrow">SMART LLM OPTIMIZER</p>
-            <h1>{t("welcome")}</h1>
-            <p>{t("welcomeHint")}</p>
-            <div className="welcome-tags">
-              <span>
-                <Check size={14} />
-                {t("private")}
-              </span>
-              <span>
-                <FileText size={14} />
-                {t("trace")}
-              </span>
+      <div
+        className="conversation-scroll"
+        aria-live="polite"
+        aria-busy={processing}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          nearBottom.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+        }}
+      >
+        <div className="scroll-inner-wrapper">
+          <DocumentsPanel
+            key={selected || "new"}
+            open={documentsOpen}
+            onOpenChange={setDocumentsOpen}
+            sessionId={selected}
+            userId={userId}
+            createSession={() => createSession()}
+            disabled={busy || retrying}
+            onSelected={selectSources}
+            onBusy={setDocumentBusy}
+          />
+          {detail.isLoading && (
+            <div className="center-loader">
+              <Spinner />
             </div>
-            <div className="welcome-prompts">
-              <button
-                type="button"
-                className="welcome-prompt-card"
-                onClick={() => setDraft(t("promptQnaSample"))}
-              >
-                <div className="prompt-icon-wrap">
-                  <BookOpen size={16} />
-                </div>
-                <div className="prompt-content">
-                  <strong>{t("promptQna")}</strong>
-                  <p>{t("promptQnaHint")}</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                className="welcome-prompt-card"
-                onClick={() => setDraft(t("promptSummarySample"))}
-              >
-                <div className="prompt-icon-wrap">
-                  <Sparkles size={16} />
-                </div>
-                <div className="prompt-content">
-                  <strong>{t("promptSummary")}</strong>
-                  <p>{t("promptSummaryHint")}</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                className="welcome-prompt-card"
-                onClick={() => setDraft(t("promptCompareSample"))}
-              >
-                <div className="prompt-icon-wrap">
-                  <GitCompare size={16} />
-                </div>
-                <div className="prompt-content">
-                  <strong>{t("promptCompare")}</strong>
-                  <p>{t("promptCompareHint")}</p>
-                </div>
+          )}
+          {detail.isError && (
+            <div className="message-list">
+              <ErrorNotice error={detail.error} />
+              <button className="button" onClick={() => detail.refetch()}>
+                {t("retry")}
               </button>
             </div>
-          </div>
-        )}
-        {!!messages.length && (
-          <div className="message-list">
-            {messages.map((message, index) => (
-              <article
-                key={message.id || index}
-                className={`message ${message.role}`}
-              >
-                <div className={`message-avatar ${message.role}`}>
-                  {message.role === "user" ? (
-                    <span>U</span>
-                  ) : (
-                    <Image
-                      src="/brand/ou-logo.jpg"
-                      width={24}
-                      height={15}
-                      alt="OU"
-                    />
-                  )}
-                </div>
-                <div className="message-body">
-                  <header>
-                    <strong>
-                      {message.role === "user" ? t("you") : t("assistant")}
-                    </strong>
-                  </header>
-                  {message.role === "assistant" && message.request_id && (
-                    <MessageMetrics requestId={message.request_id} />
-                  )}
-                  <div className="message-content">{message.content}</div>
-                  {message.role === "assistant" && message.request_id && (
-                    <button
-                      className="trace-link"
-                      onClick={() => onTrace(message.request_id!)}
-                    >
-                      <ArrowUpRight size={14} />
-                      {t("viewTrace")}
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-        {busy && (
-          <div className="thinking" role="status">
-            <Spinner />
-            {t("sending")}
-          </div>
-        )}
-        <div ref={end} />
+          )}
+          {!detail.isLoading && !messages.length && !detail.isError && (
+            <div className="welcome">
+              <div className="welcome-hero-wrap">
+                <div className="hero-glow" />
+                <span className="welcome-mark">
+                  <Image
+                    src="/brand/ou-logo.jpg"
+                    width={92}
+                    height={56}
+                    alt="OU"
+                    priority
+                  />
+                </span>
+              </div>
+              <p className="eyebrow">SMART LLM OPTIMIZER</p>
+              <h1>{t("welcome")}</h1>
+              <p>{t("welcomeHint")}</p>
+              <div className="welcome-tags">
+                <span>
+                  <Check size={14} />
+                  {t("private")}
+                </span>
+              </div>
+              <div className="welcome-prompts">
+                <button
+                  type="button"
+                  className="welcome-prompt-card"
+                  onClick={() => setDraft(t("promptQnaSample"))}
+                >
+                  <div className="prompt-icon-wrap">
+                    <BookOpen size={18} />
+                  </div>
+                  <div className="prompt-content">
+                    <strong>{t("promptQna")}</strong>
+                    <p>{t("promptQnaHint")}</p>
+                  </div>
+                  <ArrowUpRight className="prompt-arrow-icon" size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="welcome-prompt-card"
+                  onClick={() => setDraft(t("promptSummarySample"))}
+                >
+                  <div className="prompt-icon-wrap">
+                    <Sparkles size={18} />
+                  </div>
+                  <div className="prompt-content">
+                    <strong>{t("promptSummary")}</strong>
+                    <p>{t("promptSummaryHint")}</p>
+                  </div>
+                  <ArrowUpRight className="prompt-arrow-icon" size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="welcome-prompt-card"
+                  onClick={() => setDraft(t("promptCompareSample"))}
+                >
+                  <div className="prompt-icon-wrap">
+                    <GitCompare size={18} />
+                  </div>
+                  <div className="prompt-content">
+                    <strong>{t("promptCompare")}</strong>
+                    <p>{t("promptCompareHint")}</p>
+                  </div>
+                  <ArrowUpRight className="prompt-arrow-icon" size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+          {!!messages.length && (
+            <div className="message-list">
+              {messages.map((message, index) => (
+                <article
+                  key={message.id || index}
+                  className={`message ${message.role}`}
+                >
+                  <div className={`message-avatar ${message.role}`}>
+                    {message.role === "user" ? (
+                      <span>U</span>
+                    ) : (
+                      <Image
+                        src="/brand/ou-logo.jpg"
+                        width={24}
+                        height={15}
+                        alt="OU"
+                      />
+                    )}
+                  </div>
+                  <div className="message-body">
+                    <header>
+                      <strong>
+                        {message.role === "user" ? t("you") : t("assistant")}
+                      </strong>
+                    </header>
+                    <div className="message-content">
+                      {message.role === "assistant" ? (
+                        <FormattedMessage
+                          content={message.content}
+                          legacyMock={source === "mock"}
+                        />
+                      ) : (
+                        message.content
+                      )}
+                    </div>
+                    {message.role === "assistant" && message.request_id && (
+                      <MessageMetrics requestId={message.request_id} />
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          {(processing || (!!error && !!currentFlight)) && (
+            <div className="thinking" role="status">
+              {currentFlight ? (
+                <ProcessingProgress
+                  sessionId={currentFlight.session}
+                  clientRequestId={currentFlight.request}
+                  active
+                />
+              ) : (
+                <>
+                  <Spinner />
+                  {t("sending")}
+                </>
+              )}
+            </div>
+          )}
+          <div ref={end} />
+        </div>
       </div>
       <div className="composer-wrap">
         {error !== undefined && <ErrorNotice error={error} />}
@@ -371,7 +421,7 @@ export function ChatPanel({
               type="submit"
               aria-label={retrying ? t("retry") : t("send")}
               disabled={
-                busy ||
+                processing ||
                 documentBusy ||
                 (!draft.trim() && !retrying) ||
                 detail.isLoading ||
@@ -391,7 +441,7 @@ export function ChatPanel({
         <div className="composer-footer">
           <span>{t("composerHint")}</span>
           <span>
-            {source.toUpperCase()} ·{" "}
+            {t(source === "mock" ? "simulationMode" : "liveMode")} ·{" "}
             {sources.session === selected ? sources.ids.length : 0}{" "}
             {mvp("sourceSelected")}
           </span>

@@ -229,8 +229,17 @@ async def test_live_metering_fakes_settlement_failure_and_dedupe(client, app):
     catalog = Catalog(
         version="fixture-v1",
         baseline_config="fixture",
-        embedding_config="fixture",
-        models=(entry(),),
+        embedding_config="embedding",
+        models=(
+            entry(),
+            entry().model_copy(
+                update={
+                    "config_id": "embedding",
+                    "kind": "embedding",
+                    "model_id": "fixture-embedding",
+                }
+            ),
+        ),
     )
     c.metering.catalog = catalog
     # Existing mock route is remapped only for this deterministic metered fake.
@@ -349,8 +358,17 @@ async def test_native_responses_adapter_normalizes_usage_without_network():
     catalog = Catalog(
         version="fixture-v2",
         baseline_config="fixture",
-        embedding_config="fixture",
-        models=(entry(),),
+        embedding_config="embedding",
+        models=(
+            entry(),
+            entry().model_copy(
+                update={
+                    "config_id": "embedding",
+                    "kind": "embedding",
+                    "model_id": "fixture-embedding",
+                }
+            ),
+        ),
     )
     provider = OpenAIProvider("test-not-a-real-key", catalog)
     await provider.client.close()
