@@ -78,7 +78,7 @@ def test_no_token_savings() -> None:
     assert result.status == "skipped"
     assert result.reason == "no_token_savings"
     assert result.savings == 0
-    assert result.compressed_tokens < result.original_tokens
+    assert result.compressed_tokens == result.original_tokens
     assert result.compressed == prompt
 
 

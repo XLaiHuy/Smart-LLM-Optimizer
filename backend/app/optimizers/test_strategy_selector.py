@@ -1,5 +1,4 @@
 import pytest
-
 from app.optimizers.prompt_analyzer import analyze_prompt
 from app.optimizers.strategy_selector import select_strategy
 
@@ -13,8 +12,6 @@ def select(prompt, model_available=True):
         min_compress_tokens=10,
         llm_threshold=30,
     )
-
-
 def test_skip_short_prompt():
     assert select("Hello") == "skip"
 

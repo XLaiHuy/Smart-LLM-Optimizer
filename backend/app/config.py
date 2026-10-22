@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     max_pdf_pages: int = Field(default=200, ge=1, le=1000)
     parser_timeout_seconds: int = Field(default=30, ge=1, le=120)
     document_operation_budget_usd: Decimal = Field(default=Decimal("1.00"), gt=0, le=20)
+    adaptive_prompt_enabled: bool = False
+    hybrid_context_enabled: bool = False
+    context_token_budget: int = Field(default=8000, ge=1, le=200000)
 
     @field_validator("database_path", "model_catalog_path", "upload_directory")
     @classmethod
