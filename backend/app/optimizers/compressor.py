@@ -1,10 +1,13 @@
-from dataclasses import dataclass
 import re
-import tiktoken
-from app.optimizers.prompt_analyzer import ProtectedSpan
-from app.optimizers.prompt_analyzer import analyze_prompt
 from collections import Counter
+from dataclasses import dataclass
+
+import tiktoken
+
+from app.optimizers.prompt_analyzer import ProtectedSpan, analyze_prompt
+
 _ENCODING = tiktoken.get_encoding("cl100k_base")
+
 
 def normalize_whitespace(prompt: str) -> str:
     parts = re.split(r"(```.*?```)", prompt, flags=re.DOTALL)
@@ -16,15 +19,15 @@ def normalize_whitespace(prompt: str) -> str:
         result.append(part)
     return "".join(result)
 
+
 def preserves_protected_spans(
     compressed: str,
     protected_spans: tuple[ProtectedSpan, ...],
 ) -> bool:
     required = Counter(span.text for span in protected_spans)
-    return all(
-        compressed.count(text) >= count
-        for text, count in required.items()
-    )
+    return all(compressed.count(text) >= count for text, count in required.items())
+
+
 @dataclass(frozen=True)
 class CompressionResult:
     original: str
@@ -36,9 +39,10 @@ class CompressionResult:
     status: str
     reason: str
 
+
 def compress_rule_based(
-        prompt: str,
-        compression_threshold: int = 100,
+    prompt: str,
+    compression_threshold: int = 100,
 ) -> CompressionResult:
     analysis = analyze_prompt(prompt, compression_threshold)
     original_tokens = len(_ENCODING.encode(prompt))

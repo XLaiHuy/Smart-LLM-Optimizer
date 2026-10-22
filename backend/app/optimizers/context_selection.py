@@ -1,6 +1,9 @@
 import re
-from app.contracts.dtos import Message
+
 import tiktoken
+
+from app.contracts.dtos import Message
+
 
 def lexical_relevance(query: str, context: str) -> float:
     query_words = set(re.findall(r"\w+", query.lower()))
@@ -8,6 +11,7 @@ def lexical_relevance(query: str, context: str) -> float:
     if not query_words:
         return 0.0
     return len(query_words & context_words) / len(query_words)
+
 
 def recency_score(index: int, total_turns: int) -> float:
     if total_turns < 1:
@@ -37,6 +41,7 @@ def hybrid_score(
 
     return alpha * relevance + (1 - alpha) * recency
 
+
 def group_conversation_turns(
     messages: tuple[Message, ...],
 ) -> tuple[tuple[Message, ...], ...]:
@@ -52,22 +57,23 @@ def group_conversation_turns(
         turns.append(tuple(current))
     return tuple(turns)
 
+
 _ENCODING = tiktoken.get_encoding("cl100k_base")
 
 
 def count_messages_tokens(
     messages: tuple[Message, ...],
 ) -> int:
-    content = "\n".join(
-        f"{message.role}: {message.content}"
-        for message in messages
-    )
+    content = "\n".join(f"{message.role}: {message.content}" for message in messages)
 
     return len(_ENCODING.encode(content))
+
+
 def count_turn_tokens(
     turn: tuple[Message, ...],
 ) -> int:
     return count_messages_tokens(turn)
+
 
 def select_hybrid_turns(
     query: str,
@@ -117,8 +123,4 @@ def select_hybrid_turns(
             used_tokens += turn_tokens
 
     # Trả lại thứ tự hội thoại ban đầu
-    return tuple(
-        turn
-        for index, turn in enumerate(turns)
-        if index in selected_indices
-    )
+    return tuple(turn for index, turn in enumerate(turns) if index in selected_indices)

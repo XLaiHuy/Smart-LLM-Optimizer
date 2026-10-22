@@ -89,13 +89,9 @@ class AdaptivePromptOptimizer:
         preservation = raw_result.get("preservation", "unknown")
         if not isinstance(proposed, str) or status != "applied" or preservation != "preserved":
             validation = (
-                preservation
-                if preservation in {"preserved", "violation", "unknown"}
-                else "unknown"
+                preservation if preservation in {"preserved", "violation", "unknown"} else "unknown"
             )
-            return self._result(
-                original, "skipped", f"llmlingua_{validation}", validation
-            )
+            return self._result(original, "skipped", f"llmlingua_{validation}", validation)
 
         before = raw_result.get("original_tokens")
         after = raw_result.get("compressed_tokens")

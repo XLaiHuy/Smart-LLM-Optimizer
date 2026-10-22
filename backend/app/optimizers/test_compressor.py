@@ -26,10 +26,7 @@ def test_compressor_skips_short_prompt() -> None:
 
 
 def test_compressor_preserves_number_and_url() -> None:
-    prompt = (
-        "Không được xóa số 10% và URL "
-        "https://example.com.   \n\n\nDòng tiếp theo."
-    )
+    prompt = "Không được xóa số 10% và URL https://example.com.   \n\n\nDòng tiếp theo."
 
     result = compress_rule_based(
         prompt,
@@ -41,6 +38,7 @@ def test_compressor_preserves_number_and_url() -> None:
     assert "\n\nDòng tiếp theo." in result.compressed
     assert result.status == "applied"
 
+
 def test_remove_trailing_whitespace() -> None:
     prompt = "Hello world   \nNext line   "
 
@@ -50,15 +48,7 @@ def test_remove_trailing_whitespace() -> None:
 
 
 def test_preserve_code_block() -> None:
-    prompt = (
-        "Explain:\n"
-        "```python\n"
-        "x = 10    \n"
-        "\n\n\n"
-        "print(x)\n"
-        "```\n\n\n"
-        "Thank you"
-    )
+    prompt = "Explain:\n```python\nx = 10    \n\n\n\nprint(x)\n```\n\n\nThank you"
 
     result = normalize_whitespace(prompt)
 
@@ -90,12 +80,8 @@ def test_compression_metrics() -> None:
         compression_threshold=1,
     )
 
-    assert result.savings == (
-        result.original_tokens - result.compressed_tokens
-    )
+    assert result.savings == (result.original_tokens - result.compressed_tokens)
 
-    assert result.ratio == (
-        result.compressed_tokens / result.original_tokens
-    )
+    assert result.ratio == (result.compressed_tokens / result.original_tokens)
 
     assert result.compressed_tokens <= result.original_tokens

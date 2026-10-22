@@ -1,3 +1,5 @@
+import pytest
+
 from app.contracts.dtos import (
     ContextBudgets,
     ContextFeatures,
@@ -6,9 +8,8 @@ from app.contracts.dtos import (
     SessionSnapshot,
 )
 from app.optimizers.context_manager import HybridContextManager
-import pytest
-
 from app.optimizers.context_selection import count_messages_tokens
+
 
 def test_current_user_is_kept_once() -> None:
     snapshot = SessionSnapshot(
@@ -19,9 +20,7 @@ def test_current_user_is_kept_once() -> None:
             Message(role="user", content="old question"),
             Message(role="assistant", content="old answer"),
         ),
-        server_instructions=(
-            Message(role="system", content="Answer safely"),
-        ),
+        server_instructions=(Message(role="system", content="Answer safely"),),
     )
 
     features = ContextFeatures(
@@ -39,20 +38,18 @@ def test_current_user_is_kept_once() -> None:
     )
 
     current_messages = [
-        message
-        for message in result.messages
-        if message.content == "current question"
+        message for message in result.messages if message.content == "current question"
     ]
 
     assert len(current_messages) == 1
+
+
 def test_mandatory_context_overflow() -> None:
     snapshot = SessionSnapshot(
         owner_user_id="u1",
         session_id="s1",
         revision=1,
-        server_instructions=(
-            Message(role="system", content="Important system instruction"),
-        ),
+        server_instructions=(Message(role="system", content="Important system instruction"),),
     )
 
     features = ContextFeatures(
@@ -69,6 +66,8 @@ def test_mandatory_context_overflow() -> None:
             ContextBudgets(),
             features,
         )
+
+
 def test_recent_turn_overflow_does_not_fail() -> None:
     snapshot = SessionSnapshot(
         owner_user_id="u1",
@@ -90,9 +89,7 @@ def test_recent_turn_overflow_does_not_fail() -> None:
         flags=FeatureFlags(context=True),
     )
 
-    mandatory = (
-        features.current_turn,
-    )
+    mandatory = (features.current_turn,)
 
     recent_turn = (
         snapshot.raw_turns[2],

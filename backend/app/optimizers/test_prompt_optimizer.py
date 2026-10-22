@@ -10,9 +10,7 @@ def context() -> ContextResult:
     return ContextResult(
         messages=(),
         provenance=(),
-        state=OptimizationState(
-            module="context", status="disabled", reason="test"
-        ),
+        state=OptimizationState(module="context", status="disabled", reason="test"),
     )
 
 
@@ -23,7 +21,9 @@ def request(message: str) -> SimpleNamespace:
 @pytest.mark.asyncio
 async def test_disabled_rewrite_keeps_original() -> None:
     result = await AdaptivePromptOptimizer().optimize(
-        request("short prompt"), context(), FeatureFlags(rewrite=False)
+        request("short prompt"),  # type: ignore[arg-type]
+        context(),
+        FeatureFlags(rewrite=False),
     )
     assert result.state.status == "disabled"
     assert result.proposed == "short prompt"
@@ -32,7 +32,9 @@ async def test_disabled_rewrite_keeps_original() -> None:
 @pytest.mark.asyncio
 async def test_short_prompt_is_skipped() -> None:
     result = await AdaptivePromptOptimizer(min_compress_tokens=10).optimize(
-        request("short prompt"), context(), FeatureFlags(rewrite=True)
+        request("short prompt"),  # type: ignore[arg-type]
+        context(),
+        FeatureFlags(rewrite=True),
     )
     assert result.state.status == "skipped"
     assert result.state.reason == "under_threshold"
@@ -52,7 +54,7 @@ async def test_llm_result_requires_preservation() -> None:
     result = await AdaptivePromptOptimizer(
         llm_compressor=fake, min_compress_tokens=10, llm_threshold=20
     ).optimize(
-        request("Explain machine learning. " * 100),
+        request("Explain machine learning. " * 100),  # type: ignore[arg-type]
         context(),
         FeatureFlags(rewrite=True),
     )

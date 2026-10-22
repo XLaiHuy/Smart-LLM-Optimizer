@@ -3,6 +3,7 @@ from app.auth.service import AuthService
 from app.config import Settings
 from app.contracts.dtos import ModelConfiguration, RegistrySnapshot
 from app.contracts.errors import AppError
+from app.contracts.protocols import PromptOptimizer
 from app.core.metering import MeteredCalls
 from app.core.orchestrator import Orchestrator
 from app.documents.service import DocumentService
@@ -79,7 +80,7 @@ class Container:
             # Import and load the model only when the feature is explicitly enabled.
             from app.optimizers.llmlingua_compressor import LLMLinguaCompressor
 
-            prompt_optimizer = AdaptivePromptOptimizer(
+            prompt_optimizer: PromptOptimizer = AdaptivePromptOptimizer(
                 llm_compressor=LLMLinguaCompressor(),
             )
         else:

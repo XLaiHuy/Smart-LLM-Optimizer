@@ -1,10 +1,13 @@
 from typing import Literal
+
 from app.optimizers.prompt_analyzer import PromptAnalyzer
+
 Strategy = Literal[
     "skip",
     "rule_based",
     "llmlingua2",
 ]
+
 
 def select_strategy(
     analysis: PromptAnalyzer,

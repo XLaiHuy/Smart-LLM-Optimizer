@@ -1,9 +1,10 @@
 import pytest
+
 from app.optimizers.prompt_analyzer import analyze_prompt
 from app.optimizers.strategy_selector import select_strategy
 
 
-def select(prompt, model_available=True):
+def select(prompt: str, model_available: bool = True) -> str:
     analysis = analyze_prompt(prompt)
 
     return select_strategy(
@@ -12,35 +13,36 @@ def select(prompt, model_available=True):
         min_compress_tokens=10,
         llm_threshold=30,
     )
-def test_skip_short_prompt():
+
+
+def test_skip_short_prompt() -> None:
     assert select("Hello") == "skip"
 
 
-def test_rule_based_medium_prompt():
+def test_rule_based_medium_prompt() -> None:
     prompt = "Explain machine learning. " * 5
     assert select(prompt) == "rule_based"
 
 
-def test_llmlingua_long_prompt():
+def test_llmlingua_long_prompt() -> None:
     prompt = "Explain machine learning in detail. " * 30
     assert select(prompt) == "llmlingua2"
 
 
-def test_model_unavailable():
+def test_model_unavailable() -> None:
     prompt = "Explain machine learning in detail. " * 30
     assert select(prompt, model_available=False) == "rule_based"
 
 
-def test_code_uses_rule_based():
+def test_code_uses_rule_based() -> None:
     prompt = (
         "Explain the following code:\n"
-        "```python\nprint('hello')\n```\n"
-        + "Explain its behavior. " * 20
+        "```python\nprint('hello')\n```\n" + "Explain its behavior. " * 20
     )
     assert select(prompt) == "rule_based"
 
 
-def test_invalid_threshold():
+def test_invalid_threshold() -> None:
     analysis = analyze_prompt("Hello world")
 
     with pytest.raises(ValueError):

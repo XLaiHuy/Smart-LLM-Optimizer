@@ -1,5 +1,6 @@
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+
 import tiktoken
 
 
@@ -44,7 +45,7 @@ _NUMBER_PATTERN = re.compile(
 
 def extract_spans(
     prompt: str,
-    pattern: re.Pattern,
+    pattern: re.Pattern[str],
     kind: str,
 ) -> list[ProtectedSpan]:
 
@@ -69,20 +70,12 @@ def analyze_prompt(
     code_matches = extract_spans(prompt, _CODE_PATTERN, "code")
     url_matches = extract_spans(prompt, _URL_PATTERN, "url")
     json_matches = extract_spans(prompt, _JSON_KEY_PATTERN, "json_key")
-    negation_matches = extract_spans(
-        prompt, _NEGATION_PATTERN, "negation"
-    )
-    number_matches = extract_spans(
-        prompt, _NUMBER_PATTERN, "number"
-    )
+    negation_matches = extract_spans(prompt, _NEGATION_PATTERN, "negation")
+    number_matches = extract_spans(prompt, _NUMBER_PATTERN, "number")
 
     protected_spans = tuple(
         sorted(
-            code_matches
-            + url_matches
-            + json_matches
-            + negation_matches
-            + number_matches,
+            code_matches + url_matches + json_matches + negation_matches + number_matches,
             key=lambda span: (span.start, span.end),
         )
     )

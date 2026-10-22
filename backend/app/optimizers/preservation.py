@@ -1,7 +1,8 @@
-from typing import Literal
 from collections import Counter
-from app.optimizers.prompt_analyzer import ProtectedSpan
+from typing import Literal
+
 from app.optimizers.compressor import normalize_whitespace
+from app.optimizers.prompt_analyzer import ProtectedSpan
 
 PreservationStatus = Literal[
     "preserved",
@@ -12,11 +13,13 @@ CompressionStrategy = Literal[
     "rule_based",
     "llmlingua2",
 ]
+
+
 def validate_preservation(
-        original:str,
-        compressed:str,
-        protected_spans: tuple[ProtectedSpan, ...],
-        strategy: CompressionStrategy = "llmlingua2",
+    original: str,
+    compressed: str,
+    protected_spans: tuple[ProtectedSpan, ...],
+    strategy: CompressionStrategy = "llmlingua2",
 ) -> PreservationStatus:
     if not compressed.strip():
         return "violation"
@@ -27,7 +30,7 @@ def validate_preservation(
         if compressed.count(text) < count:
             return "violation"
     if strategy == "rule_based":
-        if normalize_whitespace(original) ==compressed:
+        if normalize_whitespace(original) == compressed:
             return "preserved"
         return "unknown"
     return "unknown"

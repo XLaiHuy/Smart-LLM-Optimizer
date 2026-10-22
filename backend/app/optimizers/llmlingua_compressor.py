@@ -1,7 +1,7 @@
 from typing import Any
 
 import tiktoken
-from llmlingua import PromptCompressor
+from llmlingua import PromptCompressor  # type: ignore[import-untyped]
 
 from app.optimizers.preservation import validate_preservation
 from app.optimizers.prompt_analyzer import analyze_prompt
@@ -11,13 +11,11 @@ class LLMLinguaCompressor:
     def __init__(self) -> None:
         self.encoding = tiktoken.get_encoding("cl100k_base")
         self.compressor = PromptCompressor(
-            model_name=(
-                "microsoft/"
-                "llmlingua-2-bert-base-multilingual-cased-meetingbank"
-            ),
+            model_name=("microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"),
             device_map="cpu",
             use_llmlingua2=True,
         )
+
     def compress(
         self,
         prompt: str,
@@ -46,9 +44,7 @@ class LLMLinguaCompressor:
             "original_tokens": original_tokens,
             "compressed_tokens": compressed_tokens,
             "savings": original_tokens - compressed_tokens,
-            "ratio": compressed_tokens / original_tokens
-            if original_tokens
-            else 1.0,
+            "ratio": compressed_tokens / original_tokens if original_tokens else 1.0,
             "status": "applied" if compressed != prompt else "skipped",
             "preservation": preservation,
         }

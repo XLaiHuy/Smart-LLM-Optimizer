@@ -2,9 +2,8 @@ from app.contracts.dtos import (
     ContextBudgets,
     ContextFeatures,
     ContextResult,
-    Message,
-    SessionSnapshot,
     OptimizationState,
+    SessionSnapshot,
 )
 from app.core.policy import noop_state
 from app.optimizers.context_selection import (
@@ -25,9 +24,7 @@ class PassThroughContext:
     ) -> ContextResult:
         current = features.current_turn
         if features.approved_current_content is not None:
-            current = current.model_copy(
-                update={"content": features.approved_current_content}
-            )
+            current = current.model_copy(update={"content": features.approved_current_content})
 
         messages = (
             *snapshot.server_instructions,
@@ -99,11 +96,7 @@ class HybridContextManager:
             token_budget=remaining_budget,
         )
 
-        selected_history = tuple(
-            message
-            for turn in selected_turns
-            for message in turn
-        )
+        selected_history = tuple(message for turn in selected_turns for message in turn)
 
         messages = (
             *snapshot.server_instructions,
@@ -115,11 +108,7 @@ class HybridContextManager:
         total_tokens = count_messages_tokens(messages)
         while total_tokens > self.token_budget and selected_turns:
             selected_turns = selected_turns[1:]
-            selected_history = tuple(
-                message
-                for turn in selected_turns
-                for message in turn
-            )
+            selected_history = tuple(message for turn in selected_turns for message in turn)
             messages = (
                 *snapshot.server_instructions,
                 *selected_history,
@@ -131,10 +120,7 @@ class HybridContextManager:
         if total_tokens > self.token_budget:
             raise ValueError("context_overflow")
 
-        provenance = tuple(
-            message.id or message.role
-            for message in messages
-        )
+        provenance = tuple(message.id or message.role for message in messages)
 
         return ContextResult(
             messages=messages,
