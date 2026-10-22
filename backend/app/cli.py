@@ -12,6 +12,11 @@ from alembic.config import Config
 from app.auth.service import AuthService
 from app.config import ROOT, Settings
 from app.contracts.errors import AppError
+from app.evaluation.harness import (
+    FixturePairConfig,
+    export_fixture_harness,
+    run_fixture_pair,
+)
 from app.evaluation.runner import run_smoke, validate_manifest
 from app.routing.experiments.cli import cli as research_cli
 from app.routing.ml.cli import cli as router_cli
@@ -80,6 +85,59 @@ def eval_run(
             f"SMOKE ONLY: {count} functional cases; mock, quality/savings unknown. Output: {output}"
         )
     except (AppError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+
+@evaluation.command("fixture-pair")
+def eval_fixture_pair(
+    case_manifest: Annotated[
+        Path,
+        typer.Option(),
+    ],
+    baseline_predictions: Annotated[
+        Path,
+        typer.Option(),
+    ],
+    variant_predictions: Annotated[
+        Path,
+        typer.Option(),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(),
+    ] = ROOT / "benchmark/reports/g1-fixture",
+    seed: int = 0,
+    overwrite: bool = False,
+) -> None:
+    try:
+        result = run_fixture_pair(
+            case_manifest_path=case_manifest,
+            baseline_predictions_path=(baseline_predictions),
+            variant_predictions_path=(variant_predictions),
+            config=FixturePairConfig(
+                baseline_run_id=("g1-fixture-baseline-run"),
+                baseline_config_id=("g1-fixture-baseline"),
+                variant_run_id=("g1-fixture-variant-run"),
+                variant_config_id=("g1-fixture-variant"),
+                seed=seed,
+            ),
+        )
+
+        receipt = export_fixture_harness(
+            result=result,
+            output_dir=output_dir,
+            overwrite=overwrite,
+        )
+
+        typer.echo(
+            "FIXTURE ONLY: "
+            f"{result.comparison.total_pair_count} "
+            "paired cases; synthetic, "
+            "research_eligible=false. "
+            f"Report: {receipt.report_path}"
+        )
+    except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
 
