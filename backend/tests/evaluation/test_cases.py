@@ -53,6 +53,48 @@ def test_mcq_case_separates_serving_input_from_hidden_target() -> None:
     assert case.evaluator_target.answer_key == "B"
 
 
+def test_mcq_keys_are_normalized_before_case_validation() -> None:
+    case = EvalCase(
+        case_id="mcq-normalized-001",
+        task_family="multidisciplinary_mcq",
+        source=_candidate_source(),
+        serving_input=MCQServingInput(
+            question="Chọn đáp án đúng.",
+            options=(
+                MCQOption(key=" a ", text="Một"),
+                MCQOption(key="b", text="Hai"),
+            ),
+        ),
+        evaluator_target=MCQTarget(answer_key=" b "),
+    )
+
+    assert tuple(option.key for option in case.serving_input.options) == ("A", "B")
+    assert isinstance(case.evaluator_target, MCQTarget)
+    assert case.evaluator_target.answer_key == "B"
+
+
+@pytest.mark.parametrize(
+    ("first_key", "second_key"),
+    [
+        ("A", "a"),
+        ("A", "AA"),
+        ("A", "1"),
+    ],
+)
+def test_mcq_serving_input_rejects_invalid_or_duplicate_keys(
+    first_key: str,
+    second_key: str,
+) -> None:
+    with pytest.raises(ValidationError):
+        MCQServingInput(
+            question="Chọn đáp án đúng.",
+            options=(
+                MCQOption(key=first_key, text="Một"),
+                MCQOption(key=second_key, text="Hai"),
+            ),
+        )
+
+
 def test_eval_case_rejects_mismatched_task_types() -> None:
     with pytest.raises(ValidationError, match="task_family"):
         EvalCase(

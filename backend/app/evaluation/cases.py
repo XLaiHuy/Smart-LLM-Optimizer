@@ -11,6 +11,19 @@ def _require_non_blank(value: str) -> str:
 
 NonBlankString: TypeAlias = Annotated[str, AfterValidator(_require_non_blank)]
 
+
+def _normalize_mcq_key(value: str) -> str:
+    normalized = value.strip().upper()
+
+    if len(normalized) != 1 or not normalized.isascii() or not normalized.isalpha():
+        raise ValueError("MCQ key must be a single ASCII letter")
+
+    return normalized
+
+
+MCQKey: TypeAlias = Annotated[str, AfterValidator(_normalize_mcq_key)]
+
+
 TaskFamily = Literal[
     "instruction",
     "extractive_qa",
@@ -51,7 +64,7 @@ class SourceMetadata(EvalModel):
 
 
 class MCQOption(EvalModel):
-    key: NonBlankString
+    key: MCQKey
     text: NonBlankString
 
 
@@ -70,7 +83,7 @@ class MCQServingInput(EvalModel):
 
 class MCQTarget(EvalModel):
     kind: Literal["multidisciplinary_mcq"] = "multidisciplinary_mcq"
-    answer_key: NonBlankString
+    answer_key: MCQKey
 
 
 class AnswerSpan(EvalModel):
