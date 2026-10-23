@@ -130,11 +130,8 @@ def _validate_case(case: EvalCase) -> None:
     if case.source.split != "dev":
         raise LiveRunnerError("engineering live pilot requires a DEV case")
 
-    if case.source.qualification_status not in {
-        "candidate",
-        "qualified",
-    }:
-        raise LiveRunnerError("engineering live pilot requires a candidate or qualified source")
+    if case.source.qualification_status != "qualified":
+        raise LiveRunnerError("live execution requires a qualified source")
 
     if not isinstance(
         case.serving_input,

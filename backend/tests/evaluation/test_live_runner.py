@@ -38,7 +38,7 @@ def _dev_case() -> EvalCase:
             group_id="001",
             split="dev",
             language="vi",
-            qualification_status="candidate",
+            qualification_status="qualified",
             license_id="CC-BY-4.0",
         ),
         serving_input=InstructionServingInput(
@@ -154,6 +154,37 @@ async def test_live_runner_rejects_holdout() -> None:
     ):
         await run_live_pair(
             case=holdout_case,
+            config=LivePairConfig(
+                run_id="engineering-pilot-001",
+            ),
+            executor=executor,
+            language_detector=lambda _: "vi",
+        )
+
+    assert executor.requests == []
+
+
+async def test_live_runner_rejects_candidate_source() -> None:
+    qualified_case = _dev_case()
+
+    candidate_case = qualified_case.model_copy(
+        update={
+            "source": qualified_case.source.model_copy(
+                update={
+                    "qualification_status": ("candidate"),
+                },
+            ),
+        },
+    )
+
+    executor = FakeLiveExecutor()
+
+    with pytest.raises(
+        LiveRunnerError,
+        match="qualified",
+    ):
+        await run_live_pair(
+            case=candidate_case,
             config=LivePairConfig(
                 run_id="engineering-pilot-001",
             ),
