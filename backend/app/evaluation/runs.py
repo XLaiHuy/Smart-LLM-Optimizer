@@ -11,6 +11,7 @@ from app.evaluation.cases import (
 )
 from app.evaluation.dispatcher import CaseGrade, grade_case
 from app.evaluation.manifests import ResolvedCaseSet
+from app.evaluation.sea_ifeval import LanguageDetector
 
 
 class RunConfigError(ValueError):
@@ -119,6 +120,7 @@ def run_config(
     resolved: ResolvedCaseSet,
     config: FixtureRunConfig,
     predictions: tuple[FixturePrediction, ...],
+    language_detector: LanguageDetector | None = None,
 ) -> FixtureRun:
     _require_synthetic_smoke_cases(resolved)
 
@@ -137,6 +139,7 @@ def run_config(
             grade = grade_case(
                 case=case,
                 prediction=prediction.prediction,
+                language_detector=language_detector,
             )
         except ValueError as exc:
             raise RunConfigError(f"Could not grade case {case.case_id!r}: {exc}") from exc

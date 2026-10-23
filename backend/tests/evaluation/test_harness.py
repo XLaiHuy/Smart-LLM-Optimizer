@@ -6,6 +6,9 @@ import pytest
 
 from app.evaluation.cases import (
     EvalCase,
+    InstructionRule,
+    InstructionServingInput,
+    InstructionTarget,
     MCQOption,
     MCQServingInput,
     MCQTarget,
@@ -21,6 +24,9 @@ from app.evaluation.harness import (
 )
 from app.evaluation.manifests import CaseSetManifest
 from app.evaluation.runs import FixturePrediction
+from app.evaluation.sea_ifeval import (
+    SEA_IFEVAL_GRADER_VERSION,
+)
 
 
 def _mcq_case(
@@ -91,6 +97,60 @@ def _write_case_manifest(
     )
 
     manifest_path = directory / "manifest.json"
+    manifest_path.write_text(
+        manifest.model_dump_json(indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    return manifest_path
+
+
+def _write_instruction_manifest(
+    directory: Path,
+) -> Path:
+    case = EvalCase(
+        case_id="instruction-001",
+        task_family="instruction",
+        source=SourceMetadata(
+            suite_name="sea-ifeval-synthetic",
+            source_name="local-synthetic",
+            source_revision="fixture-v1",
+            source_record_id="instruction-001",
+            group_id="group-instruction-001",
+            split="smoke",
+            language="vi",
+            qualification_status="synthetic",
+        ),
+        serving_input=InstructionServingInput(
+            prompt="Viết câu trả lời có tiêu đề.",
+        ),
+        evaluator_target=InstructionTarget(
+            rules=(
+                InstructionRule(
+                    instruction_id=("detectable_format:title"),
+                ),
+            ),
+            evaluator_version=(SEA_IFEVAL_GRADER_VERSION),
+        ),
+        tags=("fixture", "sea-ifeval"),
+    )
+
+    cases_path = directory / "instruction-cases.jsonl"
+    cases_content = (f"{case.model_dump_json()}\n").encode()
+    cases_path.write_bytes(cases_content)
+
+    manifest = CaseSetManifest(
+        case_set_id="sea-ifeval-synthetic-v1",
+        cases_file=cases_path.name,
+        data_sha256=hashlib.sha256(cases_content).hexdigest(),
+        case_count=1,
+        suite_names=("sea-ifeval-synthetic",),
+        task_families=("instruction",),
+        splits=("smoke",),
+        qualification_statuses=("synthetic",),
+    )
+
+    manifest_path = directory / "instruction-manifest.json"
     manifest_path.write_text(
         manifest.model_dump_json(indent=2) + "\n",
         encoding="utf-8",
@@ -221,6 +281,74 @@ def test_fixture_harness_runs_paired_pipeline(
     assert overwrite_receipt.baseline_results.overwrote_existing is True
     assert overwrite_receipt.variant_results.overwrote_existing is True
     assert overwrite_receipt.report_overwrote_existing is True
+
+
+def test_fixture_harness_runs_instruction_pipeline(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_instruction_manifest(tmp_path)
+    baseline_path = tmp_path / "instruction-baseline.jsonl"
+    variant_path = tmp_path / "instruction-variant.jsonl"
+
+    _write_predictions(
+        baseline_path,
+        (
+            FixturePrediction(
+                case_id="instruction-001",
+                prediction="<<Tiêu đề>>",
+            ),
+        ),
+    )
+    _write_predictions(
+        variant_path,
+        (
+            FixturePrediction(
+                case_id="instruction-001",
+                prediction="Không có tiêu đề.",
+            ),
+        ),
+    )
+
+    result = run_fixture_pair(
+        case_manifest_path=manifest_path,
+        baseline_predictions_path=baseline_path,
+        variant_predictions_path=variant_path,
+        config=FixturePairConfig(
+            baseline_run_id=("instruction-baseline-run"),
+            baseline_config_id=("instruction-baseline-config"),
+            variant_run_id=("instruction-variant-run"),
+            variant_config_id=("instruction-variant-config"),
+            seed=7,
+        ),
+        language_detector=lambda _: "vi",
+    )
+
+    baseline_group = result.baseline_aggregate.groups[0]
+    variant_group = result.variant_aggregate.groups[0]
+
+    assert baseline_group.pass_rate == 1.0
+    assert variant_group.pass_rate == 0.0
+
+    assert {metric.name: metric.mean for metric in baseline_group.metrics} == {
+        "overall_acc": 1.0,
+        "correct_language_rate": 1.0,
+        "overall_lang_normalized_acc": 1.0,
+        "case_all_pass_rate": 1.0,
+    }
+
+    assert {metric.name: metric.mean for metric in variant_group.metrics} == {
+        "overall_acc": 0.0,
+        "correct_language_rate": 1.0,
+        "overall_lang_normalized_acc": 0.0,
+        "case_all_pass_rate": 0.0,
+    }
+
+    assert result.comparison.pairs[0].outcome == "regression"
+    assert result.research_eligible is False
+
+    serialized = result.model_dump_json()
+
+    assert "evaluator_target" not in serialized
 
 
 def test_prediction_loader_rejects_duplicates(
