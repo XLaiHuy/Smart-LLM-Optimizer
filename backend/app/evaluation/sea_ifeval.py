@@ -242,6 +242,12 @@ def _prepare_arguments(
     return values
 
 
+def validate_sea_ifeval_rule(
+    rule: InstructionRule,
+) -> None:
+    _prepare_arguments(rule)
+
+
 def _language_matches(
     *,
     expected: str,
