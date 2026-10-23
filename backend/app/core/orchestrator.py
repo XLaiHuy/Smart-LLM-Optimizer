@@ -60,6 +60,7 @@ class Orchestrator:
         prompt: PromptOptimizer,
         router: ModelRouter,
         registry: RegistrySnapshot,
+        memory_token_budget: int = 2000,
     ):
         self.progress: ProgressSink | None = None
         self.outcomes: RouterOutcomeSink | None = None
@@ -74,6 +75,16 @@ class Orchestrator:
         self.prompt = prompt
         self.router = router
         self.registry = registry
+        self.memory_token_budget = memory_token_budget
+
+    @staticmethod
+    def _replace_current_user_message(
+        messages: tuple[Message, ...], content: str
+    ) -> tuple[Message, ...]:
+        for index in range(len(messages) - 1, -1, -1):
+            if messages[index].role == "user":
+                return messages[:index] + (messages[index].model_copy(update={"content": content}),) + messages[index + 1 :]
+        return messages
 
     async def execute(
         self,
@@ -161,7 +172,12 @@ class Orchestrator:
                     )
                 await stage("prepare")
                 memory = await self.memory.prepare(
-                    snapshot, MemoryPlan(enabled=config.flags.memory)
+                    snapshot,
+                    MemoryPlan(
+                        enabled=config.flags.memory,
+                        query=request.message,
+                        token_budget=self.memory_token_budget,
+                    ),
                 )
                 prepared = self.context.prepare(
                     memory.snapshot,
@@ -170,9 +186,18 @@ class Orchestrator:
                         current_turn=Message(role="user", content=request.message),
                         flags=config.flags,
                         evidence=evidence,
+                        memory=memory.memory_messages,
                     ),
                 )
                 rewrite = await self.prompt.optimize(execution, prepared, config.flags)
+                if rewrite.proposed != request.message:
+                    prepared = prepared.model_copy(
+                        update={
+                            "messages": self._replace_current_user_message(
+                                prepared.messages, rewrite.proposed
+                            )
+                        }
+                    )
                 profile = self.analyzer.analyze(execution, prepared)
                 tools_available = bool(
                     self.tools
@@ -194,10 +219,6 @@ class Orchestrator:
                 profile = profile.model_copy(
                     update={"tool_count": len(definitions), "tool_recovery_required": recovery}
                 )
-                if rewrite.proposed != request.message:
-                    raise AppError(
-                        "OUTPUT_INVALID", 502, "G0 no-op altered input", execution.request_id
-                    )
                 remaining = (
                     await self.metering.ledger.remaining(
                         principal,
@@ -446,6 +467,18 @@ class Orchestrator:
                     ),
                 )
                 committed = await self.sessions.commit(execution, response)
+                try:
+                    latest_snapshot = await self.sessions.snapshot(
+                        principal, request.session_id
+                    )
+                    await self.memory.update(execution, latest_snapshot)
+                except Exception:
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        "Memory update failed after successful request=%s",
+                        execution.request_id,
+                    )
                 await record_outcome(True, any(event.status == "failed" for event in tool_events))
                 return committed
         except asyncio.CancelledError:

@@ -9,7 +9,8 @@ from app.core.orchestrator import Orchestrator
 from app.core.tools import ToolExecutor
 from app.documents.service import DocumentService
 from app.documents.tasks import DocumentTaskProcessor
-from app.memory.memory_manager import NoOpMemoryManager
+from app.memory.memory_manager import NoOpMemoryManager, RetrievalMemoryManager
+from app.memory.retrieval import MemoryRetriever
 from app.optimizers.context_manager import HybridContextManager, PassThroughContext
 from app.optimizers.prompt_optimizer import AdaptivePromptOptimizer, NoOpPromptOptimizer
 from app.providers.catalog import Catalog
@@ -130,7 +131,11 @@ class Container:
             self.sessions,
             self.provider,
             ObservableTaskAnalyzer(),
-            NoOpMemoryManager(),
+            (
+                RetrievalMemoryManager(MemoryRetriever(), self.memory_store)
+                if settings.memory_retrieval_enabled
+                else NoOpMemoryManager()
+            ),
             (
                 HybridContextManager(settings.context_token_budget)
                 if settings.hybrid_context_enabled
@@ -139,6 +144,7 @@ class Container:
             prompt_optimizer,
             PolicyRouter(self.ml_router, self.router_drift) if live else FixedMockRouter(),
             self.registry,
+            memory_token_budget=max(1, settings.context_token_budget // 3),
         )
         self.orchestrator.metering = self.metering
         self.orchestrator.outcomes = self.router_feedback

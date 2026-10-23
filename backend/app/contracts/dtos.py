@@ -188,6 +188,7 @@ class ContextFeatures(DTO):
     flags: FeatureFlags
     approved_current_content: str | None = None
     evidence: tuple[Message, ...] = ()
+    memory: tuple[Message, ...] = ()
 
 
 class ContextResult(DTO):
@@ -202,11 +203,15 @@ class ContextResult(DTO):
 
 class MemoryPlan(DTO):
     enabled: bool = False
+    query: str = ""
+    token_budget: int = Field(default=0, ge=0)
+    top_k: int | None = Field(default=None, ge=1)
 
 
 class MemoryResult(DTO):
     snapshot: SessionSnapshot
     state: OptimizationState
+    memory_messages: tuple[Message, ...] = ()
 
 
 class OptimizedPrompt(DTO):

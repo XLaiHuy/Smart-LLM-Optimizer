@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     document_operation_budget_usd: Decimal = Field(default=Decimal("1.00"), gt=0, le=20)
     adaptive_prompt_enabled: bool = False
     hybrid_context_enabled: bool = False
+    memory_retrieval_enabled: bool = False
     context_token_budget: int = Field(default=8000, ge=1, le=200000)
 
     @field_validator(
