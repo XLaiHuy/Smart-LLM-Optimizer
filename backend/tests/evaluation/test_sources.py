@@ -5,8 +5,10 @@ from typing import cast
 import pytest
 
 from app.evaluation.sources import (
+    InstructionSourceQualificationRecord,
     SourceNotQualifiedError,
     SourceQualificationLoadError,
+    SourceQualificationRecord,
     load_source_qualification,
     require_live_research_qualified,
 )
@@ -15,11 +17,24 @@ ROOT = Path(__file__).resolve().parents[3]
 
 VMLU_RECORD_PATH = ROOT / "benchmark" / "sources" / "vmlu_vi_mqa_v1_5.qualification.json"
 
+SEA_IFEVAL_RECORD_PATH = ROOT / "benchmark" / "sources" / "sea_ifeval_vi_v1_1.qualification.json"
+
 
 def _record_payload() -> dict[str, object]:
     return cast(
         dict[str, object],
         json.loads(VMLU_RECORD_PATH.read_text(encoding="utf-8")),
+    )
+
+
+def _sea_record_payload() -> dict[str, object]:
+    return cast(
+        dict[str, object],
+        json.loads(
+            SEA_IFEVAL_RECORD_PATH.read_text(
+                encoding="utf-8",
+            )
+        ),
     )
 
 
@@ -68,6 +83,11 @@ def _mark_as_qualified(
 
 def test_loads_checked_in_vmlu_record() -> None:
     record = load_source_qualification(VMLU_RECORD_PATH)
+
+    assert isinstance(
+        record,
+        SourceQualificationRecord,
+    )
 
     assert record.source_id == "vmlu-vi-mqa-v1-5"
     assert record.qualification_status == "candidate"
@@ -239,3 +259,110 @@ def test_live_research_gate_accepts_complete_record(
 
     assert accepted is record
     assert accepted.decision == "QUALIFIED"
+
+
+def test_loads_checked_in_sea_ifeval_record() -> None:
+    record = load_source_qualification(
+        SEA_IFEVAL_RECORD_PATH,
+    )
+
+    assert isinstance(
+        record,
+        InstructionSourceQualificationRecord,
+    )
+    assert record.source_id == "sea-ifeval-vi-v1-1"
+    assert record.task_family == "instruction"
+    assert record.qualification_status == "candidate"
+    assert record.decision == "BLOCKED"
+    assert record.audit.total_rows == 105
+    assert record.audit.unique_ids == 105
+    assert record.audit.duplicate_id_rows == 0
+    assert len(record.observed_schema.instruction_ids) == 21
+    assert record.observed_schema.evaluator_version == "sea-ifeval-v1.1+sea-helm-v1.3.0@9be3986d"
+
+    source_file = record.dataset_source.files[0]
+
+    assert source_file.rows == 105
+    assert source_file.byte_count == 28_569
+    assert source_file.sha256 == "576a68a9c2ea0f05a122bcacffbd36f19aec96a7014afcba3cfbe4b754476889"
+
+
+def test_live_research_gate_rejects_blocked_sea_ifeval() -> None:
+    record = load_source_qualification(
+        SEA_IFEVAL_RECORD_PATH,
+    )
+
+    with pytest.raises(
+        SourceNotQualifiedError,
+        match="sea-ifeval-vi-v1-1",
+    ):
+        require_live_research_qualified(record)
+
+
+def test_instruction_source_rejects_task_family_mismatch(
+    tmp_path: Path,
+) -> None:
+    payload = _sea_record_payload()
+    payload["task_family"] = "multidisciplinary_mcq"
+
+    path = tmp_path / "qualification.json"
+    _write_record(path, payload)
+
+    with pytest.raises(
+        SourceQualificationLoadError,
+        match="task_family",
+    ):
+        load_source_qualification(path)
+
+
+def test_instruction_source_rejects_inconsistent_counts(
+    tmp_path: Path,
+) -> None:
+    payload = _sea_record_payload()
+    audit = _object(payload["audit"])
+    instruction_counts = _array(audit["instruction_id_counts"])
+    first_count = _object(instruction_counts[0])
+    first_count["rows"] = 4
+
+    path = tmp_path / "qualification.json"
+    _write_record(path, payload)
+
+    with pytest.raises(
+        SourceQualificationLoadError,
+        match="instruction_id_counts rows",
+    ):
+        load_source_qualification(path)
+
+
+def test_instruction_source_rejects_duplicate_instruction_ids(
+    tmp_path: Path,
+) -> None:
+    payload = _sea_record_payload()
+    observed_schema = _object(payload["observed_schema"])
+    instruction_ids = _array(observed_schema["instruction_ids"])
+    instruction_ids.append(instruction_ids[0])
+
+    path = tmp_path / "qualification.json"
+    _write_record(path, payload)
+
+    with pytest.raises(
+        SourceQualificationLoadError,
+        match="instruction_ids must not contain duplicates",
+    ):
+        load_source_qualification(path)
+
+
+def test_instruction_source_requires_complete_review_pair(
+    tmp_path: Path,
+) -> None:
+    payload = _sea_record_payload()
+    payload["reviewed_by"] = "reviewer"
+
+    path = tmp_path / "qualification.json"
+    _write_record(path, payload)
+
+    with pytest.raises(
+        SourceQualificationLoadError,
+        match="must be declared together",
+    ):
+        load_source_qualification(path)
