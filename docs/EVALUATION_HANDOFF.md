@@ -1,6 +1,6 @@
 # Evaluation harness handoff
 
-Cập nhật ngày 24/10/2026 trên nhánh `feat/Khoa/g2-sea-ifeval`, commit kiểm tra gần nhất `74be1da`.
+Cập nhật ngày 24/10/2026 trên nhánh `feat/Khoa/g2-sea-ifeval`.
 
 ## Trạng thái
 
@@ -9,6 +9,7 @@ Evaluation harness hiện đạt mức **engineering-ready functional harness**:
 - Có canonical `EvalCase` tách serving input khỏi evaluator-only target.
 - Có loader, manifest validation, source qualification record và frozen split validation.
 - Có deterministic graders cho instruction following, extractive QA, memory probe và MCQ.
+- Có candidate adapters cho SEA-IFEval, VMLU, UIT-ViQuAD và normalized Vi-Dialog probes.
 - Có paired baseline/optimized comparison, aggregate quality, usage, cost và latency.
 - Có deterministic JSONL/JSON exporting kèm SHA-256.
 - Có live suite budget guard và DEV/qualified-source gates.
@@ -30,6 +31,9 @@ Trạng thái này chứng minh luồng kỹ thuật hoạt động. Nó chưa c
 - `backend/app/evaluation/dispatcher.py`: grader dispatch.
 - `backend/app/evaluation/sea_ifeval.py`: pinned SEA-IFEval evaluator.
 - `backend/app/evaluation/sea_ifeval_adapter.py`: SEA-IFEval row adapter.
+- `backend/app/evaluation/vmlu_adapter.py`: candidate VMLU row adapter.
+- `backend/app/evaluation/uit_viquad_adapter.py`: candidate UIT-ViQuAD row adapter.
+- `backend/app/evaluation/vi_dialog_adapter.py`: candidate normalized conversation/probe adapter.
 - `backend/app/evaluation/live_runner.py`: paired live execution.
 - `backend/app/evaluation/live_harness.py`: suite aggregation and budget guards.
 - `backend/app/evaluation/live_exporting.py`: deterministic live report export.
@@ -57,8 +61,8 @@ Chạy từ repository root với virtual environment đã kích hoạt.
 Kết quả ghi nhận ngày 24/10/2026:
 
 - Ruff check: pass.
-- Ruff format: 46 files formatted.
-- Mypy: 24 source files, không có lỗi.
+- Ruff format: 52 files đã đúng format.
+- Mypy: 27 source files, không có lỗi.
 
 Chạy toàn bộ evaluation tests mà không cho phép API key:
 
@@ -75,7 +79,14 @@ env \
   -q
 ```
 
-Kết quả: `254 passed`.
+Kết quả: `276 passed`.
+
+Kiểm tra toàn bộ backend với mock provider và catalog cục bộ bị vô hiệu hóa ghi nhận `420 passed, 2 failed`. Hai lỗi còn lại đều tái hiện trên `origin/develop` tại:
+
+- `backend/tests/integration/test_documents_usage.py::test_document_lifecycle_dedupe_rag_fulltext_and_purge`;
+- `backend/tests/integration/test_documents_usage.py::test_live_metering_fakes_settlement_failure_and_dedupe`.
+
+Cả hai là sai khác expectation của `totals.usd` trong usage/ledger, nằm ngoài phạm vi evaluation và không phát sinh từ thay đổi của harness. File `config/models.json` cục bộ bị Git ignore có thể làm kết quả full-backend khác CI; evaluation tests phía trên luôn vô hiệu hóa live API và không phụ thuộc catalog này.
 
 Chạy functional smoke:
 
@@ -123,6 +134,7 @@ Các prediction trong fixture được dựng trước để kiểm tra wiring. 
 - Gold answer, instruction rules, evidence turn IDs và evaluator targets chỉ đi tới grader.
 - Test export xác nhận `evaluator_target` không xuất hiện trong paired live result.
 - Memory case chỉ được replay đến checkpoint; future turns không được đưa vào serving.
+- VMLU duplicate-content groups và UIT-ViQuAD document groups không được trải qua cả DEV và HOLDOUT.
 - Functional fixtures không được dùng để qualify nguồn nghiên cứu.
 
 ## Blocker trước live engineering pilot
@@ -143,6 +155,8 @@ Các prediction trong fixture được dựng trước để kiểm tra wiring. 
 ### SEA-IFEval
 
 Qualification hiện là `candidate/BLOCKED`.
+
+Candidate adapter đã có schema validation, answer-key isolation, duplicate-content grouping và adapter-to-grader tests. Adapter này không giải quyết các blocker về nguồn.
 
 Còn thiếu:
 
@@ -165,13 +179,13 @@ Còn thiếu:
 
 ### UIT-ViQuAD
 
-Chưa có qualification record, source audit, adapter, frozen split hoặc research manifest trong harness hiện tại.
+Đã có candidate row adapter và synthetic adapter-to-grader tests. Chưa có qualification record, source audit, frozen split hoặc research manifest trên dữ liệu thật.
 
 Phải giữ toàn bộ valid answers, answer spans, `is_impossible`, document/source IDs và không dùng `plausible_answers` làm gold.
 
 ### Vi-Dialog
 
-Chưa có qualification record, source adapter, frozen conversation split hoặc reviewed memory probes.
+Đã có adapter cho normalized conversation/probe rows, checkpoint isolation và synthetic adapter-to-grader tests. Chưa có qualification record, mapping từ raw source, frozen conversation split hoặc reviewed memory probes trên dữ liệu thật.
 
 Các probe tự xây dựng chỉ là adapted protocol, không được gọi là official Vi-Dialog memory score.
 
