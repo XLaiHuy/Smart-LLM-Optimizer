@@ -556,42 +556,55 @@ def select_thresholds(dataset: MultiDataset, artifact: MultiArtifact) -> MultiAr
         raise ValueError("DEV threshold split required")
     replay = replay_rows(dataset, MultiRouterService(artifact.model_dump_json()), rows)
     ids = [p.config_id for p in fitted]
-    raw_grids = [
-        sorted(
-            {
-                0.0,
-                1.0,
-                *(s[key] for _, s, _ in replay),
-                *(float(np.nextafter(s[key], 1)) for _, s, _ in replay),
-            }
-        )
-        for key in ids
-    ]
-    grids = []
-    for g in raw_grids:
-        if len(g) > 50:
-            indices = np.linspace(0, len(g) - 1, 50, dtype=int)
-            grids.append(sorted({0.0, 1.0, *(g[i] for i in indices)}))
+    from app.routing.ml.dynamic_pareto import DynamicParetoThresholding
+
+    chosen_thresholds, report, _ = DynamicParetoThresholding.calibrate(
+        replay,
+        dataset.reference_config_id,
+        ids,
+        trade_off_weight=0.6,
+        min_pass_rate=0.97,
+    )
+    if report.get("guardrails_observed", 0.0) != 1.0:
+        raw_grids = [
+            sorted(
+                {
+                    0.0,
+                    1.0,
+                    *(s[key] for _, s, _ in replay),
+                    *(float(np.nextafter(s[key], 1)) for _, s, _ in replay),
+                }
+            )
+            for key in ids
+        ]
+        grids = []
+        for g in raw_grids:
+            if len(g) > 50:
+                indices = np.linspace(0, len(g) - 1, 50, dtype=int)
+                grids.append(sorted({0.0, 1.0, *(g[i] for i in indices)}))
+            else:
+                grids.append(g)
+        best = None
+        for a in grids[0]:
+            for b in grids[1]:
+                rep = report_replay(replay, dataset.reference_config_id, {ids[0]: a, ids[1]: b})
+                if rep["guardrails_observed"]:
+                    score = (rep["serving_usd"], rep["p50_ratio"], -a, -b)
+                    if best is None or score < best[3]:
+                        best = (a, b, rep, score)
+        if best is not None:
+            chosen_thresholds = {ids[0]: best[0], ids[1]: best[1]}
+            report = best[2]
         else:
-            grids.append(g)
-    best = None
-    for a in grids[0]:
-        for b in grids[1]:
-            report = report_replay(replay, dataset.reference_config_id, {ids[0]: a, ids[1]: b})
-            if report["guardrails_observed"]:
-                # Lexicographic criteria: never add USD to unitless thresholds or ms.
-                score = (report["serving_usd"], report["p50_ratio"], -a, -b)
-                if best is None or score < best[3]:
-                    best = (a, b, report, score)
-    if best is None:
-        raise ValueError("No joint thresholds meet observed guardrails")
+            raise ValueError("No joint thresholds meet observed guardrails")
+
     return artifact.model_copy(
         update={
             "predictors": (
-                fitted[0].model_copy(update={"threshold": best[0]}),
-                fitted[1].model_copy(update={"threshold": best[1]}),
+                fitted[0].model_copy(update={"threshold": chosen_thresholds[ids[0]]}),
+                fitted[1].model_copy(update={"threshold": chosen_thresholds[ids[1]]}),
             ),
-            "threshold_report": best[2],
+            "threshold_report": report,
         }
     )
 

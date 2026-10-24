@@ -25,7 +25,9 @@ class ModelEntry(DTO):
     effective_at: str = Field(min_length=1)
     verified_access: bool = False
     pricing_verified: bool = False
-    endpoint: Literal["responses", "embeddings"] | None = None
+    endpoint: Literal["responses", "embeddings", "chat_completions"] | None = None
+    base_url: str | None = None
+    api_key_env: str | None = None
     structured_output: bool = False
     function_calling: bool = False
     reasoning_effort: Literal["none", "low", "medium", "high", "xhigh", "max"] | None = None
@@ -35,8 +37,8 @@ class ModelEntry(DTO):
     def capabilities(self) -> "ModelEntry":
         if self.max_output_tokens > self.context_window:
             raise ValueError("Output reserve exceeds context window")
-        if self.endpoint and self.endpoint != (
-            "responses" if self.kind == "generation" else "embeddings"
+        if self.endpoint and self.endpoint not in (
+            ("responses", "chat_completions") if self.kind == "generation" else ("embeddings",)
         ):
             raise ValueError("Endpoint and model kind disagree")
         return self
@@ -72,7 +74,9 @@ class Catalog(DTO):
             ) from exc
 
     def entry(self, config_id: str) -> ModelEntry:
-        entry = next((m for m in self.models if m.config_id == config_id), None)
+        entry = next(
+            (m for m in self.models if m.config_id == config_id or m.model_id == config_id), None
+        )
         if not entry or not entry.verified_access or not entry.pricing_verified:
             raise AppError(
                 "NO_COMPATIBLE_MODEL", 422, "Model access not verified in configured catalog"
@@ -118,3 +122,119 @@ def upper_cost(entry: ModelEntry, input_bound: int) -> Decimal:
     return (
         Decimal(input_bound) * rate + Decimal(entry.max_output_tokens) * entry.output_per_million
     ) / Decimal(1000000)
+
+
+GROQ_MODELS: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        config_id="groq-llama-3.3-70b-versatile",
+        model_id="llama-3.3-70b-versatile",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://groq.com/pricing/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://api.groq.com/openai/v1",
+        api_key_env="GROQ_API_KEY",
+        function_calling=True,
+        structured_output=True,
+    ),
+    ModelEntry(
+        config_id="groq-qwen-2.5-coder-32b",
+        model_id="qwen-2.5-coder-32b",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://groq.com/pricing/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://api.groq.com/openai/v1",
+        api_key_env="GROQ_API_KEY",
+        function_calling=True,
+        structured_output=True,
+    ),
+)
+
+HUGGINGFACE_SERVERLESS_MODELS: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        config_id="hf-qwen-2.5-coder-32b-instruct",
+        model_id="Qwen/Qwen2.5-Coder-32B-Instruct",
+        kind="generation",
+        context_window=32768,
+        max_output_tokens=2048,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://huggingface.co/docs/api-inference/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://router.huggingface.co/hf-inference/v1",
+        api_key_env="HUGGINGFACE_API_KEY",
+    ),
+    ModelEntry(
+        config_id="hf-llama-3.3-70b-instruct",
+        model_id="meta-llama/Llama-3.3-70B-Instruct",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=2048,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://huggingface.co/docs/api-inference/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://router.huggingface.co/hf-inference/v1",
+        api_key_env="HUGGINGFACE_API_KEY",
+    ),
+)
+
+OPENROUTER_FREE_MODELS: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        config_id="openrouter-llama-3.3-70b-instruct-free",
+        model_id="meta-llama/llama-3.3-70b-instruct:free",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://openrouter.ai/models/meta-llama/llama-3.3-70b-instruct:free"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://openrouter.ai/api/v1",
+        api_key_env="OPENROUTER_API_KEY",
+    ),
+    ModelEntry(
+        config_id="openrouter-qwen-2.5-coder-32b-instruct-free",
+        model_id="qwen/qwen-2.5-coder-32b-instruct:free",
+        kind="generation",
+        context_window=32768,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://openrouter.ai/models/qwen/qwen-2.5-coder-32b-instruct:free"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://openrouter.ai/api/v1",
+        api_key_env="OPENROUTER_API_KEY",
+    ),
+)
+
+FREE_TIER_MODELS: tuple[ModelEntry, ...] = (
+    *GROQ_MODELS,
+    *HUGGINGFACE_SERVERLESS_MODELS,
+    *OPENROUTER_FREE_MODELS,
+)

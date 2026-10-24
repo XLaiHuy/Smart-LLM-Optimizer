@@ -210,6 +210,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/chat/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Stream */
+        post: operations["chat_stream_v1_chat_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/traces/{request_id}": {
         parameters: {
             query?: never;
@@ -780,14 +797,39 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AblationMatrixRow */
+        AblationMatrixRow: {
+            /** Name */
+            name: string;
+            /** Router */
+            router: boolean;
+            /** Prompt */
+            prompt: boolean;
+            /** Memory */
+            memory: boolean;
+            /** Tokens */
+            tokens: number;
+            /** Token Delta Percent */
+            token_delta_percent: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Cost Delta Percent */
+            cost_delta_percent: number;
+            /** Latency Ms */
+            latency_ms: number;
+            /** P90 Latency Ms */
+            p90_latency_ms?: number | null;
+            /** Pass Rate */
+            pass_rate: number;
+        };
         /** AblationRequest */
         AblationRequest: {
             /**
              * Size
-             * @default 50
+             * @default 500
              * @enum {integer}
              */
-            size: 50 | 200 | 600;
+            size: 50 | 200 | 500 | 600;
             /**
              * Router
              * @default true
@@ -803,6 +845,11 @@ export interface components {
              * @default false
              */
             memory: boolean;
+            /**
+             * Force Rerun
+             * @default false
+             */
+            force_rerun: boolean;
         };
         /** AblationRunResponse */
         AblationRunResponse: {
@@ -816,6 +863,13 @@ export interface components {
             pass_rate: components["schemas"]["MetricItem"];
             /** Summary */
             summary: string;
+            /** P90 Latency Ms */
+            p90_latency_ms?: number | null;
+            /**
+             * Ablation Matrix
+             * @default []
+             */
+            ablation_matrix: components["schemas"]["AblationMatrixRow"][];
         };
         /** AdminUser */
         AdminUser: {
@@ -1179,6 +1233,8 @@ export interface components {
              */
             policy_version: string;
             flags: components["schemas"]["FeatureFlags"];
+            /** Candidate Id */
+            candidate_id?: string | null;
         };
         /** ErrorDetail */
         ErrorDetail: {
@@ -1428,6 +1484,7 @@ export interface components {
              * @default [
              *       50,
              *       200,
+             *       500,
              *       600
              *     ]
              */
@@ -3948,6 +4005,122 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    chat_stream_v1_chat_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                smartllm_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Unauthorized */

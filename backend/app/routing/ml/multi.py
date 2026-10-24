@@ -89,20 +89,23 @@ def feature_view(context: ContextResult) -> str:
         len(messages) - 1,
     )
     current = messages[last_user].content if messages else ""
-    history = [
-        m
-        for m in messages[:last_user]
-        if m.role in ("user", "assistant")
-        and not m.content.startswith("Untrusted document evidence")
-    ][-4:]
+    history: list[str] = []
+    for m in messages[:last_user]:
+        if m.role == "user":
+            history.append(f"user: {m.content[:500]}")
+        elif m.role == "assistant" and not m.content.startswith("Untrusted document evidence"):
+            # Strip code blocks from past assistant responses for router feature view
+            cleaned = re.sub(r"```[\s\S]*?```", "[code block]", m.content)
+            history.append(f"assistant: {cleaned[:350]}")
+    history = history[-4:]
     evidence = [m.content for m in messages if m.content.startswith("Untrusted document evidence")]
     return (
         "CURRENT\n"
         + current[:8000]
         + "\nRECENT\n"
-        + "\n".join(f"{m.role}: {m.content[:2000]}" for m in history)
+        + "\n".join(history)
         + "\nEVIDENCE\n"
-        + "\n".join(evidence)[:8000]
+        + "\n".join(evidence)[:4000]
     )
 
 

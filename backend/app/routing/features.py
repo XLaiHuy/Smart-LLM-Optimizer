@@ -19,14 +19,38 @@ def serving_text(messages: tuple[Message, ...]) -> str:
 
 def extract_context_features(messages: tuple[Message, ...], has_rag: bool = False) -> TaskProfile:
     text = serving_text(messages)
-    profile = extract_features(text)
-    code_bytes = sum(len(m.group().encode("utf-8")) for m in re.finditer(r"```.*?```", text, re.S))
-    return profile.model_copy(
+    # The active intent is driven by the user's current turn
+    current_user_text = next((m.content for m in reversed(messages) if m.role == "user"), "")
+    current_profile = extract_features(current_user_text if current_user_text else text)
+
+    total_code_bytes = sum(len(m.group().encode("utf-8")) for m in re.finditer(r"```.*?```", text, re.S))
+    total_bytes = len(text.encode("utf-8"))
+    code_ratio = total_code_bytes / max(1, total_bytes)
+
+    # If the user's current turn is a simple short inquiry (e.g. "1+1= mấy?", "xin chào"),
+    # we must NOT let historical assistant responses falsely tag this turn as domain='code' or 'structured'
+    lower_user = current_user_text.casefold()
+    code_keywords = ("code", "lập trình", "hàm", "thuật toán", "viết hàm", "debug", "sửa lỗi", "class", "def ", "function")
+    is_simple_turn = (
+        len(current_user_text.split()) < 20
+        and "```" not in current_user_text
+        and not any(k in lower_user for k in code_keywords)
+    )
+
+    if is_simple_turn:
+        domain = "general"
+    else:
+        if "```" in current_user_text or any(k in lower_user for k in code_keywords):
+            domain = "code"
+        else:
+            domain = current_profile.domain
+
+    return current_profile.model_copy(
         update={
-            "total_input_bytes": len(text.encode("utf-8")),
+            "domain": domain,
+            "total_input_bytes": total_bytes,
             "has_rag_context": has_rag,
-            "code_ratio": code_bytes / max(1, len(text.encode("utf-8"))),
-            # Keyword detection is a heuristic, not a request for enforced JSON Schema.
+            "code_ratio": code_ratio,
             "json_schema_required": False,
         }
     )

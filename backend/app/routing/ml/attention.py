@@ -1,5 +1,6 @@
 """Learned six-query pooling: SDPA training/inference and matching NumPy CPU path."""
 
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -7,6 +8,29 @@ import numpy as np
 from app.contracts.representations import AttentionState
 
 ATTENTION_FEATURES = tuple(f"task_attention_{i}" for i in range(6))
+
+
+def compute_task_complexity_kappa(
+    attention_features: np.ndarray | Sequence[float],
+) -> float:
+    """Task Complexity Head: computes scalar kappa in [0, 1] from 6D task attention pooling.
+
+    High values (e.g. Math, Code, Reasoning) signal high cognitive load requiring stronger models,
+    whereas purely extractive or basic chat tasks have lower kappa.
+    """
+    feats = np.asarray(attention_features, dtype=np.float32)
+    feats = np.nan_to_num(feats, nan=0.5, posinf=1.0, neginf=0.0)
+    # Task head weights: (Math, Code, Reasoning, Extraction, Writing, Multilingual)
+    task_weights = np.array([0.30, 0.25, 0.25, 0.08, 0.06, 0.06], dtype=np.float32)
+    if feats.shape[-1] >= 6:
+        val = float(np.dot(feats[..., :6], task_weights))
+    elif feats.size > 0:
+        val = float(np.mean(feats))
+    else:
+        val = 0.5
+    if np.isnan(val) or not np.isfinite(val):
+        val = 0.5
+    return float(np.clip(val, 0.0, 1.0))
 
 
 def shapes(input_size: int, width: int) -> dict[str, tuple[int, int]]:
@@ -39,6 +63,9 @@ def validate_attention(state: AttentionState) -> None:
         raise ValueError("Invalid attention OOF provenance")
 
 
+_WEIGHTS_CACHE: dict[int, dict[str, np.ndarray]] = {}
+
+
 def numpy_features(
     state: AttentionState,
     states: np.ndarray,
@@ -46,11 +73,16 @@ def numpy_features(
     *,
     weights: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
-    w = (
-        weights
-        if weights is not None
-        else {key: np.asarray(value, dtype=np.float32) for key, value in state.weights.items()}
-    )
+    if weights is not None:
+        w = weights
+    else:
+        cache_key = id(state.weights)
+        w = _WEIGHTS_CACHE.get(cache_key)
+        if w is None:
+            w = {key: np.asarray(value, dtype=np.float32) for key, value in state.weights.items()}
+            _WEIGHTS_CACHE[cache_key] = w
+            if len(_WEIGHTS_CACHE) > 32:
+                _WEIGHTS_CACHE.pop(next(iter(_WEIGHTS_CACHE)))
     x = states @ w["projection"]
     h, d = state.heads, state.width // state.heads
     q = (w["queries"] @ w["q"]).reshape(6, h, d).transpose(1, 0, 2)

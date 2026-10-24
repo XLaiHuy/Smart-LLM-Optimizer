@@ -606,6 +606,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
     from prepare_final_router_dataset import main as final_main
 
     final_main()

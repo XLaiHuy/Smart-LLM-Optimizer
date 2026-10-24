@@ -5,3 +5,7 @@ class AppError(Exception):
         self.message = message
         self.request_id = request_id
         super().__init__(message)
+
+    @property
+    def status_code(self) -> int:
+        return self.status
