@@ -256,7 +256,9 @@ export function AnalyticsPanel({
           ? "Đo lường Nghiên cứu (Router Lab)"
           : "Router Lab Research";
       if (sessionMap.has(key)) return sessionMap.get(key);
-      return key.length > 10 ? `Hội thoại #${key.slice(0, 8)}` : key;
+      return key.length > 10
+        ? (locale === "vi" ? `Hội thoại #${key.slice(0, 8)}` : `Chat #${key.slice(0, 8)}`)
+        : key;
     }
     return m.has(key) ? m(key) : key;
   };
@@ -450,7 +452,7 @@ export function AnalyticsPanel({
                       ? sessionMap.get(r.key)!.length > 32
                         ? `${sessionMap.get(r.key)!.slice(0, 32)}...`
                         : sessionMap.get(r.key)
-                      : `Phiên #${r.key.slice(0, 8)}`}
+                      : (locale === "vi" ? `Phiên #${r.key.slice(0, 8)}` : `Session #${r.key.slice(0, 8)}`)}
                   </option>
                 ))}
             </select>

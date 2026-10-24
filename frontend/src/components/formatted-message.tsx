@@ -2,6 +2,7 @@ import * as React from "react";
 import type { ReactNode } from "react";
 import katex from "katex";
 import { Copy, Check } from "lucide-react";
+import { useLocale } from "next-intl";
 
 // Safe KaTeX renderer for mathematical formulas
 function renderMath(formula: string, displayMode: boolean): ReactNode {
@@ -128,10 +129,19 @@ function MermaidBlock({ code }: { code: string }) {
     );
   }
 
+  let locale = "vi";
+  try {
+    locale = useLocale();
+  } catch {
+    locale = "vi";
+  }
+
   if (!svg) {
     return (
       <div className="my-3 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50/60 p-6 text-xs text-slate-500">
-        <span className="animate-pulse">Đang dựng sơ đồ Mermaid...</span>
+        <span className="animate-pulse">
+          {locale === "en" ? "Rendering Mermaid diagram..." : "Đang dựng sơ đồ Mermaid..."}
+        </span>
       </div>
     );
   }
@@ -139,7 +149,7 @@ function MermaidBlock({ code }: { code: string }) {
   return (
     <div className="mermaid-diagram my-3 overflow-x-auto rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
       <div className="mb-2 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-        Sơ đồ quy trình (Mermaid)
+        {locale === "en" ? "Process Diagram (Mermaid)" : "Sơ đồ quy trình (Mermaid)"}
       </div>
       <div
         className="flex justify-center"
@@ -152,6 +162,12 @@ function MermaidBlock({ code }: { code: string }) {
 // Code Block with Language Tag and 1-Click Copy
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = React.useState(false);
+  let locale = "vi";
+  try {
+    locale = useLocale();
+  } catch {
+    locale = "vi";
+  }
 
   function handleCopy() {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -179,12 +195,14 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           {copied ? (
             <>
               <Check size={12} className="text-emerald-400" />
-              <span className="text-emerald-400 font-medium">Đã chép</span>
+              <span className="text-emerald-400 font-medium">
+                {locale === "en" ? "Copied" : "Đã chép"}
+              </span>
             </>
           ) : (
             <>
               <Copy size={12} />
-              <span>Sao chép</span>
+              <span>{locale === "en" ? "Copy" : "Sao chép"}</span>
             </>
           )}
         </button>

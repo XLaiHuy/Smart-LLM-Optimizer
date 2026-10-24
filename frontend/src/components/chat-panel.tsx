@@ -52,6 +52,12 @@ export function getCleanModelName(configId: string, modelId?: string): string {
     "openrouter-gemini-2.0-flash-exp-free": "Gemini 2.0 Flash (Free)",
     "openrouter-deepseek-r1-free": "DeepSeek R1 (Free)",
     "openrouter-meta-llama-3.3-70b-instruct-free": "Llama 3.3 70B (Free)",
+    "openrouter-llama-3.3-70b-instruct-free": "Llama 3.3 70B (Free)",
+    "meta-llama/llama-3.3-70b-instruct:free": "Llama 3.3 70B (Free)",
+    "openrouter-qwen-2.5-coder-32b-instruct-free": "Qwen 2.5 Coder 32B (Free)",
+    "qwen/qwen-2.5-coder-32b-instruct:free": "Qwen 2.5 Coder 32B (Free)",
+    "openrouter/free": "OpenRouter (Free Tier)",
+    "openrouter-free-v1": "OpenRouter (Free Tier)",
     "openai-gpt-6-luna": "GPT-6 Luna (OpenAI)",
     "openai-gpt-5.6-terra": "GPT-5.6 Terra (OpenAI)",
     "openai-gpt-6.1-sol": "GPT-6.1 Sol (OpenAI)",
@@ -79,6 +85,98 @@ export function getCleanModelName(configId: string, modelId?: string): string {
   if (lower.includes("deepseek-r1")) return "DeepSeek R1 (Free)";
   if (lower.includes("llama-3.3-70b")) return "Llama 3.3 70B (Free)";
   return modelId || configId;
+}
+
+export interface ShowcasePreset {
+  id: string;
+  labelKey: "presetMath" | "presetCode" | "presetReasoning" | "presetMemory";
+  promptKey:
+    | "presetMathPrompt"
+    | "presetCodePrompt"
+    | "presetReasoningPrompt"
+    | "presetMemoryPrompt";
+}
+
+export const SHOWCASE_PRESETS: readonly ShowcasePreset[] = [
+  {
+    id: "math",
+    labelKey: "presetMath",
+    promptKey: "presetMathPrompt",
+  },
+  {
+    id: "code",
+    labelKey: "presetCode",
+    promptKey: "presetCodePrompt",
+  },
+  {
+    id: "reasoning",
+    labelKey: "presetReasoning",
+    promptKey: "presetReasoningPrompt",
+  },
+  {
+    id: "memory",
+    labelKey: "presetMemory",
+    promptKey: "presetMemoryPrompt",
+  },
+] as const;
+
+export function QuickShowcaseBar({
+  disabled,
+  onSelectPreset,
+}: {
+  disabled?: boolean;
+  onSelectPreset: (promptText: string) => void;
+}) {
+  const t = useTranslations("App");
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div
+      className={`quick-showcase-bar ${collapsed ? "collapsed" : ""}`}
+      role="region"
+      aria-label={t("showcaseTitle")}
+    >
+      <div className="quick-showcase-header">
+        <div className="quick-showcase-title">
+          <Sparkles size={13} className="quick-showcase-icon" />
+          <span>{t("showcaseTitle")}</span>
+        </div>
+        <button
+          type="button"
+          className="quick-showcase-toggle"
+          onClick={() => setCollapsed(!collapsed)}
+          aria-expanded={!collapsed}
+          title={collapsed ? t("showcaseShow") : t("showcaseHide")}
+        >
+          <span>{collapsed ? t("showcaseShow") : t("showcaseHide")}</span>
+          <ChevronDown
+            size={13}
+            className={`quick-showcase-chevron ${collapsed ? "" : "expanded"}`}
+          />
+        </button>
+      </div>
+
+      {!collapsed && (
+        <div className="quick-showcase-presets">
+          {SHOWCASE_PRESETS.map((preset) => {
+            const promptText = t(preset.promptKey);
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className="quick-showcase-btn"
+                disabled={disabled}
+                onClick={() => onSelectPreset(promptText)}
+                title={promptText}
+              >
+                <span>{t(preset.labelKey)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ChatPanel({
@@ -121,6 +219,34 @@ export function ChatPanel({
     );
     return nonMock.length > 0 ? nonMock : nonEmbeddings;
   }, [models.data]);
+
+  const tieredModels = useMemo(() => {
+    const fast: typeof genuineModels = [];
+    const code: typeof genuineModels = [];
+    const reasoning: typeof genuineModels = [];
+
+    for (const m of genuineModels) {
+      const lower = (m.config_id + " " + (m.model_id || "")).toLowerCase();
+      if (
+        lower.includes("coder") ||
+        lower.includes("qwen-2.5-coder") ||
+        lower.includes("3.8-27b") ||
+        lower.includes("sol")
+      ) {
+        code.push(m);
+      } else if (
+        lower.includes("70b") ||
+        lower.includes("120b") ||
+        lower.includes("r1") ||
+        lower.includes("terra")
+      ) {
+        reasoning.push(m);
+      } else {
+        fast.push(m);
+      }
+    }
+    return { fast, code, reasoning };
+  }, [genuineModels]);
 
   const [candidateOverride, setCandidateOverride] = useState<string | null>(null);
 
@@ -191,8 +317,15 @@ export function ChatPanel({
     }
   }, [selected]);
 
-  async function resendSessionPrompt(text: string) {
+  async function resendSessionPrompt(
+    text: string,
+    overrideMode?: "baseline" | "optimized",
+  ) {
     if (documentBusy || processing || !text.trim()) return;
+    const effectiveMode = overrideMode || mode;
+    if (overrideMode && overrideMode !== mode) {
+      setMode(overrideMode);
+    }
     setDocumentsOpen(false);
     setBusy(true);
     onBusy(true);
@@ -210,9 +343,9 @@ export function ChatPanel({
         message: text,
         document_ids: sources.session === selected ? sources.ids : [],
         constraints: { deadline_ms: 60000 },
-        mode,
-        flags: requestFlags(mode, flags),
-        ...(mode === "optimized"
+        mode: effectiveMode,
+        flags: requestFlags(effectiveMode, flags),
+        ...(effectiveMode === "optimized"
           ? {
               policy_id:
                 source === "live"
@@ -317,6 +450,12 @@ export function ChatPanel({
   useEffect(() => {
     onBusy(processing || retrying || documentBusy);
   }, [processing, retrying, documentBusy, onBusy]);
+
+  async function runPreset(promptText: string) {
+    if (locked || !promptText.trim()) return;
+    setDraft(promptText);
+    await resendSessionPrompt(promptText, "optimized");
+  }
   return (
     <section className="chat-panel">
       <header className="chat-toolbar">
@@ -408,12 +547,10 @@ export function ChatPanel({
                 <div className="empty-session-card">
                   <div className="empty-session-badge">
                     <Sparkles size={14} />
-                    <span>Phiên làm việc</span>
+                    <span>{t("emptySessionBadge")}</span>
                   </div>
                   <h3>{detail.data.title}</h3>
-                  <p>
-                    Phiên trò chuyện này chưa có câu trả lời nào được lưu lại (do yêu cầu trước đó có thể đã hết thời gian chờ hoặc bị gián đoạn). Bạn có thể bấm nút bên dưới để gửi lại câu hỏi này ngay với thời hạn phản hồi đã được tối ưu (60 giây).
-                  </p>
+                  <p>{t("emptySessionHint")}</p>
                   <div className="empty-session-actions">
                     <button
                       type="button"
@@ -422,7 +559,7 @@ export function ChatPanel({
                       onClick={() => resendSessionPrompt(detail.data!.title)}
                     >
                       <ArrowUp size={16} />
-                      <span>Gửi lại câu hỏi này ngay</span>
+                      <span>{t("emptySessionResend")}</span>
                     </button>
                     <button
                       type="button"
@@ -430,7 +567,7 @@ export function ChatPanel({
                       disabled={locked}
                       onClick={() => setDraft(detail.data!.title)}
                     >
-                      <span>Nạp vào ô soạn thảo</span>
+                      <span>{t("emptySessionLoad")}</span>
                     </button>
                   </div>
                 </div>
@@ -557,7 +694,7 @@ export function ChatPanel({
                   <div className="message-body">
                     <header>
                       <strong>{t("you")}</strong>
-                      <span className="optimistic-pill">Đang gửi</span>
+                      <span className="optimistic-pill">{t("optimisticSending")}</span>
                     </header>
                     <div className="message-content">{pendingPrompt}</div>
                   </div>
@@ -632,33 +769,57 @@ export function ChatPanel({
                     className="model-select-dropdown"
                     aria-label={t("selectModel")}
                   >
-                    {genuineModels.map((m) => (
-                      <option key={m.config_id} value={m.config_id}>
-                        {getCleanModelName(m.config_id, m.model_id)}
-                      </option>
-                    ))}
+                    {tieredModels.fast.length > 0 && (
+                      <optgroup label={t("tierFast")}>
+                        {tieredModels.fast.map((m) => (
+                          <option key={m.config_id} value={m.config_id}>
+                            {getCleanModelName(m.config_id, m.model_id)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {tieredModels.code.length > 0 && (
+                      <optgroup label={t("tierCode")}>
+                        {tieredModels.code.map((m) => (
+                          <option key={m.config_id} value={m.config_id}>
+                            {getCleanModelName(m.config_id, m.model_id)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {tieredModels.reasoning.length > 0 && (
+                      <optgroup label={t("tierReasoning")}>
+                        {tieredModels.reasoning.map((m) => (
+                          <option key={m.config_id} value={m.config_id}>
+                            {getCleanModelName(m.config_id, m.model_id)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <ChevronDown size={13} className="select-arrow" />
                 </div>
                 <span
                   className="mode-tag-pill manual"
-                  title="Gửi trực tiếp đến mô hình đã chọn, bỏ qua toàn bộ module tối ưu hóa"
+                  title={t("modeDirectHint")}
                 >
-                  🎯 Chuẩn (Trực tiếp)
+                  {t("modeDirectPill")}
                 </span>
               </div>
             ) : (
               <div className="auto-model-display">
                 <span
                   className="mode-tag-pill auto"
-                  title="Tự động phân tích đa chiều và chọn mô hình tối ưu"
+                  title={t("modeAutoHint")}
                 >
-                  ⚡ Tối ưu tự động (ML Router)
+                  {t("modeAutoPill")}
                 </span>
               </div>
             )}
           </div>
         </div>
+
+        <QuickShowcaseBar disabled={locked} onSelectPreset={runPreset} />
 
         {error !== undefined && <ErrorNotice error={error} />}
         <form className={`composer ${busy ? "busy" : ""}`} onSubmit={send}>
@@ -689,11 +850,13 @@ export function ChatPanel({
             <div className="composer-bottom-info">
               {mode === "baseline" ? (
                 <span className="active-mode-subtext">
-                  Chế độ trực tiếp · {getCleanModelName(selectedCandidate, selectedCandidate)}
+                  {t("modeDirectSubtext", {
+                    model: getCleanModelName(selectedCandidate, selectedCandidate),
+                  })}
                 </span>
               ) : (
                 <span className="active-mode-subtext">
-                  Tối ưu tự động · ML Multi-Model Router
+                  {t("modeAutoSubtext")}
                 </span>
               )}
             </div>

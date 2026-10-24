@@ -95,22 +95,27 @@ class Orchestrator:
     ) -> ModelConfiguration | None:
         if not self.registry:
             return None
+        provider_catalog = getattr(self.provider, "catalog", None)
+        is_live = provider_catalog is not None
         candidates = [
             c
             for c in self.registry.configurations
-            if c.config_id not in exhausted_configs and c.available
+            if c.config_id not in exhausted_configs
+            and c.available
+            and (not is_live or c.execution_source == "live")
         ]
         if not candidates:
-            baseline = next(
-                (
-                    c
-                    for c in self.registry.configurations
-                    if c.config_id == self.registry.mock_config_id
-                ),
-                None,
-            )
-            if baseline and baseline.config_id not in exhausted_configs:
-                return baseline
+            if not is_live:
+                baseline = next(
+                    (
+                        c
+                        for c in self.registry.configurations
+                        if c.config_id == self.registry.mock_config_id
+                    ),
+                    None,
+                )
+                if baseline and baseline.config_id not in exhausted_configs:
+                    return baseline
             return None
 
         # Cross-provider capability tiers
@@ -421,6 +426,13 @@ class Orchestrator:
                                         duration_ms=result.duration_ms,
                                     )
                                 )
+                            if result.status == "incomplete":
+                                raise AppError(
+                                    "OUTPUT_INCOMPLETE",
+                                    502,
+                                    "Provider output incomplete",
+                                    execution.request_id,
+                                )
                             break
                         except AppError as exc:
                             if (
@@ -433,6 +445,7 @@ class Orchestrator:
                                         "PROVIDER_TIMEOUT",
                                         "NO_COMPATIBLE_MODEL",
                                         "UNAUTHORIZED",
+                                        "OUTPUT_INCOMPLETE",
                                     )
                                     or exc.status_code in (401, 404, 422, 429, 502, 503, 504)
                                 )
@@ -472,13 +485,6 @@ class Orchestrator:
                                     )
                                     continue
                             raise
-                    if result.status == "incomplete":
-                        raise AppError(
-                            "OUTPUT_INCOMPLETE",
-                            502,
-                            "Provider output incomplete",
-                            execution.request_id,
-                        )
                     if not result.tool_calls:
                         break
                     if not definitions or not self.tools:
@@ -895,6 +901,7 @@ class Orchestrator:
                                 "PROVIDER_ERROR",
                                 "MODEL_NOT_FOUND",
                                 "UNAUTHORIZED",
+                                "OUTPUT_INCOMPLETE",
                             )
                             or exc.status_code in (401, 404, 422, 429, 502, 503, 504)
                         )

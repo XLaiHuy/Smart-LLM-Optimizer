@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { useLocale } from "next-intl";
 
 export interface PolicyCandidateMetrics {
   id: string;
@@ -120,6 +121,7 @@ export function ParetoScatterSurface3D({
   height = 420,
   interactive = true,
 }: ParetoScatterSurface3DProps) {
+  const locale = useLocale();
   const mountRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<TooltipData | null>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -498,7 +500,7 @@ export function ParetoScatterSurface3D({
         <span>3D PARETO FRONTIER SPACE</span>
         <span className="hidden sm:inline text-slate-400">·</span>
         <span className="text-[11px] font-normal text-slate-500">
-          Chi phí (X) × Độ trễ (Z) × Chất lượng Pass Rate (Y)
+          {locale === "en" ? "Cost (X) × Latency (Z) × Pass Rate Quality (Y)" : "Chi phí (X) × Độ trễ (Z) × Chất lượng Pass Rate (Y)"}
         </span>
       </div>
 
@@ -540,14 +542,14 @@ export function ParetoScatterSurface3D({
                   : "bg-slate-100 text-slate-600"
               }`}
             >
-              {tooltip.policy.isParetoOptimal ? "Tối ưu" : "Bị áp đảo"}
+              {tooltip.policy.isParetoOptimal ? (locale === "en" ? "Optimal" : "Tối ưu") : (locale === "en" ? "Dominated" : "Bị áp đảo")}
             </span>
           </div>
 
           <div className="mt-2 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-lg bg-slate-50 p-1.5">
               <span className="block text-[10px] text-slate-400 font-medium">
-                Chi phí
+                {locale === "en" ? "Cost" : "Chi phí"}
               </span>
               <strong className="font-bold text-[#005696]">
                 ${tooltip.policy.costUsd.toFixed(5)}
@@ -555,7 +557,7 @@ export function ParetoScatterSurface3D({
             </div>
             <div className="rounded-lg bg-slate-50 p-1.5">
               <span className="block text-[10px] text-slate-400 font-medium">
-                Độ trễ
+                {locale === "en" ? "Latency" : "Độ trễ"}
               </span>
               <strong className="font-bold text-slate-800">
                 {tooltip.policy.latencyMs} ms
@@ -574,8 +576,9 @@ export function ParetoScatterSurface3D({
           {tooltip.policy.savingsPct !== undefined &&
             tooltip.policy.savingsPct > 0 && (
               <div className="mt-2 text-center text-[10px] font-semibold text-emerald-600">
-                ⚡ Tiết kiệm {tooltip.policy.savingsPct}% chi phí so với
-                baseline
+                {locale === "en"
+                  ? `⚡ ${tooltip.policy.savingsPct}% cost savings vs baseline`
+                  : `⚡ Tiết kiệm ${tooltip.policy.savingsPct}% chi phí so với baseline`}
               </div>
             )}
         </div>
@@ -597,7 +600,7 @@ export function ParetoScatterSurface3D({
           </span>
         </span>
         <span className="hidden sm:inline text-slate-400">
-          Xoay để xem đa góc độ · Click để chọn policy
+          {locale === "en" ? "Rotate to inspect 3D angles · Click to select policy" : "Xoay để xem đa góc độ · Click để chọn policy"}
         </span>
       </div>
     </div>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BarChart2, Cpu, Info } from "lucide-react";
 import { api, unwrap } from "@/lib/api";
 import { formatCost, formatMetric, knownTokenTotal } from "@/lib/format";
+import { getCleanModelName } from "./chat-panel";
 import { ProcessingProgress } from "./processing-progress";
 
 export function MessageMetrics({
@@ -56,7 +57,7 @@ export function MessageMetrics({
   const modelName =
     data.execution_source === "mock"
       ? i("simulatedModel")
-      : data.route.model_id;
+      : getCleanModelName(data.route.config_id, data.route.model_id);
   const totalTokens = knownTokenTotal(
     data.usage.input_tokens,
     data.usage.output_tokens,
@@ -75,7 +76,7 @@ export function MessageMetrics({
         onClick={() => onTrace?.(requestId)}
         role={onTrace ? "button" : undefined}
         tabIndex={onTrace ? 0 : undefined}
-        title={onTrace ? "Xem chi tiết định tuyến và tối ưu" : undefined}
+        title={onTrace ? i("traceDetails") : undefined}
       >
         <Cpu size={12} className="metrics-icon" />
         <span className="metrics-model-name">{modelName}</span>
@@ -85,9 +86,9 @@ export function MessageMetrics({
         {isBaseline && (
           <span
             className="baseline-tag-pill"
-            title="Mô hình tiêu chuẩn (Direct pass-through)"
+            title={i("baselineHint")}
           >
-            Tiêu chuẩn
+            {i("baselineTag")}
           </span>
         )}
       </div>
@@ -99,19 +100,19 @@ export function MessageMetrics({
         </span>
         <span
           className="metrics-token-tag estimated"
-          title={`${data.usage.usage_source} - Ước tính số token sử dụng`}
+          title={i("tokenEstTooltip", { source: data.usage.usage_source })}
         >
           {totalTokens == null
-            ? `~${formatMetric(data.usage.input_tokens, locale) ?? "0"} tok (${locale === "vi" ? "ước tính" : "est"})`
-            : `~${formatMetric(totalTokens, locale)} tok (${locale === "vi" ? "ước tính" : "est"})`}
+            ? `~${formatMetric(data.usage.input_tokens, locale) ?? "0"} tok (${i("estTokens")})`
+            : `~${formatMetric(totalTokens, locale)} tok (${i("estTokens")})`}
         </span>
         <span
           className="metrics-cost-tag estimated"
-          title={`${data.cost.status} - Ước tính chi phí gọi mô hình`}
+          title={i("costEstTooltip", { status: data.cost.status })}
         >
           {data.cost.status === "not_billable"
             ? t("notBillable")
-            : `~${formatCost(data.cost.serving_usd, locale) ?? "$0.00"} (${locale === "vi" ? "ước tính" : "est"})`}
+            : `~${formatCost(data.cost.serving_usd, locale) ?? "$0.00"} (${i("estCost")})`}
         </span>
         <Link
           href="/dashboard"

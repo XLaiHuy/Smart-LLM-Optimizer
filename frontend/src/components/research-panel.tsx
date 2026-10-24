@@ -1277,7 +1277,7 @@ export function ResearchPanel({
                 </p>
               </div>
               <span className="text-xs font-semibold text-[#005696] bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                Quy mô: 500 mẫu
+                {locale === "en" ? "Scale: 500 samples" : "Quy mô: 500 mẫu"}
               </span>
             </div>
 
@@ -1285,14 +1285,14 @@ export function ResearchPanel({
               <table className="w-full text-xs text-left">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-600 font-semibold bg-slate-50/80">
-                    <th className="py-2.5 px-3">Cấu hình Thử nghiệm</th>
+                    <th className="py-2.5 px-3">{locale === "en" ? "Experiment Config" : "Cấu hình Thử nghiệm"}</th>
                     <th className="py-2.5 px-3 text-center">Huy (Router)</th>
-                    <th className="py-2.5 px-3 text-center">Tân (Nén)</th>
-                    <th className="py-2.5 px-3 text-center">Khoa (Ký ức)</th>
-                    <th className="py-2.5 px-3 text-right">Token TB</th>
-                    <th className="py-2.5 px-3 text-right">Giảm Token</th>
-                    <th className="py-2.5 px-3 text-right">Chi phí / 1K</th>
-                    <th className="py-2.5 px-3 text-right">Giảm Chi phí</th>
+                    <th className="py-2.5 px-3 text-center">{locale === "en" ? "Tan (Compression)" : "Tân (Nén)"}</th>
+                    <th className="py-2.5 px-3 text-center">{locale === "en" ? "Khoa (Memory)" : "Khoa (Ký ức)"}</th>
+                    <th className="py-2.5 px-3 text-right">{locale === "en" ? "Avg Tokens" : "Token TB"}</th>
+                    <th className="py-2.5 px-3 text-right">{locale === "en" ? "Token Red." : "Giảm Token"}</th>
+                    <th className="py-2.5 px-3 text-right">{locale === "en" ? "Cost / 1K" : "Chi phí / 1K"}</th>
+                    <th className="py-2.5 px-3 text-right">{locale === "en" ? "Cost Red." : "Giảm Chi phí"}</th>
                     <th className="py-2.5 px-3 text-right">P50</th>
                     <th className="py-2.5 px-3 text-center">Pass Rate</th>
                   </tr>
@@ -1691,7 +1691,7 @@ export function ResearchPanel({
                     ? "Cân bằng tải thích ứng"
                     : "Adaptive load balancing"}
                 </span>
-                <span className="font-bold font-mono">Tổng: 100%</span>
+                <span className="font-bold font-mono">{locale === "en" ? "Total: 100%" : "Tổng: 100%"}</span>
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { useLocale } from "next-intl";
 import {
   RotateCcw,
   Box,
@@ -140,6 +141,7 @@ export function TokenCostSpace3D({
   className = "",
   interactive = true,
 }: TokenCostSpace3DProps) {
+  const locale = useLocale();
   const mountRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -452,25 +454,25 @@ export function TokenCostSpace3D({
       {/* Summary KPI Badges */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">Số phiên theo dõi</span>
+          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Sessions Tracked" : "Số phiên theo dõi"}</span>
           <strong className="text-sm font-bold text-slate-800">
-            {dataList.length} phiên
+            {dataList.length} {locale === "en" ? "sessions" : "phiên"}
           </strong>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">Tổng Tokens</span>
+          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Total Tokens" : "Tổng Tokens"}</span>
           <strong className="text-sm font-bold text-sky-700">
             {totalTokensSum.toLocaleString()} tok
           </strong>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">Chi phí tích luỹ</span>
+          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Cumulative Cost" : "Chi phí tích luỹ"}</span>
           <strong className="text-sm font-bold text-emerald-600">
             ${totalCostSum.toFixed(5)}
           </strong>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">Tiết kiệm trung bình</span>
+          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Average Savings" : "Tiết kiệm trung bình"}</span>
           <strong className="text-sm font-bold text-indigo-600">54.2%</strong>
         </div>
       </div>
@@ -519,7 +521,7 @@ export function TokenCostSpace3D({
             </div>
             <div className="space-y-1 text-slate-600 text-[11px]">
               <div className="flex justify-between">
-                <span>Tổng Tokens:</span>
+                <span>{locale === "en" ? "Total Tokens:" : "Tổng Tokens:"}</span>
                 <strong className="text-slate-900">
                   {tooltip.metric.totalTokens.toLocaleString()}
                 </strong>
@@ -531,19 +533,19 @@ export function TokenCostSpace3D({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Chi phí USD:</span>
+                <span>{locale === "en" ? "Cost USD:" : "Chi phí USD:"}</span>
                 <strong className="text-emerald-600 font-semibold">
                   {tooltip.metric.costUsd === 0
-                    ? "Miễn phí ($0.00)"
+                    ? (locale === "en" ? "Free ($0.00)" : "Miễn phí ($0.00)")
                     : `$${tooltip.metric.costUsd.toFixed(5)}`}
                 </strong>
               </div>
               <div className="flex justify-between">
-                <span>Độ trễ:</span>
+                <span>{locale === "en" ? "Latency:" : "Độ trễ:"}</span>
                 <span>{tooltip.metric.latencyMs} ms</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
-                <span>Mô hình:</span>
+                <span>{locale === "en" ? "Model:" : "Mô hình:"}</span>
                 <span className="font-mono text-[10px] text-[#005696]">
                   {tooltip.metric.model}
                 </span>

@@ -17,6 +17,10 @@ data/
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+/smartllm.db*
+/test_smoke*.db*
 benchmark/reports/*
 !benchmark/reports/.gitkeep
 test-results/

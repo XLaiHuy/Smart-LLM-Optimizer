@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { useLocale } from "next-intl";
 import katex from "katex";
 import {
   Play,
@@ -442,6 +443,7 @@ export function PipelineFlow3D({
   className = "",
   initialPresetId = "math_advanced",
 }: PipelineFlow3DProps) {
+  const locale = useLocale();
   const mountRef = useRef<HTMLDivElement>(null);
   const [selectedPresetId, setSelectedPresetId] = useState(initialPresetId);
   const [activeLayer, setActiveLayer] = useState<number>(1);
@@ -1881,15 +1883,15 @@ export function PipelineFlow3D({
               {activeLayer === 1 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Số lượng Token thô:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Raw Token Count:" : "Số lượng Token thô:"}</span>
                     <strong className="text-slate-800">{currentPreset.inputTokens} tokens</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Kích thước Tensor:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Tensor Dimension:" : "Kích thước Tensor:"}</span>
                     <strong className="text-slate-800">[1, {currentPreset.inputTokens}, 4096]</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Mã hóa vị trí:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Positional Encoding:" : "Mã hóa vị trí:"}</span>
                     <strong className="text-sky-700">RoPE 3D Wave Ribbon</strong>
                   </div>
                 </>
@@ -1898,17 +1900,17 @@ export function PipelineFlow3D({
               {activeLayer === 2 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Số Slots ký ức kích hoạt:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Activated Memory Slots:" : "Số Slots ký ức kích hoạt:"}</span>
                     <strong className="text-emerald-700">{currentPreset.memorySlotsHit} / 10 slots</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Sự thật hồi phục:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Recovered Fact:" : "Sự thật hồi phục:"}</span>
                     <span className="text-slate-800 font-medium italic text-right max-w-[200px]">
                       {currentPreset.memoryFact}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Độ chính xác truy xuất:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Retrieval Accuracy:" : "Độ chính xác truy xuất:"}</span>
                     <strong className="text-emerald-700">99.4%</strong>
                   </div>
                 </>
@@ -1917,19 +1919,19 @@ export function PipelineFlow3D({
               {activeLayer === 3 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Token trước nén:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Pre-compaction Tokens:" : "Token trước nén:"}</span>
                     <strong className="text-slate-800">{currentPreset.inputTokens}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Token sau nén:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Post-compaction Tokens:" : "Token sau nén:"}</span>
                     <strong className="text-emerald-600">{currentPreset.compactedTokens}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Tỷ lệ giảm tải:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Reduction Ratio:" : "Tỷ lệ giảm tải:"}</span>
                     <strong className="text-emerald-600">-{currentPreset.compactionPct}%</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Bảo toàn thực thể:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Entity Preservation:" : "Bảo toàn thực thể:"}</span>
                     <strong className="text-sky-700">100% (Math & Code Invariant)</strong>
                   </div>
                 </>
@@ -1938,7 +1940,7 @@ export function PipelineFlow3D({
               {activeLayer === 4 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Mô hình chiến thắng:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Winning Model:" : "Mô hình chiến thắng:"}</span>
                     <strong className="text-indigo-700">{currentPreset.winnerModelName}</strong>
                   </div>
                   <div className="mt-2 space-y-1">
@@ -1965,15 +1967,15 @@ export function PipelineFlow3D({
               {activeLayer === 5 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Mô hình được điều động:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Dispatched Model:" : "Mô hình được điều động:"}</span>
                     <strong className="text-slate-900">{currentPreset.winnerModelName}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Độ trễ P50 ước tính:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Estimated P50 Latency:" : "Độ trễ P50 ước tính:"}</span>
                     <strong className="text-slate-800">{currentPreset.estimatedLatencyMs} ms</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Chi phí phục vụ:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Serving Cost:" : "Chi phí phục vụ:"}</span>
                     <strong className="text-emerald-600">${currentPreset.estimatedCostUsd.toFixed(5)}</strong>
                   </div>
                 </>
@@ -1982,15 +1984,15 @@ export function PipelineFlow3D({
               {activeLayer === 6 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Số Attention Heads:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Attention Heads:" : "Số Attention Heads:"}</span>
                     <strong className="text-slate-900">{currentPreset.transformerHeads} heads</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Kích thước SwiGLU FFN:</span>
+                    <span className="text-slate-500">{locale === "en" ? "SwiGLU FFN Dimension:" : "Kích thước SwiGLU FFN:"}</span>
                     <strong className="text-amber-700">{currentPreset.mlpExpansion}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Tối ưu KV-Cache:</span>
+                    <span className="text-slate-500">{locale === "en" ? "KV-Cache Optimization:" : "Tối ưu KV-Cache:"}</span>
                     <strong className="text-emerald-600">FlashAttention-2 Kernel</strong>
                   </div>
                 </>
@@ -1999,7 +2001,7 @@ export function PipelineFlow3D({
               {activeLayer === 7 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Token chiến thắng:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Winning Next Token:" : "Token chiến thắng:"}</span>
                     <strong className="text-amber-700 font-mono text-sm">
                       &quot;{currentPreset.winnerToken}&quot;
                     </strong>
@@ -2030,15 +2032,15 @@ export function PipelineFlow3D({
               {activeLayer === 8 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Vòng lặp tự hồi quy (Loop 1):</span>
-                    <strong className="text-purple-700">Nạp vào KV-Cache (t+1)</strong>
+                    <span className="text-slate-500">{locale === "en" ? "Autoregressive (Loop 1):" : "Vòng lặp tự hồi quy (Loop 1):"}</span>
+                    <strong className="text-purple-700">{locale === "en" ? "Append to KV-Cache (t+1)" : "Nạp vào KV-Cache (t+1)"}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Luồng SSE phát trực tiếp (Loop 2):</span>
+                    <span className="text-slate-500">{locale === "en" ? "Real-time SSE (Loop 2):" : "Luồng SSE phát trực tiếp (Loop 2):"}</span>
                     <strong className="text-emerald-700">Typewriter Effect</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Token đã sinh:</span>
+                    <span className="text-slate-500">{locale === "en" ? "Generated Token:" : "Token đã sinh:"}</span>
                     <span className="text-amber-800 font-mono bg-amber-50 px-2 py-0.5 rounded font-bold">
                       {currentPreset.winnerToken}
                     </span>
@@ -2051,21 +2053,21 @@ export function PipelineFlow3D({
           {/* Real-time Architecture Status Card */}
           <div className="rounded-2xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
             <span className="text-[11px] font-semibold tracking-wider uppercase text-sky-400">
-              Trạng thái Luồng Kiến trúc
+              {locale === "en" ? "Architecture Pipeline Status" : "Trạng thái Luồng Kiến trúc"}
             </span>
             <div className="mt-3 space-y-2 text-xs text-slate-300">
               <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Phân hệ đang xem:</span>
-                <strong className="text-white">Tầng {activeLayer}: {activeLayerData.title}</strong>
+                <span className="text-slate-400">{locale === "en" ? "Current Subsystem:" : "Phân hệ đang xem:"}</span>
+                <strong className="text-white">{locale === "en" ? `Layer ${activeLayer}: ${activeLayerData.title}` : `Tầng ${activeLayer}: ${activeLayerData.title}`}</strong>
               </div>
               <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Cơ chế xử lý:</span>
+                <span className="text-slate-400">{locale === "en" ? "Processing Engine:" : "Cơ chế xử lý:"}</span>
                 <span className="text-emerald-400 font-medium">NumPy CPU Vectorization (&lt;0.5ms)</span>
               </div>
               <div className="flex justify-between pt-1">
-                <span className="text-slate-400">Đo lường Ablation:</span>
+                <span className="text-slate-400">{locale === "en" ? "Ablation Benchmark:" : "Đo lường Ablation:"}</span>
                 <a href="/research" className="text-sky-400 hover:underline font-medium">
-                  Xem bảng Benchmark 500 mẫu →
+                  {locale === "en" ? "View 500-sample Benchmark Matrix →" : "Xem bảng Benchmark 500 mẫu →"}
                 </a>
               </div>
             </div>

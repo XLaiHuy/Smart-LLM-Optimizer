@@ -34,7 +34,13 @@ export function Workspace({
     queryKey: ["me"],
     initialData: initialSignedOut ? null : undefined,
     initialDataUpdatedAt: 0,
-    retry: false,
+    retry: (failureCount, error) => {
+      const status = (error as { status?: number; response?: { status?: number } })?.status ??
+        (error as { status?: number; response?: { status?: number } })?.response?.status;
+      if (status === 401) return false;
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
     queryFn: async () => {
       const response = await api.GET("/v1/auth/me");
       return response.response.status === 401 ? null : unwrap(response);
