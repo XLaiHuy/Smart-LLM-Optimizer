@@ -95,6 +95,12 @@ class OpenAICompatibleProvider:
             )
         return self._clients[cache_key]
 
+    def get_client(self, entry: ModelEntry | None = None) -> AsyncOpenAI:
+        if entry is None:
+            return self.client
+        key, base_url = self._resolve_key_and_url(entry)
+        return self._get_client(base_url, key)
+
     async def generate(
         self, messages: tuple[Message, ...], opts: ProviderOptions
     ) -> ProviderResult:

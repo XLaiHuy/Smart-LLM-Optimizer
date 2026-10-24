@@ -142,6 +142,7 @@ def eval_fixture_pair(
         raise typer.Exit(1) from exc
 
 
+
 @evaluation.command("four-suite")
 def eval_four_suite(
     manifest: Annotated[
