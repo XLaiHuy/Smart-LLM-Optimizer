@@ -22,6 +22,8 @@ def validate_manifest(path: Path, purpose: str) -> EvalManifest:
 async def run_smoke(manifest_path: Path, settings: Settings, output: Path) -> int:
     manifest = await asyncio.to_thread(validate_manifest, manifest_path, "smoke")
     data_hash = hashlib.sha256(await asyncio.to_thread(manifest_path.read_bytes)).hexdigest()
+    if manifest.execution_source == "mock" and settings.provider_mode != "mock":
+        settings = settings.model_copy(update={"provider_mode": "mock"})
     container = Container(settings)
     rows: list[str] = []
     try:
