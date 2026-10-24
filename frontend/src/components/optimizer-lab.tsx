@@ -15,6 +15,8 @@ export function OptimizerLab({ user }: { user: User }) {
   const t = useTranslations("OptimizerLab");
   const r = useTranslations("Research");
   const [router, setRouter] = useState(true);
+  const [prompt, setPrompt] = useState(true);
+  const [memory, setMemory] = useState(true);
   const query = useQuery({
     queryKey: ["optimizer-lab", user.id],
     enabled: user.role === "admin",
@@ -41,6 +43,10 @@ export function OptimizerLab({ user }: { user: User }) {
         user={user}
         routerEnabled={router}
         onToggleRouter={setRouter}
+        promptEnabled={prompt}
+        onTogglePrompt={setPrompt}
+        memoryEnabled={memory}
+        onToggleMemory={setMemory}
         modules={query.data?.modules}
       />
       <p className="lab-evidence-note">{t("evaluationLocked")}</p>

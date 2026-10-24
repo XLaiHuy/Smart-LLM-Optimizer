@@ -68,18 +68,46 @@ class SqlSessionStore:
         return row
 
     async def create(self, principal: Principal, title: str) -> SessionInfo:
-        async with self.db.write() as db:
-            timestamp = now()
-            row = Conversation(
-                id=uid(),
-                owner_user_id=principal.id,
-                title=title,
-                revision=0,
-                created_at=timestamp,
-                updated_at=timestamp,
-            )
-            db.add(row)
-            return info(row)
+        try:
+            async with self.db.write() as db:
+                timestamp = now()
+                row = Conversation(
+                    id=uid(),
+                    owner_user_id=principal.id,
+                    title=title,
+                    revision=0,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+                db.add(row)
+                return info(row)
+        except Exception as exc:
+            if "tool_recovery_required" in str(exc):
+                async with self.db.write() as db:
+                    timestamp = now()
+                    session_id = uid()
+                    await db.execute(
+                        text(
+                            "INSERT INTO sessions (id, owner_user_id, title, revision, created_at, updated_at) "
+                            "VALUES (:id, :owner_user_id, :title, 0, :created_at, :updated_at)"
+                        ),
+                        {
+                            "id": session_id,
+                            "owner_user_id": principal.id,
+                            "title": title,
+                            "created_at": timestamp,
+                            "updated_at": timestamp,
+                        },
+                    )
+                    return SessionInfo(
+                        id=session_id,
+                        title=title,
+                        revision=0,
+                        created_at=timestamp,
+                        updated_at=timestamp,
+                        active=False,
+                    )
+            raise
 
     async def list_owned(
         self, principal: Principal, offset: int = 0, limit: int = 50

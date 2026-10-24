@@ -15,7 +15,13 @@ from app.main import create_app
 @pytest.fixture
 async def app(tmp_path: Path) -> AsyncIterator[FastAPI]:
     settings = Settings(
-        database_path=tmp_path / "test.db", app_env="test", allowed_origins=("http://testserver",)
+        database_path=tmp_path / "test.db",
+        app_env="test",
+        provider_mode="mock",
+        allowed_origins=("http://testserver",),
+        router_training_directory=tmp_path / "router-training",
+        router_training_manifest_path=tmp_path / "router-training" / "manifest.json",
+        upload_directory=tmp_path / "uploads",
     )
     await asyncio.to_thread(migrate, settings.database_path)
     instance = create_app(settings)

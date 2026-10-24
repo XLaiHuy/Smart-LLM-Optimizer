@@ -42,7 +42,7 @@ class LabModule(DTO):
 class OptimizerLabInfo(DTO):
     modules: tuple[LabModule, ...]
     qualified_samples: int = 0
-    requested_sizes: tuple[int, ...] = (50, 200, 600)
+    requested_sizes: tuple[int, ...] = (50, 200, 500, 600)
     dataset_status: Literal["not_qualified", "qualified"] = "not_qualified"
     comparison_available: bool = False
 
@@ -54,6 +54,23 @@ class MetricItem(DTO):
     unit: str = ""
 
 
+class AblationMatrixRow(DTO):
+    name: str
+    router: bool
+    prompt: bool
+    memory: bool
+    tokens: float
+    token_delta_percent: float
+    cost_usd: float
+    cost_delta_percent: float
+    latency_ms: float
+    p90_latency_ms: float | None = None
+    pass_rate: float
+
+
+AblationConfigResult = AblationMatrixRow
+
+
 class AblationRunResponse(DTO):
     size: int
     evaluated_samples: int
@@ -62,13 +79,16 @@ class AblationRunResponse(DTO):
     tokens: MetricItem
     pass_rate: MetricItem
     summary: str
+    p90_latency_ms: float | None = None
+    ablation_matrix: tuple[AblationMatrixRow, ...] = ()
 
 
 class AblationRequest(DTO):
-    size: Literal[50, 200, 600] = 50
+    size: Literal[50, 200, 500, 600] = 500
     router: bool = True
     prompt: bool = False
     memory: bool = False
+    force_rerun: bool = False
 
 
 class FixtureCase(DTO):

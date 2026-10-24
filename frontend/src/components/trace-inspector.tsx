@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { api, unwrap } from "@/lib/api";
 import { formatCost, formatMetric } from "@/lib/format";
 import { Drawer, ErrorNotice, Spinner } from "./ui";
+import { DynamicNeuralRoutingCosmos3D } from "./3d";
 
 export function TraceInspector({
   requestId,
@@ -85,6 +86,20 @@ export function TraceInspector({
               {data.usage.usage_source}
             </dd>
           </dl>
+          <div className="trace-3d-section">
+            <div className="trace-3d-header">
+              <span>Không gian Định tuyến 3D (Router Galaxy)</span>
+              <span className="mono text-[11px] font-normal text-slate-500">
+                {data.route.model_id}
+              </span>
+            </div>
+            <DynamicNeuralRoutingCosmos3D
+              routedModel={data.route.model_id}
+              height={260}
+              interactive
+              compact
+            />
+          </div>
           <h3 className="section-label">{t("effective")}</h3>
           <div className="module-list">
             {data.optimizations.map((state) => (

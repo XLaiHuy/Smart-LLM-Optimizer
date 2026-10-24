@@ -225,6 +225,28 @@ export function AnalyticsPanel({
         }),
       ),
   });
+  const userSessions = useQuery({
+    queryKey: ["sessions", user.id],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/sessions", {
+          params: { query: { offset: 0, limit: 100 } },
+        }),
+      ),
+  });
+  const sessionMap = new Map((userSessions.data ?? []).map((s) => [s.id, s.title]));
+  const getRowTitle = (key: string, isSession: boolean) => {
+    if (isSession) {
+      if (key === "research")
+        return locale === "vi"
+          ? "Đo lường Nghiên cứu (Router Lab)"
+          : "Router Lab Research";
+      if (sessionMap.has(key)) return sessionMap.get(key);
+      return key.length > 10 ? `Hội thoại #${key.slice(0, 8)}` : key;
+    }
+    return m.has(key) ? m(key) : key;
+  };
+
   const metric = (v: number | null | undefined, unit = "") =>
     formatMetric(v, locale, unit) ?? t("noData");
   const money = (v: string | null | undefined) =>
@@ -271,7 +293,7 @@ export function AnalyticsPanel({
               items.map((row) => (
                 <tr key={row.key}>
                   <td className="metric-key">
-                    {m.has(row.key) ? m(row.key) : row.key}
+                    {getRowTitle(row.key, dimension === t("conversation"))}
                   </td>
                   <td>{row.calls}</td>
                   <td>{metric(row.input_tokens)}</td>
@@ -410,7 +432,11 @@ export function AnalyticsPanel({
                 .filter((r) => r.key !== "research")
                 .map((r) => (
                   <option key={r.key} value={r.key}>
-                    {r.key.slice(0, 8)}
+                    {sessionMap.get(r.key)
+                      ? sessionMap.get(r.key)!.length > 32
+                        ? `${sessionMap.get(r.key)!.slice(0, 32)}...`
+                        : sessionMap.get(r.key)
+                      : `Phiên #${r.key.slice(0, 8)}`}
                   </option>
                 ))}
             </select>

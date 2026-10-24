@@ -111,7 +111,7 @@ export function LandingFooter() {
   return (
     <footer className="landing-footer" data-reveal>
       <div>
-        <strong>Smart LLM Optimizer</strong>
+        <strong>Smart LLM</strong>
         <p>{l("footer")}</p>
       </div>
       <nav aria-label={l("sourceCode")}>
