@@ -1,4 +1,7 @@
+import hashlib
+import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -9,12 +12,20 @@ from app.evaluation.cases import (
     InstructionRule,
     InstructionServingInput,
     InstructionTarget,
+    MCQOption,
+    MCQServingInput,
+    MCQTarget,
     QualificationStatus,
     SourceMetadata,
+)
+from app.evaluation.exporting import ExportError
+from app.evaluation.live_exporting import (
+    export_live_suite,
 )
 from app.evaluation.live_harness import (
     LiveHarnessError,
     LiveSuiteConfig,
+    LiveSuiteResult,
     run_live_suite,
 )
 from app.evaluation.live_runner import (
@@ -59,6 +70,41 @@ def _case(
     )
 
 
+def _mcq_case(index: int) -> EvalCase:
+    return EvalCase(
+        case_id=f"vmlu-dev-{index:03d}",
+        task_family="multidisciplinary_mcq",
+        source=SourceMetadata(
+            suite_name="vmlu-functional-fixture",
+            source_name="local-mcq-live-fixture",
+            source_revision="fixture-revision",
+            source_record_id=f"mcq-source-{index:03d}",
+            group_id=f"mcq-group-{index:03d}",
+            split="dev",
+            language="vi",
+            qualification_status="qualified",
+            license_id="MIT",
+        ),
+        serving_input=MCQServingInput(
+            question="Thủ đô của Việt Nam là gì?",
+            options=(
+                MCQOption(
+                    key="A",
+                    text="Huế",
+                ),
+                MCQOption(
+                    key="B",
+                    text="Hà Nội",
+                ),
+            ),
+        ),
+        evaluator_target=MCQTarget(
+            answer_key="B",
+        ),
+        tags=("vmlu", "functional-fixture"),
+    )
+
+
 class FakeLiveExecutor:
     def __init__(
         self,
@@ -74,8 +120,12 @@ class FakeLiveExecutor:
     ) -> LiveExecutionResult:
         self.requests.append(request)
 
-        passing = request.mode == "optimized" or request.case_id == "sea-ifeval-dev-002"
-        prediction = "<<Tiêu đề>>" if passing else "Không có tiêu đề."
+        if request.serving_input.kind == "multidisciplinary_mcq":
+            prediction = "B" if request.mode == "optimized" else "A"
+        else:
+            passing = request.mode == "optimized" or request.case_id == "sea-ifeval-dev-002"
+            prediction = "<<Tiêu đề>>" if passing else "Không có tiêu đề."
+
         incomplete = (
             request.mode == "baseline" and request.case_id == self.incomplete_baseline_case_id
         )
@@ -185,6 +235,42 @@ async def test_live_suite_aggregates_paired_results() -> None:
     assert result.research_eligible is False
 
 
+async def test_live_suite_supports_mcq_without_language_detector() -> None:
+    executor = FakeLiveExecutor()
+
+    result = await run_live_suite(
+        cases=(
+            _mcq_case(2),
+            _mcq_case(1),
+        ),
+        config=LiveSuiteConfig(
+            run_id="engineering-mcq-suite-001",
+            seed=7,
+            max_total_usd_per_arm=Decimal("0.01"),
+            max_suite_usd=Decimal("0.04"),
+        ),
+        executor=executor,
+    )
+
+    assert tuple(pair.case_id for pair in result.pairs) == (
+        "vmlu-dev-001",
+        "vmlu-dev-002",
+    )
+
+    assert result.baseline.passed_count == 0
+    assert result.optimized.passed_count == 2
+    assert result.comparison.improvement_count == 2
+    assert result.comparison.regression_count == 0
+
+    assert all(
+        request.serving_input.kind == "multidisciplinary_mcq" for request in executor.requests
+    )
+
+    assert all("evaluator_target" not in request.model_dump_json() for request in executor.requests)
+
+    assert result.research_eligible is False
+
+
 async def test_live_suite_preserves_unknown_usage_and_cost() -> None:
     first_case = _case(1)
     executor = FakeLiveExecutor(
@@ -283,3 +369,149 @@ async def test_live_suite_rejects_budget_plan_before_execution() -> None:
         )
 
     assert executor.requests == []
+
+
+async def _exportable_live_suite() -> LiveSuiteResult:
+    return await run_live_suite(
+        cases=(
+            _case(2),
+            _case(1),
+        ),
+        config=LiveSuiteConfig(
+            run_id="engineering-export-001",
+            seed=7,
+            max_total_usd_per_arm=(Decimal("0.01")),
+            max_suite_usd=Decimal("0.04"),
+        ),
+        executor=FakeLiveExecutor(),
+        language_detector=lambda _: "vi",
+    )
+
+
+async def test_live_suite_export_writes_reproducible_bundle(
+    tmp_path: Path,
+) -> None:
+    result = await _exportable_live_suite()
+
+    first = export_live_suite(
+        result=result,
+        output_dir=tmp_path / "first",
+    )
+    second = export_live_suite(
+        result=result,
+        output_dir=tmp_path / "second",
+    )
+
+    first_pair_bytes = first.pair_results.output_path.read_bytes()
+    second_pair_bytes = second.pair_results.output_path.read_bytes()
+    first_report_bytes = first.report_path.read_bytes()
+    second_report_bytes = second.report_path.read_bytes()
+
+    assert first_pair_bytes == second_pair_bytes
+    assert first_report_bytes == second_report_bytes
+    assert first.pair_results.content_sha256 == second.pair_results.content_sha256
+    assert first.report_sha256 == second.report_sha256
+
+    pair_text = first_pair_bytes.decode(
+        "utf-8",
+    )
+    pair_records = tuple(json.loads(line) for line in pair_text.splitlines())
+
+    assert tuple(record["result"]["case_id"] for record in pair_records) == (
+        "sea-ifeval-dev-001",
+        "sea-ifeval-dev-002",
+    )
+    assert all(record["schema_version"] == "eval-live-pair-result-v1" for record in pair_records)
+    assert all(record["record_type"] == "live_pair" for record in pair_records)
+
+    assert first.pair_results.row_count == 2
+    assert first.pair_results.byte_count == len(first_pair_bytes)
+    assert (
+        first.pair_results.content_sha256
+        == hashlib.sha256(
+            first_pair_bytes,
+        ).hexdigest()
+    )
+
+    report_text = first_report_bytes.decode(
+        "utf-8",
+    )
+    report = json.loads(report_text)
+
+    assert report["schema_version"] == "eval-live-suite-report-v1"
+    assert report["research_eligible"] is False
+    assert report["comparison"]["pair_count"] == 2
+    assert "pairs" not in report
+
+    assert first.report_byte_count == len(first_report_bytes)
+    assert first.report_sha256 == (
+        hashlib.sha256(
+            first_report_bytes,
+        ).hexdigest()
+    )
+
+    assert "evaluator_target" not in pair_text
+    assert "evaluator_target" not in report_text
+
+
+async def test_live_suite_export_refuses_overwrite_by_default(
+    tmp_path: Path,
+) -> None:
+    result = await _exportable_live_suite()
+    output_dir = tmp_path / "report"
+
+    first = export_live_suite(
+        result=result,
+        output_dir=output_dir,
+    )
+    original_pair_bytes = first.pair_results.output_path.read_bytes()
+    original_report_bytes = first.report_path.read_bytes()
+
+    with pytest.raises(
+        ExportError,
+        match="Output already exists",
+    ):
+        export_live_suite(
+            result=result,
+            output_dir=output_dir,
+        )
+
+    assert first.pair_results.output_path.read_bytes() == original_pair_bytes
+    assert first.report_path.read_bytes() == original_report_bytes
+
+    overwritten = export_live_suite(
+        result=result,
+        output_dir=output_dir,
+        overwrite=True,
+    )
+
+    assert overwritten.pair_results.overwrote_existing is True
+    assert overwritten.report_overwrote_existing is True
+
+
+async def test_live_suite_export_rejects_pair_metadata_mismatch(
+    tmp_path: Path,
+) -> None:
+    result = await _exportable_live_suite()
+    invalid_first_pair = result.pairs[0].model_copy(
+        update={
+            "run_id": "different-run",
+        },
+    )
+    invalid_result = result.model_copy(
+        update={
+            "pairs": (
+                invalid_first_pair,
+                *result.pairs[1:],
+            ),
+        },
+    )
+
+    with pytest.raises(
+        ExportError,
+        match="run metadata mismatch",
+    ):
+        export_live_suite(
+            result=invalid_result,
+            output_dir=tmp_path / "report",
+        )

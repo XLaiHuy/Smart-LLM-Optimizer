@@ -12,7 +12,6 @@ from app.contracts.dtos import (
 from app.evaluation.cases import (
     EvalCase,
     EvalModel,
-    InstructionServingInput,
     NonBlankString,
     ServingInput,
     SourceMetadata,
@@ -133,12 +132,6 @@ def _validate_case(case: EvalCase) -> None:
     if case.source.qualification_status != "qualified":
         raise LiveRunnerError("live execution requires a qualified source")
 
-    if not isinstance(
-        case.serving_input,
-        InstructionServingInput,
-    ):
-        raise LiveRunnerError("initial live pilot supports instruction cases only")
-
 
 def _validate_execution(
     *,
@@ -160,7 +153,7 @@ async def run_live_pair(
     case: EvalCase,
     config: LivePairConfig,
     executor: LivePredictionExecutor,
-    language_detector: LanguageDetector,
+    language_detector: LanguageDetector | None = None,
 ) -> LivePairResult:
     _validate_case(case)
 

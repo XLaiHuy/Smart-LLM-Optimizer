@@ -9,7 +9,6 @@ from app.evaluation.aggregation import MetricAggregate
 from app.evaluation.cases import (
     EvalCase,
     EvalModel,
-    InstructionServingInput,
     NonBlankString,
 )
 from app.evaluation.comparison import MeanMetricDelta, PairOutcome
@@ -235,9 +234,6 @@ def _validate_cases(
         if case.source.qualification_status != "qualified":
             raise LiveHarnessError("live suite requires qualified cases")
 
-        if not isinstance(case.serving_input, InstructionServingInput):
-            raise LiveHarnessError("initial live suite supports instruction cases only")
-
         if case.case_id in seen_case_ids:
             raise LiveHarnessError(f"duplicate case_id: {case.case_id!r}")
 
@@ -457,7 +453,7 @@ async def run_live_suite(
     cases: tuple[EvalCase, ...],
     config: LiveSuiteConfig,
     executor: LivePredictionExecutor,
-    language_detector: LanguageDetector,
+    language_detector: LanguageDetector | None = None,
 ) -> LiveSuiteResult:
     ordered_cases = _validate_cases(cases, config)
     pairs: list[LivePairResult] = []
