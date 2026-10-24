@@ -27,9 +27,19 @@ _ENCODING = tiktoken.get_encoding("cl100k_base")
 
 _CODE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 
-_URL_PATTERN = re.compile(r"https?://[^\s]+")
+_URL_PATTERN = re.compile(r"(?:\[[^\]]+\]\(https?://[^)\s]+\)|https?://[^\s<>()]+)")
+
+_VIETNAMESE_NEGATION_PATTERN = re.compile(
+    r"\b(?:không|chưa|chẳng|khong|chua|chang)\b",
+    re.IGNORECASE,
+)
 
 _JSON_KEY_PATTERN = re.compile(r'"[^"]+"\s*:')
+
+_UTF8_VIETNAMESE_NEGATION_PATTERN = re.compile(
+    r"\b(?:kh\u00f4ng|ch\u01b0a|ch\u1eb3ng|khong|chua|chang)\b",
+    re.IGNORECASE,
+)
 
 _NEGATION_PATTERN = re.compile(
     r"\b(?:không|chưa|chẳng|not|never|cannot|"
@@ -70,14 +80,17 @@ def analyze_prompt(
     code_matches = extract_spans(prompt, _CODE_PATTERN, "code")
     url_matches = extract_spans(prompt, _URL_PATTERN, "url")
     json_matches = extract_spans(prompt, _JSON_KEY_PATTERN, "json_key")
-    negation_matches = extract_spans(prompt, _NEGATION_PATTERN, "negation")
+    negation_matches = extract_spans(
+        prompt,
+        _NEGATION_PATTERN,
+        "negation",
+    ) + extract_spans(prompt, _UTF8_VIETNAMESE_NEGATION_PATTERN, "negation")
     number_matches = extract_spans(prompt, _NUMBER_PATTERN, "number")
 
+    all_spans = code_matches + url_matches + json_matches + negation_matches + number_matches
+    unique_spans = {(span.kind, span.text, span.start, span.end): span for span in all_spans}
     protected_spans = tuple(
-        sorted(
-            code_matches + url_matches + json_matches + negation_matches + number_matches,
-            key=lambda span: (span.start, span.end),
-        )
+        sorted(unique_spans.values(), key=lambda span: (span.start, span.end, span.kind))
     )
 
     return PromptAnalyzer(

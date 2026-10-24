@@ -50,6 +50,7 @@ class ContextManager(Protocol):
 
 class MemoryManager(Protocol):
     async def prepare(self, snapshot: SessionSnapshot, plan: MemoryPlan) -> MemoryResult: ...
+    async def update(self, execution: ExecutionRequest, snapshot: SessionSnapshot) -> None: ...
 
 
 class ModelRouter(Protocol):
@@ -114,6 +115,9 @@ class BudgetLedger(Protocol):
 
 class MemoryStore(Protocol):
     async def load(self, principal: Principal, session_id: str) -> "DerivedMemory": ...
+    async def load_user_memories(
+        self, execution_principal: str, exclude_session_id: str
+    ) -> tuple[SessionSnapshot, ...]: ...
     async def save(self, principal: Principal, session_id: str, state: "DerivedMemory") -> None: ...
 
 

@@ -404,6 +404,44 @@ class SqlMemoryStore:
                 else DerivedMemory(snapshot_revision=row.revision)
             )
 
+    async def load_user_memories(
+        self, execution_principal: str, exclude_session_id: str
+    ) -> tuple[SessionSnapshot, ...]:
+        """Load derived memories from the owner's other sessions only."""
+        async with self.db.sessions() as db:
+            sessions = tuple(
+                await db.scalars(
+                    select(Conversation).where(
+                        Conversation.owner_user_id == execution_principal,
+                        Conversation.id != exclude_session_id,
+                    )
+                )
+            )
+            snapshots: list[SessionSnapshot] = []
+            for session in sessions:
+                revision = await db.scalar(
+                    select(MemoryRevision)
+                    .where(
+                        MemoryRevision.session_id == session.id,
+                        MemoryRevision.revision <= session.revision,
+                    )
+                    .order_by(MemoryRevision.revision.desc())
+                    .limit(1)
+                )
+                if revision is None:
+                    continue
+                derived = DerivedMemory.model_validate_json(revision.snapshot_json)
+                snapshots.append(
+                    SessionSnapshot(
+                        owner_user_id=execution_principal,
+                        session_id=session.id,
+                        revision=session.revision,
+                        summaries=derived.summaries,
+                        facts=derived.facts,
+                    )
+                )
+            return tuple(snapshots)
+
     async def save(self, principal: Principal, session_id: str, state: "DerivedMemory") -> None:
         async with self.db.write() as db:
             row = await db.get(Conversation, session_id)
