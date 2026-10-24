@@ -11,10 +11,16 @@ from app.evaluation.cases import (
     InstructionTarget,
     MCQServingInput,
     MCQTarget,
+    MemoryServingInput,
+    MemoryTarget,
     NonBlankString,
     TaskFamily,
 )
-from app.evaluation.graders import grade_extractive_qa, grade_mcq
+from app.evaluation.graders import (
+    MEMORY_GRADER_VERSION,
+    grade_extractive_qa,
+    grade_mcq,
+)
 from app.evaluation.sea_ifeval import (
     SEA_IFEVAL_GRADER_VERSION,
     LanguageDetector,
@@ -126,6 +132,38 @@ def grade_case(
             normalized_prediction=(qa_grade.normalized_prediction),
             reason=qa_grade.reason,
             grader_version=qa_grade.grader_version,
+        )
+
+    if isinstance(
+        serving_input,
+        MemoryServingInput,
+    ) and isinstance(
+        evaluator_target,
+        MemoryTarget,
+    ):
+        memory_grade = grade_extractive_qa(
+            prediction=prediction,
+            gold_answers=evaluator_target.gold_answers,
+            is_impossible=False,
+        )
+
+        return CaseGrade(
+            case_id=case.case_id,
+            task_family=case.task_family,
+            passed=memory_grade.passed,
+            metrics=(
+                MetricValue(
+                    name="exact_match",
+                    value=memory_grade.exact_match,
+                ),
+                MetricValue(
+                    name="token_f1",
+                    value=memory_grade.token_f1,
+                ),
+            ),
+            normalized_prediction=(memory_grade.normalized_prediction),
+            reason=memory_grade.reason,
+            grader_version=MEMORY_GRADER_VERSION,
         )
 
     if isinstance(

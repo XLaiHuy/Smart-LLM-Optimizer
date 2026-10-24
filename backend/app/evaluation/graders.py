@@ -8,6 +8,7 @@ from typing import Literal, NoReturn, cast
 
 EXACT_GRADER_VERSION = "exact-match-v1"
 MCQ_GRADER_VERSION = "mcq-option-v1"
+MEMORY_GRADER_VERSION = "vi-dialog-memory-probe-nfc-token-v1"
 NUMERIC_GRADER_VERSION = "numeric-decimal-v1"
 QA_GRADER_VERSION = "vi-extractive-qa-nfc-token-v1"
 SCHEMA_GRADER_VERSION = "json-object-schema-v1"

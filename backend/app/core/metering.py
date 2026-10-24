@@ -241,7 +241,12 @@ class MeteredCalls:
         started = perf_counter()
         try:
             if self.live and entry and self.catalog:
-                result = await self.live.client.embeddings.create(model=model, input=texts)
+                live_client = (
+                    self.live.get_client(entry)
+                    if hasattr(self.live, "get_client")
+                    else self.live.client
+                )
+                result = await live_client.embeddings.create(model=model, input=texts)
                 vectors = [item.embedding for item in result.data]
                 usage = Usage(
                     scope="call",

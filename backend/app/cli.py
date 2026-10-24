@@ -25,6 +25,7 @@ from app.storage.database import Database
 cli = typer.Typer(no_args_is_help=True)
 evaluation = typer.Typer(no_args_is_help=True)
 cli.add_typer(evaluation, name="eval")
+cli.add_typer(evaluation, name="evaluation")
 cli.add_typer(research_cli, name="research")
 cli.add_typer(router_cli, name="router")
 
@@ -139,6 +140,78 @@ def eval_fixture_pair(
         )
     except ValueError as exc:
         typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+
+
+@evaluation.command("four-suite")
+def eval_four_suite(
+    manifest: Annotated[
+        Path,
+        typer.Option(help="Path to case set manifest JSON"),
+    ] = ROOT / "benchmark/fixtures/four_suite_smoke/manifest.json",
+    baseline_predictions: Annotated[
+        Path,
+        typer.Option(help="Path to baseline predictions JSONL"),
+    ] = ROOT / "benchmark/fixtures/four_suite_smoke/baseline.predictions.jsonl",
+    optimized_predictions: Annotated[
+        Path,
+        typer.Option(help="Path to optimized predictions JSONL"),
+    ] = ROOT / "benchmark/fixtures/four_suite_smoke/optimized.predictions.jsonl",
+    output_dir: Annotated[
+        Path,
+        typer.Option(help="Directory to write evaluation report"),
+    ] = ROOT / "benchmark/reports/four-suite-smoke",
+    seed: int = 7,
+    overwrite: bool = True,
+) -> None:
+    """Run four-suite benchmark evaluation across Vietnamese multi-task families."""
+    try:
+        result = run_fixture_pair(
+            case_manifest_path=manifest,
+            baseline_predictions_path=baseline_predictions,
+            variant_predictions_path=optimized_predictions,
+            config=FixturePairConfig(
+                baseline_run_id="four-suite-baseline-run",
+                baseline_config_id="four-suite-baseline",
+                variant_run_id="four-suite-optimized-run",
+                variant_config_id="four-suite-optimized",
+                seed=seed,
+            ),
+            language_detector=lambda _: "vi",
+        )
+
+        receipt = export_fixture_harness(
+            result=result,
+            output_dir=output_dir,
+            overwrite=overwrite,
+        )
+
+        baseline_passed = sum(group.passed_count for group in result.baseline_aggregate.groups)
+        optimized_passed = sum(group.passed_count for group in result.variant_aggregate.groups)
+        total_cases = result.comparison.total_pair_count
+
+        typer.echo("============================================================")
+        typer.echo("      FOUR-SUITE VIETNAMESE BENCHMARK EVALUATION (SMOKE)    ")
+        typer.echo("============================================================")
+        typer.echo(f"Total Paired Cases: {total_cases}")
+        typer.echo(
+            f"Baseline Pass Rate: {baseline_passed}/{total_cases} ({baseline_passed / total_cases * 100:.1f}%)"
+        )
+        typer.echo(
+            f"Optimized Pass Rate: {optimized_passed}/{total_cases} ({optimized_passed / total_cases * 100:.1f}%)"
+        )
+        typer.echo("------------------------------------------------------------")
+        typer.echo("Task Family Breakdown:")
+        for pair in result.comparison.pairs:
+            typer.echo(f"  • {pair.case_id:<28} => {pair.outcome.upper()}")
+        typer.echo("------------------------------------------------------------")
+        typer.echo(f"Report Generated: {receipt.report_path}")
+        typer.echo(f"Report SHA-256:   {receipt.report_sha256}")
+        typer.echo(f"Research Eligible: {result.research_eligible} (Synthetic functional test)")
+        typer.echo("============================================================")
+    except Exception as exc:
+        typer.echo(f"Evaluation error: {exc}", err=True)
         raise typer.Exit(1) from exc
 
 
