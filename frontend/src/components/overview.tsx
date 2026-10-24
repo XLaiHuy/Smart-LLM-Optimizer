@@ -31,7 +31,7 @@ export function OverviewPanel({
   const recentRequests = data?.recent_requests;
 
   const sessions = useQuery({
-    queryKey: ["sessions", user.id],
+    queryKey: ["sessions-overview", user.id],
     queryFn: async () =>
       unwrap(
         await api.GET("/v1/sessions", {
@@ -39,9 +39,22 @@ export function OverviewPanel({
         }),
       ),
   });
+
+  const sessionList = useMemo(() => {
+    if (!sessions.data) return [];
+    if (Array.isArray(sessions.data)) return sessions.data;
+    if ("pages" in (sessions.data as any) && Array.isArray((sessions.data as any).pages)) {
+      return (sessions.data as any).pages.flat();
+    }
+    if ("sessions" in (sessions.data as any) && Array.isArray((sessions.data as any).sessions)) {
+      return (sessions.data as any).sessions;
+    }
+    return [];
+  }, [sessions.data]);
+
   const sessionMap = useMemo(
-    () => new Map((sessions.data ?? []).map((s) => [s.id, s.title])),
-    [sessions.data],
+    () => new Map<string, string>(sessionList.map((s: any) => [String(s.id), String(s.title)])),
+    [sessionList],
   );
 
   const sessionMetrics: SessionUsageMetric[] | undefined = useMemo(() => {

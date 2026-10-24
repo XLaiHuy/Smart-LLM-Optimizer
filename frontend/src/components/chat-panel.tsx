@@ -206,6 +206,7 @@ export function ChatPanel({
           client_request_id: crypto.randomUUID(),
           message: draft,
           document_ids: sources.session === selected ? sources.ids : [],
+          constraints: { deadline_ms: 60000 },
           mode,
           flags: requestFlags(mode, flags),
           ...(mode === "optimized"

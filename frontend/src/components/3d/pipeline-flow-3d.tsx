@@ -1671,12 +1671,6 @@ export function PipelineFlow3D({
             <span className="inline-flex items-center gap-1.5 rounded-md bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
               <Layers size={14} /> KIẾN TRÚC 8 TẦNG HOÀN CHỈNH (END-TO-END TRANSFORMER)
             </span>
-            <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-              Tiết kiệm {currentPreset.compactionPct}% Tokens
-            </span>
-            <span className="rounded-md bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-800">
-              Chuẩn 3Blue1Brown & bbycroft
-            </span>
           </div>
           <h1 className="mt-1 text-2xl font-bold text-slate-900 tracking-tight">
             Luồng Trực Quan Hóa 3D Toàn Trình (End-to-End Pipeline & Transformer Core)

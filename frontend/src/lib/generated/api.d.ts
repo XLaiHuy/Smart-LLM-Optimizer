@@ -1129,7 +1129,7 @@ export interface components {
             max_total_usd?: number | string | null;
             /**
              * Deadline Ms
-             * @default 15000
+             * @default 60000
              */
             deadline_ms: number;
         };

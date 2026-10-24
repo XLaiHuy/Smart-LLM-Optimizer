@@ -57,7 +57,7 @@ class FeatureFlags(DTO):
 
 class Constraints(DTO):
     max_total_usd: Decimal | None = Field(default=None, gt=0)
-    deadline_ms: int = Field(default=15000, ge=100, le=120000)
+    deadline_ms: int = Field(default=60000, ge=100, le=120000)
 
 
 class ChatRequest(DTO):

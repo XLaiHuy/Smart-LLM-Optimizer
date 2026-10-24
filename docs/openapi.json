@@ -9058,7 +9058,7 @@
             "maximum": 120000.0,
             "minimum": 100.0,
             "title": "Deadline Ms",
-            "default": 15000
+            "default": 60000
           }
         },
         "additionalProperties": false,
