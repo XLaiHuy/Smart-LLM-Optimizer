@@ -5,6 +5,7 @@ from app.evaluation.cases import (
     EvalCase,
     ExtractiveQAServingInput,
     ExtractiveQATarget,
+    InstructionArgument,
     InstructionRule,
     InstructionServingInput,
     InstructionTarget,
@@ -14,6 +15,9 @@ from app.evaluation.cases import (
     SourceMetadata,
 )
 from app.evaluation.dispatcher import UnsupportedGraderError, grade_case
+from app.evaluation.sea_ifeval import (
+    SEA_IFEVAL_GRADER_VERSION,
+)
 
 
 def _candidate_source() -> SourceMetadata:
@@ -26,6 +30,25 @@ def _candidate_source() -> SourceMetadata:
         split="dev",
         language="vi",
         qualification_status="candidate",
+    )
+
+
+def _instruction_case(
+    rules: tuple[InstructionRule, ...],
+    *,
+    evaluator_version: str = (SEA_IFEVAL_GRADER_VERSION),
+) -> EvalCase:
+    return EvalCase(
+        case_id="instruction-001",
+        task_family="instruction",
+        source=_candidate_source(),
+        serving_input=InstructionServingInput(
+            prompt="Tuân thủ các yêu cầu định dạng.",
+        ),
+        evaluator_target=InstructionTarget(
+            rules=rules,
+            evaluator_version=evaluator_version,
+        ),
     )
 
 
@@ -93,29 +116,143 @@ def test_grade_case_dispatches_extract_qa_without_using_plausible_answers() -> N
     }
 
 
-def test_grade_case_rejects_task_without_implemented_grader() -> None:
-    case = EvalCase(
-        case_id="instruction-001",
-        task_family="instruction",
-        source=_candidate_source(),
-        serving_input=InstructionServingInput(
-            prompt="Trả lời bằng đúng ba câu.",
-        ),
-        evaluator_target=InstructionTarget(
-            rules=(
-                InstructionRule(
-                    instruction_id="number_of_sentences",
+# def test_grade_case_rejects_task_without_implemented_grader() -> None:
+#     case = EvalCase(
+#         case_id="instruction-001",
+#         task_family="instruction",
+#         source=_candidate_source(),
+#         serving_input=InstructionServingInput(
+#             prompt="Trả lời bằng đúng ba câu.",
+#         ),
+#         evaluator_target=InstructionTarget(
+#             rules=(
+#                 InstructionRule(
+#                     instruction_id="number_of_sentences",
+#                 ),
+#             ),
+#             evaluator_version="sea-ifeval-candidate-v1",
+#         ),
+#     )
+
+#     with pytest.raises(
+#         UnsupportedGraderError,
+#         match="instruction",
+#     ):
+#         grade_case(
+#             case=case,
+#             prediction="Một. Hai. Ba.",
+#         )
+
+
+def test_grade_case_dispatches_sea_ifeval_instruction() -> None:
+    case = _instruction_case(
+        (
+            InstructionRule(
+                instruction_id=("length_constraints:number_sentences"),
+                kwargs=(
+                    InstructionArgument(
+                        name="relation",
+                        value="exactly",
+                    ),
+                    InstructionArgument(
+                        name="num_sentences",
+                        value=2,
+                    ),
                 ),
             ),
-            evaluator_version="sea-ifeval-candidate-v1",
-        ),
+        )
+    )
+
+    result = grade_case(
+        case=case,
+        prediction="Câu thứ nhất.***Câu thứ hai.",
+        language_detector=lambda _: "vi",
+    )
+
+    metrics = {metric.name: metric.value for metric in result.metrics}
+
+    assert result.passed is True
+    assert result.reason == "all_rules_passed"
+    assert result.grader_version == (SEA_IFEVAL_GRADER_VERSION)
+    assert metrics == {
+        "overall_acc": 1.0,
+        "correct_language_rate": 1.0,
+        "overall_lang_normalized_acc": 1.0,
+        "case_all_pass_rate": 1.0,
+    }
+
+
+def test_grade_case_reports_partial_instruction_failure() -> None:
+    case = _instruction_case(
+        (
+            InstructionRule(
+                instruction_id="detectable_format:title",
+            ),
+            InstructionRule(
+                instruction_id="startend:first_word",
+                kwargs=(
+                    InstructionArgument(
+                        name="first_word",
+                        value="Xin",
+                    ),
+                ),
+            ),
+        )
+    )
+
+    result = grade_case(
+        case=case,
+        prediction="<<Tiêu đề>>",
+        language_detector=lambda _: "vi",
+    )
+
+    metrics = {metric.name: metric.value for metric in result.metrics}
+
+    assert result.passed is False
+    assert result.reason == ("failed_rules:startend:first_word=constraint_failed")
+    assert metrics == {
+        "overall_acc": 0.5,
+        "correct_language_rate": 1.0,
+        "overall_lang_normalized_acc": 0.5,
+        "case_all_pass_rate": 0.0,
+    }
+
+
+def test_grade_case_requires_instruction_language_detector() -> None:
+    case = _instruction_case(
+        (
+            InstructionRule(
+                instruction_id="detectable_format:title",
+            ),
+        )
     )
 
     with pytest.raises(
         UnsupportedGraderError,
-        match="instruction",
+        match="requires a language detector",
     ):
         grade_case(
             case=case,
-            prediction="Một. Hai. Ba.",
+            prediction="<<Tiêu đề>>",
+        )
+
+
+def test_grade_case_rejects_instruction_evaluator_version() -> None:
+    case = _instruction_case(
+        (
+            InstructionRule(
+                instruction_id="detectable_format:title",
+            ),
+        ),
+        evaluator_version="unknown-evaluator-v1",
+    )
+
+    with pytest.raises(
+        UnsupportedGraderError,
+        match="evaluator version",
+    ):
+        grade_case(
+            case=case,
+            prediction="<<Tiêu đề>>",
+            language_detector=lambda _: "vi",
         )

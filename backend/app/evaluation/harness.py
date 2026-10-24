@@ -27,6 +27,7 @@ from app.evaluation.runs import (
     FixtureRunConfig,
     run_config,
 )
+from app.evaluation.sea_ifeval import LanguageDetector
 
 
 class FixturePredictionLoadError(ValueError):
@@ -174,6 +175,7 @@ def run_fixture_pair(
     baseline_predictions_path: Path,
     variant_predictions_path: Path,
     config: FixturePairConfig,
+    language_detector: LanguageDetector | None = None,
 ) -> FixtureHarnessResult:
     resolved = load_case_set_manifest(case_manifest_path)
 
@@ -189,6 +191,7 @@ def run_fixture_pair(
             seed=config.seed,
         ),
         predictions=baseline_predictions.predictions,
+        language_detector=language_detector,
     )
 
     variant_run = run_config(
@@ -200,6 +203,7 @@ def run_fixture_pair(
             seed=config.seed,
         ),
         predictions=variant_predictions.predictions,
+        language_detector=language_detector,
     )
 
     baseline_aggregate = aggregate_metrics(baseline_run)

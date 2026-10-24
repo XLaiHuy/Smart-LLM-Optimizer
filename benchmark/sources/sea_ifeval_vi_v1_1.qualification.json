@@ -1,0 +1,204 @@
+{
+  "schema_version": "instruction-source-qualification-v1",
+  "source_id": "sea-ifeval-vi-v1-1",
+  "suite_name": "sea-ifeval-vi",
+  "task_family": "instruction",
+  "language": "vi",
+  "qualification_status": "candidate",
+  "decision": "BLOCKED",
+  "accessed_at": "2026-10-23",
+  "official_source": {
+    "paper_url": "https://arxiv.org/abs/2311.07911",
+    "repository_url": "https://github.com/aisingapore/SEA-HELM",
+    "repository_revision": "9be3986d00185dc6d6ec362b71542ed29642a6be",
+    "dataset_page_url": "https://huggingface.co/datasets/aisingapore/Instruction-Following-IFEval",
+    "advertised_dataset_version": "SEA-IFEval",
+    "code_license": "MIT",
+    "dataset_license": "CC-BY-4.0"
+  },
+  "dataset_source": {
+    "dataset_url": "https://huggingface.co/datasets/aisingapore/Instruction-Following-IFEval",
+    "dataset_revision": "1b7947549d2871c44b21956e9f23e90ce830cc37",
+    "config_name": "vi",
+    "split_name": "eval",
+    "file_format": "parquet",
+    "declared_license": "CC-BY-4.0",
+    "declared_citation": "https://arxiv.org/abs/2311.07911",
+    "files": [
+      {
+        "name": "vi/eval-00000-of-00001.parquet",
+        "rows": 105,
+        "byte_count": 28569,
+        "sha256": "576a68a9c2ea0f05a122bcacffbd36f19aec96a7014afcba3cfbe4b754476889"
+      }
+    ]
+  },
+  "observed_schema": {
+    "top_level_fields": [
+      "id",
+      "prompts",
+      "metadata",
+      "kwargs"
+    ],
+    "prompt_text_path": "prompts[0].text",
+    "instruction_id_path": "metadata.subcategory",
+    "instruction_kwargs_path": "kwargs[0]",
+    "source_language_path": "metadata.language",
+    "prompt_count_values": [
+      1
+    ],
+    "rule_count_values": [
+      1
+    ],
+    "source_language_values": [
+      "vi"
+    ],
+    "instruction_ids": [
+      "combination:repeat_prompt",
+      "combination:two_responses",
+      "detectable_content:number_placeholders",
+      "detectable_content:postscript",
+      "detectable_format:constrained_response",
+      "detectable_format:json_format",
+      "detectable_format:multiple_sections",
+      "detectable_format:number_bullet_lists",
+      "detectable_format:number_highlighted_sections",
+      "detectable_format:title",
+      "keywords:existence",
+      "keywords:forbidden_words",
+      "keywords:frequency",
+      "keywords:number_frequency",
+      "language:response_language",
+      "length_constraints:number_paragraphs",
+      "length_constraints:number_sentences",
+      "length_constraints:number_words",
+      "startend:end_checker",
+      "startend:first_word",
+      "startend:quotation"
+    ],
+    "evaluator_version": "sea-ifeval-v1.1+sea-helm-v1.3.0@9be3986d"
+  },
+  "audit": {
+    "total_rows": 105,
+    "unique_ids": 105,
+    "duplicate_id_rows": 0,
+    "exact_duplicate_prompt_groups": 0,
+    "invalid_rows": 0,
+    "blank_id_rows": 0,
+    "blank_prompt_rows": 0,
+    "blank_instruction_id_rows": 0,
+    "missing_required_kwargs_rows": 0,
+    "unsupported_instruction_id_rows": 0,
+    "wrong_source_language_rows": 0,
+    "instruction_id_counts": [
+      {
+        "instruction_id": "combination:repeat_prompt",
+        "rows": 5
+      },
+      {
+        "instruction_id": "combination:two_responses",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_content:number_placeholders",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_content:postscript",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_format:constrained_response",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_format:json_format",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_format:multiple_sections",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_format:number_bullet_lists",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_format:number_highlighted_sections",
+        "rows": 5
+      },
+      {
+        "instruction_id": "detectable_format:title",
+        "rows": 5
+      },
+      {
+        "instruction_id": "keywords:existence",
+        "rows": 5
+      },
+      {
+        "instruction_id": "keywords:forbidden_words",
+        "rows": 5
+      },
+      {
+        "instruction_id": "keywords:frequency",
+        "rows": 5
+      },
+      {
+        "instruction_id": "keywords:number_frequency",
+        "rows": 5
+      },
+      {
+        "instruction_id": "language:response_language",
+        "rows": 5
+      },
+      {
+        "instruction_id": "length_constraints:number_paragraphs",
+        "rows": 5
+      },
+      {
+        "instruction_id": "length_constraints:number_sentences",
+        "rows": 5
+      },
+      {
+        "instruction_id": "length_constraints:number_words",
+        "rows": 5
+      },
+      {
+        "instruction_id": "startend:end_checker",
+        "rows": 5
+      },
+      {
+        "instruction_id": "startend:first_word",
+        "rows": 5
+      },
+      {
+        "instruction_id": "startend:quotation",
+        "rows": 5
+      }
+    ]
+  },
+  "blockers": [
+    "The project has not pinned or reviewed the runtime language detector used by the SEA-IFEval grader.",
+    "Strict versus loose scoring parity with the pinned SEA-HELM evaluator has not been frozen for this project.",
+    "Vietnamese word and sentence counting semantics have not received an independent review.",
+    "The qualification record has not received an independent reviewer sign-off."
+  ],
+  "permitted_current_use": [
+    "Local source, schema, license, and provenance inspection",
+    "Deterministic adapter development",
+    "Evaluator fixture and reference-parity testing",
+    "Frozen ID-only DEV and HOLDOUT split validation using benchmark/splits/sea_ifeval_vi_v1_1.split.json with SHA-256 26b6edbc4947daa93f4a37b242ca7c7d4a7af7d4e09bb20f3580df2a5f1895f2"
+  ],
+  "prohibited_current_use": [
+    "Do not label this source as qualified",
+    "Do not use this source for live_research results",
+    "Do not report model quality or savings claims",
+    "Do not commit raw dataset rows until attribution and redistribution handling are reviewed"
+  ],
+  "required_resolution": [
+    "Pin and review the runtime language detector and version",
+    "Confirm strict and loose scoring semantics against the pinned SEA-HELM evaluator",
+    "Document Vietnamese word and sentence counting limitations",
+    "Complete independent license, attribution, and evaluator review"
+  ]
+}

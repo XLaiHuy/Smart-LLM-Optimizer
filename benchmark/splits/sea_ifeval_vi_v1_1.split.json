@@ -1,0 +1,483 @@
+{
+  "schema_version": "eval-source-split-v1",
+  "split_id": "sea-ifeval-vi-v1-1-balanced-42-v1",
+  "source_id": "sea-ifeval-vi-v1-1",
+  "source_revision": "1b7947549d2871c44b21956e9f23e90ce830cc37",
+  "source_file_sha256": "576a68a9c2ea0f05a122bcacffbd36f19aec96a7014afcba3cfbe4b754476889",
+  "qualification_status": "candidate",
+  "selection_algorithm": "sha256-per-instruction-v1",
+  "selection_seed": "sea-ifeval-vi-v1-1-split-v1",
+  "selection_rule": "Within each instruction_id, rank ascending by SHA-256(seed + NUL + instruction_id + NUL + source_record_id); assign rank 1 to DEV, rank 2 to HOLDOUT, and ranks 3-5 to reserve.",
+  "selection_rationale": "Select 42 rather than the planned 30-40 so all 21 instruction IDs occur once in DEV and once in HOLDOUT.",
+  "holdout_status": "frozen_not_blind_public_source",
+  "holdout_use_policy": "Do not inspect HOLDOUT prompts, evaluator targets, or model results while tuning.",
+  "source_record_count": 105,
+  "selected_record_count": 42,
+  "reserve_record_count": 63,
+  "assignments": [
+    {
+      "source_record_id": "2465",
+      "instruction_id": "combination:repeat_prompt",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2071",
+      "instruction_id": "combination:repeat_prompt",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "1591",
+      "instruction_id": "combination:two_responses",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "322",
+      "instruction_id": "combination:two_responses",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2164",
+      "instruction_id": "detectable_content:number_placeholders",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "1927",
+      "instruction_id": "detectable_content:number_placeholders",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2070",
+      "instruction_id": "detectable_content:postscript",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2622",
+      "instruction_id": "detectable_content:postscript",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3757",
+      "instruction_id": "detectable_format:constrained_response",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "3750",
+      "instruction_id": "detectable_format:constrained_response",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3223",
+      "instruction_id": "detectable_format:json_format",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "13",
+      "instruction_id": "detectable_format:json_format",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "1548",
+      "instruction_id": "detectable_format:multiple_sections",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "1131",
+      "instruction_id": "detectable_format:multiple_sections",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "1634",
+      "instruction_id": "detectable_format:number_bullet_lists",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2078",
+      "instruction_id": "detectable_format:number_bullet_lists",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3071",
+      "instruction_id": "detectable_format:number_highlighted_sections",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "3644",
+      "instruction_id": "detectable_format:number_highlighted_sections",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3697",
+      "instruction_id": "detectable_format:title",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "3690",
+      "instruction_id": "detectable_format:title",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2567",
+      "instruction_id": "keywords:existence",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "3439",
+      "instruction_id": "keywords:existence",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2811",
+      "instruction_id": "keywords:forbidden_words",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "3595",
+      "instruction_id": "keywords:forbidden_words",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2392",
+      "instruction_id": "keywords:frequency",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "1733",
+      "instruction_id": "keywords:frequency",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2107",
+      "instruction_id": "keywords:number_frequency",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "251",
+      "instruction_id": "keywords:number_frequency",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3241",
+      "instruction_id": "language:response_language",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2464",
+      "instruction_id": "language:response_language",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2941",
+      "instruction_id": "length_constraints:number_paragraphs",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2977",
+      "instruction_id": "length_constraints:number_paragraphs",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3329",
+      "instruction_id": "length_constraints:number_sentences",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "292",
+      "instruction_id": "length_constraints:number_sentences",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3425",
+      "instruction_id": "length_constraints:number_words",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "1258",
+      "instruction_id": "length_constraints:number_words",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "3048",
+      "instruction_id": "startend:end_checker",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2475",
+      "instruction_id": "startend:end_checker",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "2215",
+      "instruction_id": "startend:first_word",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "3624",
+      "instruction_id": "startend:first_word",
+      "split": "holdout"
+    },
+    {
+      "source_record_id": "219",
+      "instruction_id": "startend:quotation",
+      "split": "dev"
+    },
+    {
+      "source_record_id": "2532",
+      "instruction_id": "startend:quotation",
+      "split": "holdout"
+    }
+  ],
+  "reserve": [
+    {
+      "source_record_id": "1518",
+      "instruction_id": "combination:repeat_prompt"
+    },
+    {
+      "source_record_id": "2355",
+      "instruction_id": "combination:repeat_prompt"
+    },
+    {
+      "source_record_id": "2904",
+      "instruction_id": "combination:repeat_prompt"
+    },
+    {
+      "source_record_id": "3263",
+      "instruction_id": "combination:two_responses"
+    },
+    {
+      "source_record_id": "1332",
+      "instruction_id": "combination:two_responses"
+    },
+    {
+      "source_record_id": "2383",
+      "instruction_id": "combination:two_responses"
+    },
+    {
+      "source_record_id": "1372",
+      "instruction_id": "detectable_content:number_placeholders"
+    },
+    {
+      "source_record_id": "3743",
+      "instruction_id": "detectable_content:number_placeholders"
+    },
+    {
+      "source_record_id": "3280",
+      "instruction_id": "detectable_content:number_placeholders"
+    },
+    {
+      "source_record_id": "2628",
+      "instruction_id": "detectable_content:postscript"
+    },
+    {
+      "source_record_id": "1537",
+      "instruction_id": "detectable_content:postscript"
+    },
+    {
+      "source_record_id": "1759",
+      "instruction_id": "detectable_content:postscript"
+    },
+    {
+      "source_record_id": "3752",
+      "instruction_id": "detectable_format:constrained_response"
+    },
+    {
+      "source_record_id": "3749",
+      "instruction_id": "detectable_format:constrained_response"
+    },
+    {
+      "source_record_id": "3756",
+      "instruction_id": "detectable_format:constrained_response"
+    },
+    {
+      "source_record_id": "1148",
+      "instruction_id": "detectable_format:json_format"
+    },
+    {
+      "source_record_id": "321",
+      "instruction_id": "detectable_format:json_format"
+    },
+    {
+      "source_record_id": "1094",
+      "instruction_id": "detectable_format:json_format"
+    },
+    {
+      "source_record_id": "357",
+      "instruction_id": "detectable_format:multiple_sections"
+    },
+    {
+      "source_record_id": "2023",
+      "instruction_id": "detectable_format:multiple_sections"
+    },
+    {
+      "source_record_id": "2925",
+      "instruction_id": "detectable_format:multiple_sections"
+    },
+    {
+      "source_record_id": "3025",
+      "instruction_id": "detectable_format:number_bullet_lists"
+    },
+    {
+      "source_record_id": "2314",
+      "instruction_id": "detectable_format:number_bullet_lists"
+    },
+    {
+      "source_record_id": "2832",
+      "instruction_id": "detectable_format:number_bullet_lists"
+    },
+    {
+      "source_record_id": "2381",
+      "instruction_id": "detectable_format:number_highlighted_sections"
+    },
+    {
+      "source_record_id": "1644",
+      "instruction_id": "detectable_format:number_highlighted_sections"
+    },
+    {
+      "source_record_id": "2752",
+      "instruction_id": "detectable_format:number_highlighted_sections"
+    },
+    {
+      "source_record_id": "2229",
+      "instruction_id": "detectable_format:title"
+    },
+    {
+      "source_record_id": "1802",
+      "instruction_id": "detectable_format:title"
+    },
+    {
+      "source_record_id": "295",
+      "instruction_id": "detectable_format:title"
+    },
+    {
+      "source_record_id": "3732",
+      "instruction_id": "keywords:existence"
+    },
+    {
+      "source_record_id": "2602",
+      "instruction_id": "keywords:existence"
+    },
+    {
+      "source_record_id": "2485",
+      "instruction_id": "keywords:existence"
+    },
+    {
+      "source_record_id": "1580",
+      "instruction_id": "keywords:forbidden_words"
+    },
+    {
+      "source_record_id": "3081",
+      "instruction_id": "keywords:forbidden_words"
+    },
+    {
+      "source_record_id": "2432",
+      "instruction_id": "keywords:forbidden_words"
+    },
+    {
+      "source_record_id": "3091",
+      "instruction_id": "keywords:frequency"
+    },
+    {
+      "source_record_id": "3109",
+      "instruction_id": "keywords:frequency"
+    },
+    {
+      "source_record_id": "2142",
+      "instruction_id": "keywords:frequency"
+    },
+    {
+      "source_record_id": "2350",
+      "instruction_id": "keywords:number_frequency"
+    },
+    {
+      "source_record_id": "3478",
+      "instruction_id": "keywords:number_frequency"
+    },
+    {
+      "source_record_id": "3428",
+      "instruction_id": "keywords:number_frequency"
+    },
+    {
+      "source_record_id": "1154",
+      "instruction_id": "language:response_language"
+    },
+    {
+      "source_record_id": "2309",
+      "instruction_id": "language:response_language"
+    },
+    {
+      "source_record_id": "2685",
+      "instruction_id": "language:response_language"
+    },
+    {
+      "source_record_id": "1236",
+      "instruction_id": "length_constraints:number_paragraphs"
+    },
+    {
+      "source_record_id": "1858",
+      "instruction_id": "length_constraints:number_paragraphs"
+    },
+    {
+      "source_record_id": "1248",
+      "instruction_id": "length_constraints:number_paragraphs"
+    },
+    {
+      "source_record_id": "179",
+      "instruction_id": "length_constraints:number_sentences"
+    },
+    {
+      "source_record_id": "2674",
+      "instruction_id": "length_constraints:number_sentences"
+    },
+    {
+      "source_record_id": "2589",
+      "instruction_id": "length_constraints:number_sentences"
+    },
+    {
+      "source_record_id": "1217",
+      "instruction_id": "length_constraints:number_words"
+    },
+    {
+      "source_record_id": "343",
+      "instruction_id": "length_constraints:number_words"
+    },
+    {
+      "source_record_id": "209",
+      "instruction_id": "length_constraints:number_words"
+    },
+    {
+      "source_record_id": "1220",
+      "instruction_id": "startend:end_checker"
+    },
+    {
+      "source_record_id": "1939",
+      "instruction_id": "startend:end_checker"
+    },
+    {
+      "source_record_id": "2398",
+      "instruction_id": "startend:end_checker"
+    },
+    {
+      "source_record_id": "3073",
+      "instruction_id": "startend:first_word"
+    },
+    {
+      "source_record_id": "1954",
+      "instruction_id": "startend:first_word"
+    },
+    {
+      "source_record_id": "2250",
+      "instruction_id": "startend:first_word"
+    },
+    {
+      "source_record_id": "2010",
+      "instruction_id": "startend:quotation"
+    },
+    {
+      "source_record_id": "2829",
+      "instruction_id": "startend:quotation"
+    },
+    {
+      "source_record_id": "2239",
+      "instruction_id": "startend:quotation"
+    }
+  ]
+}

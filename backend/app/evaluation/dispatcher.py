@@ -7,17 +7,28 @@ from app.evaluation.cases import (
     EvalModel,
     ExtractiveQAServingInput,
     ExtractiveQATarget,
+    InstructionServingInput,
+    InstructionTarget,
     MCQServingInput,
     MCQTarget,
     NonBlankString,
     TaskFamily,
 )
 from app.evaluation.graders import grade_extractive_qa, grade_mcq
+from app.evaluation.sea_ifeval import (
+    SEA_IFEVAL_GRADER_VERSION,
+    LanguageDetector,
+    grade_sea_ifeval_rule,
+)
 
 MetricName = Literal[
     "accuracy",
     "exact_match",
     "token_f1",
+    "overall_acc",
+    "correct_language_rate",
+    "overall_lang_normalized_acc",
+    "case_all_pass_rate",
 ]
 
 
@@ -53,6 +64,7 @@ def grade_case(
     *,
     case: EvalCase,
     prediction: str,
+    language_detector: LanguageDetector | None = None,
 ) -> CaseGrade:
     serving_input = case.serving_input
     evaluator_target = case.evaluator_target
@@ -79,12 +91,15 @@ def grade_case(
                     value=float(mcq_grade.passed),
                 ),
             ),
-            normalized_prediction=mcq_grade.normalized_prediction,
+            normalized_prediction=(mcq_grade.normalized_prediction),
             reason=mcq_grade.reason,
             grader_version=mcq_grade.grader_version,
         )
 
-    if isinstance(serving_input, ExtractiveQAServingInput) and isinstance(
+    if isinstance(
+        serving_input,
+        ExtractiveQAServingInput,
+    ) and isinstance(
         evaluator_target,
         ExtractiveQATarget,
     ):
@@ -108,9 +123,79 @@ def grade_case(
                     value=qa_grade.token_f1,
                 ),
             ),
-            normalized_prediction=qa_grade.normalized_prediction,
+            normalized_prediction=(qa_grade.normalized_prediction),
             reason=qa_grade.reason,
             grader_version=qa_grade.grader_version,
+        )
+
+    if isinstance(
+        serving_input,
+        InstructionServingInput,
+    ) and isinstance(
+        evaluator_target,
+        InstructionTarget,
+    ):
+        if evaluator_target.evaluator_version != SEA_IFEVAL_GRADER_VERSION:
+            raise UnsupportedGraderError(
+                f"Unsupported instruction evaluator version: {evaluator_target.evaluator_version!r}"
+            )
+
+        if language_detector is None:
+            raise UnsupportedGraderError(
+                "SEA-IFEval instruction grading requires a language detector"
+            )
+
+        rule_grades = tuple(
+            grade_sea_ifeval_rule(
+                response=prediction,
+                source_language=case.source.language,
+                rule=rule,
+                language_detector=language_detector,
+            )
+            for rule in evaluator_target.rules
+        )
+
+        rule_count = len(rule_grades)
+        overall_acc = sum(grade.constraint_passed for grade in rule_grades) / rule_count
+        correct_language_rate = sum(grade.correct_language for grade in rule_grades) / rule_count
+        overall_lang_normalized_acc = sum(grade.passed for grade in rule_grades) / rule_count
+        passed = all(grade.passed for grade in rule_grades)
+
+        if passed:
+            reason = "all_rules_passed"
+        else:
+            failures = ",".join(
+                f"{grade.instruction_id}={grade.reason}"
+                for grade in rule_grades
+                if not grade.passed
+            )
+            reason = f"failed_rules:{failures}"
+
+        return CaseGrade(
+            case_id=case.case_id,
+            task_family=case.task_family,
+            passed=passed,
+            metrics=(
+                MetricValue(
+                    name="overall_acc",
+                    value=overall_acc,
+                ),
+                MetricValue(
+                    name="correct_language_rate",
+                    value=correct_language_rate,
+                ),
+                MetricValue(
+                    name="overall_lang_normalized_acc",
+                    value=overall_lang_normalized_acc,
+                ),
+                MetricValue(
+                    name="case_all_pass_rate",
+                    value=float(passed),
+                ),
+            ),
+            normalized_prediction=None,
+            reason=reason,
+            grader_version=SEA_IFEVAL_GRADER_VERSION,
         )
 
     raise UnsupportedGraderError(

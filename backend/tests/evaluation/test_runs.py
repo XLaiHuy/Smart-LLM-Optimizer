@@ -28,6 +28,9 @@ from app.evaluation.runs import (
     RunConfigError,
     run_config,
 )
+from app.evaluation.sea_ifeval import (
+    SEA_IFEVAL_GRADER_VERSION,
+)
 
 
 def _source(
@@ -102,15 +105,15 @@ def _instruction_case(case_id: str) -> EvalCase:
         task_family="instruction",
         source=_source(case_id),
         serving_input=InstructionServingInput(
-            prompt="Trả lời bằng đúng ba câu.",
+            prompt="Viết câu trả lời có tiêu đề.",
         ),
         evaluator_target=InstructionTarget(
             rules=(
                 InstructionRule(
-                    instruction_id="number_of_sentences",
+                    instruction_id=("detectable_format:title"),
                 ),
             ),
-            evaluator_version="fixture-instruction-v1",
+            evaluator_version=(SEA_IFEVAL_GRADER_VERSION),
         ),
     )
 
@@ -308,7 +311,7 @@ def test_fixture_run_rejects_non_synthetic_smoke_cases(
         )
 
 
-def test_run_config_reports_unsupported_grader_with_case_id() -> None:
+def test_run_config_reports_missing_detector_with_case_id() -> None:
     resolved = _resolved((_instruction_case("instruction-001"),))
 
     with pytest.raises(
@@ -325,6 +328,40 @@ def test_run_config_reports_unsupported_grader_with_case_id() -> None:
                 ),
             ),
         )
+
+
+def test_run_config_grades_instruction_with_injected_detector() -> None:
+    resolved = _resolved((_instruction_case("instruction-001"),))
+
+    result = run_config(
+        resolved=resolved,
+        config=_config(),
+        predictions=(
+            FixturePrediction(
+                case_id="instruction-001",
+                prediction="<<Tiêu đề>>",
+            ),
+        ),
+        language_detector=lambda _: "vi",
+    )
+
+    row = result.rows[0]
+    metrics = {metric.name: metric.value for metric in row.grade.metrics}
+
+    assert row.case_id == "instruction-001"
+    assert row.grade.passed is True
+    assert row.grade.reason == "all_rules_passed"
+    assert row.grade.grader_version == (SEA_IFEVAL_GRADER_VERSION)
+    assert metrics == {
+        "overall_acc": 1.0,
+        "correct_language_rate": 1.0,
+        "overall_lang_normalized_acc": 1.0,
+        "case_all_pass_rate": 1.0,
+    }
+
+    serialized = result.model_dump_json()
+    assert "evaluator_target" not in serialized
+    assert "detectable_format:title" not in serialized
 
 
 def test_run_config_allows_empty_no_answer_prediction() -> None:
