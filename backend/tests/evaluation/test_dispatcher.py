@@ -2,6 +2,7 @@ import pytest
 
 from app.evaluation.cases import (
     AnswerSpan,
+    ConversationTurn,
     EvalCase,
     ExtractiveQAServingInput,
     ExtractiveQATarget,
@@ -12,9 +13,14 @@ from app.evaluation.cases import (
     MCQOption,
     MCQServingInput,
     MCQTarget,
+    MemoryServingInput,
+    MemoryTarget,
     SourceMetadata,
 )
 from app.evaluation.dispatcher import UnsupportedGraderError, grade_case
+from app.evaluation.graders import (
+    MEMORY_GRADER_VERSION,
+)
 from app.evaluation.sea_ifeval import (
     SEA_IFEVAL_GRADER_VERSION,
 )
@@ -113,6 +119,79 @@ def test_grade_case_dispatches_extract_qa_without_using_plausible_answers() -> N
     assert metrics == {
         "exact_match": 0.0,
         "token_f1": 0.0,
+    }
+
+
+@pytest.mark.parametrize(
+    (
+        "prediction",
+        "passed",
+        "expected_exact_match",
+        "expected_token_f1",
+        "expected_reason",
+    ),
+    [
+        (
+            "Khoa",
+            True,
+            1.0,
+            1.0,
+            "exact_match",
+        ),
+        (
+            "Tên là Khoa",
+            False,
+            0.0,
+            0.5,
+            "partial_match",
+        ),
+    ],
+)
+def test_grade_case_dispatches_memory_probe(
+    prediction: str,
+    passed: bool,
+    expected_exact_match: float,
+    expected_token_f1: float,
+    expected_reason: str,
+) -> None:
+    case = EvalCase(
+        case_id="memory-001",
+        task_family="conversation_memory",
+        source=_candidate_source(),
+        serving_input=MemoryServingInput(
+            turns=(
+                ConversationTurn(
+                    turn_id="turn-001",
+                    turn_index=1,
+                    role="user",
+                    content="Tên tôi là Khoa.",
+                ),
+            ),
+            checkpoint=1,
+            question="Người dùng tên gì?",
+        ),
+        evaluator_target=MemoryTarget(
+            gold_answers=("Khoa",),
+            evidence_turn_ids=("turn-001",),
+            probe_type="recall",
+            protocol_version=("vi-dialog-memory-probes-v1"),
+            review_status="draft",
+        ),
+    )
+
+    result = grade_case(
+        case=case,
+        prediction=prediction,
+    )
+
+    metrics = {metric.name: metric.value for metric in result.metrics}
+
+    assert result.passed is passed
+    assert result.reason == expected_reason
+    assert result.grader_version == (MEMORY_GRADER_VERSION)
+    assert metrics == {
+        "exact_match": expected_exact_match,
+        "token_f1": expected_token_f1,
     }
 
 
