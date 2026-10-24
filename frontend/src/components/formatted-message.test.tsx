@@ -89,4 +89,26 @@ describe("FormattedMessage GFM Markdown & KaTeX Parser", () => {
     );
     expect(finalHtml).toContain("Công thức dở dang");
   });
+
+  it("preserves vertical bars inside math within table cells without breaking columns", () => {
+    const tableWithMath = [
+      "| Thành phần | Mô tả |",
+      "| :--- | :--- |",
+      "| **Encoder** \\(q_{\\phi}(z|x)\\) | Phân phối Gaussian |",
+    ].join("\n");
+    const html = renderToString(<FormattedMessage content={tableWithMath} />);
+    expect(html).toContain("<table");
+    // Should have exactly 2 columns in the row (2 <td> tags), not 3
+    const tdCount = (html.match(/<td/g) || []).length;
+    expect(tdCount).toBe(2);
+    expect(html).toContain("katex");
+  });
+
+  it("renders nested math inside bold tags like **\\(\\lambda\\)**", () => {
+    const boldMath = "- **\\(\\lambda\\)** là hệ số cân bằng";
+    const html = renderToString(<FormattedMessage content={boldMath} />);
+    expect(html).toContain("<strong");
+    expect(html).toContain("katex");
+    expect(html).toContain("hệ số cân bằng");
+  });
 });

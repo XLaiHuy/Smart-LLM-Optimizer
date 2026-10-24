@@ -68,6 +68,7 @@ class Container:
                     config_id=m.config_id,
                     model_id=m.model_id,
                     execution_source="live" if live else "mock",
+                    endpoint=m.endpoint,
                     context_window=m.context_window,
                     available=m.verified_access and m.pricing_verified,
                     availability_reason="reviewed"

@@ -71,12 +71,12 @@ function inline(text: string): ReactNode[] {
 
     // Bold **...**
     if (/^\*\*[^*\n]+\*\*$/.test(part)) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
+      return <strong key={i}>{inline(part.slice(2, -2))}</strong>;
     }
 
     // Italic *...*
     if (/^\*[^*\n]+\*$/.test(part)) {
-      return <em key={i}>{part.slice(1, -1)}</em>;
+      return <em key={i}>{inline(part.slice(1, -1))}</em>;
     }
 
     return <React.Fragment key={i}>{part}</React.Fragment>;
@@ -199,26 +199,97 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   );
 }
 
+// Context-aware Markdown Table Cell Parser (preserves | inside math formulas or inline code)
+function parseMarkdownCells(line: string): string[] {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells: string[] = [];
+  let current = "";
+  let inParenMath = false; // \( ... \)
+  let inBracketMath = false; // \[ ... \]
+  let inDollarMath = false; // $ ... $
+  let inCode = false; // ` ... `
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    const prev = i > 0 ? trimmed[i - 1] : "";
+    const next = i + 1 < trimmed.length ? trimmed[i + 1] : "";
+
+    // Toggle inline code `
+    if (char === "`" && prev !== "\\") {
+      inCode = !inCode;
+      current += char;
+      continue;
+    }
+
+    if (!inCode) {
+      // Toggle \( and \)
+      if (char === "\\" && next === "(") {
+        inParenMath = true;
+        current += "\\(";
+        i++;
+        continue;
+      }
+      if (char === "\\" && next === ")") {
+        inParenMath = false;
+        current += "\\)";
+        i++;
+        continue;
+      }
+
+      // Toggle \[ and \]
+      if (char === "\\" && next === "[") {
+        inBracketMath = true;
+        current += "\\[";
+        i++;
+        continue;
+      }
+      if (char === "\\" && next === "]") {
+        inBracketMath = false;
+        current += "\\]";
+        i++;
+        continue;
+      }
+
+      // Toggle $ ... $
+      if (char === "$" && prev !== "\\") {
+        inDollarMath = !inDollarMath;
+        current += char;
+        continue;
+      }
+    }
+
+    // Split on | only if not inside math or code, and not escaped
+    if (
+      char === "|" &&
+      !inCode &&
+      !inParenMath &&
+      !inBracketMath &&
+      !inDollarMath &&
+      prev !== "\\"
+    ) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
 // GFM Markdown Table Renderer
 function MarkdownTable({ rows }: { rows: string[] }) {
-  const parseCells = (line: string) =>
-    line
-      .trim()
-      .replace(/^\|/, "")
-      .replace(/\|$/, "")
-      .split("|")
-      .map((c) => c.trim());
-
-  const headers = parseCells(rows[0]);
+  const headers = parseMarkdownCells(rows[0]);
   const alignments = rows[1]
-    ? parseCells(rows[1]).map((sep) => {
+    ? parseMarkdownCells(rows[1]).map((sep) => {
         if (sep.startsWith(":") && sep.endsWith(":")) return "center";
         if (sep.endsWith(":")) return "right";
         return "left";
       })
     : [];
 
-  const bodyRows = rows.slice(2).map(parseCells);
+  const bodyRows = rows.slice(2).map(parseMarkdownCells);
 
   return (
     <div className="table-wrapper my-3 overflow-x-auto rounded-lg border border-slate-200 shadow-xs">
