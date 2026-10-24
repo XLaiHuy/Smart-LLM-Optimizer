@@ -178,10 +178,9 @@
     ]
   },
   "blockers": [
-    "The project has not pinned or reviewed the runtime language detector used by the SEA-IFEval grader.",
-    "Strict versus loose scoring parity with the pinned SEA-HELM evaluator has not been frozen for this project.",
-    "Vietnamese word and sentence counting semantics have not received an independent review.",
-    "The qualification record has not received an independent reviewer sign-off."
+    "The runtime language detector package, version, and model assets have not been pinned and reviewed.",
+    "The documented Vietnamese counting semantics have not received independent reviewer acceptance.",
+    "The qualification record has not received independent license, attribution, and evaluator sign-off."
   ],
   "permitted_current_use": [
     "Local source, schema, license, and provenance inspection",
@@ -196,9 +195,8 @@
     "Do not commit raw dataset rows until attribution and redistribution handling are reviewed"
   ],
   "required_resolution": [
-    "Pin and review the runtime language detector and version",
-    "Confirm strict and loose scoring semantics against the pinned SEA-HELM evaluator",
-    "Document Vietnamese word and sentence counting limitations",
-    "Complete independent license, attribution, and evaluator review"
+    "Pin and review the runtime language detector package, version, model assets, and adapter",
+    "Obtain independent acceptance of benchmark/protocols/sea_ifeval_vi_v1_1.md",
+    "Complete independent license, attribution, and evaluator sign-off"
   ]
 }
