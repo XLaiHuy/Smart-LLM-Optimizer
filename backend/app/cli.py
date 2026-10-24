@@ -25,6 +25,7 @@ from app.storage.database import Database
 cli = typer.Typer(no_args_is_help=True)
 evaluation = typer.Typer(no_args_is_help=True)
 cli.add_typer(evaluation, name="eval")
+cli.add_typer(evaluation, name="evaluation")
 cli.add_typer(research_cli, name="research")
 cli.add_typer(router_cli, name="router")
 
