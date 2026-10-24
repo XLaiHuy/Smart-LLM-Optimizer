@@ -1,4 +1,5 @@
 from decimal import Decimal
+from pathlib import Path
 from typing import Literal
 
 import pytest
@@ -20,14 +21,21 @@ from app.contracts.dtos import (
 )
 from app.evaluation.cases import (
     ConversationTurn,
+    EvalCase,
+    InstructionRule,
     InstructionServingInput,
+    InstructionTarget,
     MemoryServingInput,
+    SourceMetadata,
 )
+from app.evaluation.live_exporting import export_live_suite
+from app.evaluation.live_harness import LiveSuiteConfig, run_live_suite
 from app.evaluation.live_runner import ExecutionMode, LiveExecutionRequest
 from app.evaluation.orchestrator_executor import (
     OrchestratorExecutorError,
     OrchestratorLiveExecutor,
 )
+from app.evaluation.sea_ifeval import SEA_IFEVAL_GRADER_VERSION
 
 
 def _principal() -> Principal:
@@ -362,3 +370,71 @@ async def test_executor_purges_session_when_orchestrator_fails() -> None:
             "evaluation-session",
         ),
     ]
+
+
+async def test_executor_composes_live_suite_and_export(
+    tmp_path: Path,
+) -> None:
+    executor, orchestrator, sessions = _executor()
+
+    case = EvalCase(
+        case_id="live-integration-001",
+        task_family="instruction",
+        source=SourceMetadata(
+            suite_name="functional-live-fixture",
+            source_name="local-live-fixture",
+            source_revision="fixture-revision",
+            source_record_id="source-001",
+            group_id="source-001",
+            split="dev",
+            language="vi",
+            qualification_status="qualified",
+            license_id="MIT",
+        ),
+        serving_input=InstructionServingInput(
+            prompt="Viết câu trả lời có tiêu đề.",
+        ),
+        evaluator_target=InstructionTarget(
+            rules=(
+                InstructionRule(
+                    instruction_id="detectable_format:title",
+                ),
+            ),
+            evaluator_version=SEA_IFEVAL_GRADER_VERSION,
+        ),
+        tags=("functional-fixture",),
+    )
+
+    result = await run_live_suite(
+        cases=(case,),
+        config=LiveSuiteConfig(
+            run_id="live-integration-run",
+            max_total_usd_per_arm=Decimal("0.01"),
+            max_suite_usd=Decimal("0.02"),
+        ),
+        executor=executor,
+        language_detector=lambda _: "vi",
+    )
+
+    receipt = export_live_suite(
+        result=result,
+        output_dir=tmp_path / "live-report",
+    )
+
+    assert len(orchestrator.requests) == 2
+    assert all(namespace == "eval" for _, _, namespace in orchestrator.requests)
+    assert len(sessions.created) == 2
+    assert len(sessions.purged) == 2
+
+    assert result.baseline.case_count == 1
+    assert result.optimized.case_count == 1
+    assert result.comparison.pair_count == 1
+    assert result.research_eligible is False
+
+    assert receipt.pair_results.row_count == 1
+    assert receipt.report_path.exists()
+    assert "evaluator_target" not in (
+        receipt.pair_results.output_path.read_text(
+            encoding="utf-8",
+        )
+    )
