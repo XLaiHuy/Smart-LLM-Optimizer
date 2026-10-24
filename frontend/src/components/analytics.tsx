@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -226,7 +226,7 @@ export function AnalyticsPanel({
       ),
   });
   const userSessions = useQuery({
-    queryKey: ["sessions", user.id],
+    queryKey: ["analytics-sessions", user.id],
     queryFn: async () =>
       unwrap(
         await api.GET("/v1/sessions", {
@@ -234,7 +234,21 @@ export function AnalyticsPanel({
         }),
       ),
   });
-  const sessionMap = new Map((userSessions.data ?? []).map((s) => [s.id, s.title]));
+  const sessionList = useMemo(() => {
+    if (!userSessions.data) return [];
+    if (Array.isArray(userSessions.data)) return userSessions.data;
+    if ("pages" in (userSessions.data as any) && Array.isArray((userSessions.data as any).pages)) {
+      return (userSessions.data as any).pages.flat();
+    }
+    if ("sessions" in (userSessions.data as any) && Array.isArray((userSessions.data as any).sessions)) {
+      return (userSessions.data as any).sessions;
+    }
+    return [];
+  }, [userSessions.data]);
+  const sessionMap = useMemo(
+    () => new Map<string, string>(sessionList.map((s: any) => [String(s.id), String(s.title)])),
+    [sessionList],
+  );
   const getRowTitle = (key: string, isSession: boolean) => {
     if (isSession) {
       if (key === "research")
