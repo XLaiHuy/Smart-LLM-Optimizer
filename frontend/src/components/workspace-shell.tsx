@@ -12,6 +12,7 @@ import {
   Plus,
   MessageSquare,
   LayoutDashboard,
+  Layers,
   PanelLeft,
   LogOut,
   Trash2,
@@ -49,16 +50,29 @@ const OptimizerLab = dynamic(
     ),
   },
 );
+const PipelineFlow3D = dynamic(
+  () => import("./3d/pipeline-flow-3d").then((m) => m.PipelineFlow3D),
+  {
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center">
+        <Spinner />
+      </div>
+    ),
+    ssr: false,
+  },
+);
 
 export function AuthenticatedWorkspace({
   user,
   dashboard,
   research = false,
+  pipeline = false,
   onLogout,
 }: {
   user: User;
   dashboard: boolean;
   research?: boolean;
+  pipeline?: boolean;
   onLogout: () => void;
 }) {
   const t = useTranslations("App");
@@ -166,7 +180,6 @@ export function AuthenticatedWorkspace({
         />
         <div>
           <strong>Smart LLM</strong>
-          <span>Optimizer</span>
         </div>
       </div>
       <button
@@ -178,9 +191,16 @@ export function AuthenticatedWorkspace({
         {t("newChat")}
       </button>
       <nav className="main-nav" aria-label={t("workspace")}>
-        <Link href="/" className={!dashboard && !research ? "active" : ""}>
+        <Link
+          href="/"
+          className={!dashboard && !research && !pipeline ? "active" : ""}
+        >
           <MessageSquare size={18} />
           {t("chat")}
+        </Link>
+        <Link href="/pipeline" className={pipeline ? "active" : ""}>
+          <Layers size={18} />
+          {t("pipeline")}
         </Link>
         {user.role === "admin" && (
           <Link href="/research" className={research ? "active" : ""}>
@@ -218,7 +238,7 @@ export function AuthenticatedWorkspace({
             className={`history-row ${selected === session.id ? "selected" : ""}`}
             key={session.id}
           >
-            {dashboard ? (
+            {dashboard || pipeline ? (
               <Link
                 className="history-select"
                 href={`/?session=${encodeURIComponent(session.id)}`}
@@ -312,18 +332,26 @@ export function AuthenticatedWorkspace({
             <span>{t("workspace")}</span>
             <span className="slash">/</span>
             <strong>
-              {research ? lab("nav") : dashboard ? t("dashboard") : t("chat")}
+              {pipeline
+                ? t("pipeline")
+                : research
+                  ? lab("nav")
+                  : dashboard
+                    ? t("dashboard")
+                    : t("chat")}
             </strong>
           </div>
           <div className="topbar-actions">
             <span className="mock-badge">
               <span />
               {t(
-                research
-                  ? "researchArea"
-                  : source === "mock"
-                    ? "simulationMode"
-                    : "liveMode",
+                pipeline
+                  ? "pipeline"
+                  : research
+                    ? "researchArea"
+                    : source === "mock"
+                      ? "simulationMode"
+                      : "liveMode",
               )}
             </span>
             <LanguageSwitch />
@@ -334,7 +362,9 @@ export function AuthenticatedWorkspace({
             <ErrorNotice error={error} />
           </div>
         )}
-        {research ? (
+        {pipeline ? (
+          <PipelineFlow3D />
+        ) : research ? (
           <OptimizerLab user={user} />
         ) : dashboard ? (
           <OverviewPanel user={user} onTrace={setTrace} />

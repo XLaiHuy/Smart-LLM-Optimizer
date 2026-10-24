@@ -19,10 +19,12 @@ const AuthenticatedWorkspace = dynamic(
 export function Workspace({
   dashboard = false,
   research = false,
+  pipeline = false,
   initialSignedOut = false,
 }: {
   dashboard?: boolean;
   research?: boolean;
+  pipeline?: boolean;
   initialSignedOut?: boolean;
 }) {
   const client = useQueryClient();
@@ -82,6 +84,7 @@ export function Workspace({
       user={me.data}
       dashboard={dashboard}
       research={research}
+      pipeline={pipeline}
       onLogout={() => {
         client.clear();
         client.setQueryData(["me"], null);

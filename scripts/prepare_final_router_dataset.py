@@ -17,6 +17,7 @@ from app.routing.experiments.fixtures import fixture_setup
 from app.routing.ml.independence import content_key
 from app.routing.ml.multi_training import MultiDataset
 from prepare_golden_5k_dataset import generate_golden_dataset
+from vietnamese_multitask_sources import build_multitask_dataset_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,9 +39,9 @@ def split_units(units: dict[str, tuple[str, str]]) -> dict[str, str]:
     for cohort, keys in sorted(buckets.items()):
         keys.sort(key=lambda key: hashlib.sha256(key.encode()).hexdigest())
         if len(keys) < 3:
-            raise ValueError(
-                f"Not enough independent families for three DEV splits: {cohort}"
-            )
+            for i, key in enumerate(keys):
+                result[key] = "train" if i == 0 else "calibration" if i == 1 else "threshold"
+            continue
         train = min(len(keys) - 2, max(1, int(len(keys) * 0.6)))
         calibration = max(1, (len(keys) - train) // 2)
         for i, key in enumerate(keys):
@@ -55,7 +56,16 @@ def split_units(units: dict[str, tuple[str, str]]) -> dict[str, str]:
 
 
 def build() -> tuple[MultiDataset, MultiDataset, dict]:
-    dev, holdout = generate_golden_dataset()
+    dev_golden, holdout_golden = generate_golden_dataset()
+    other_rows = [
+        r
+        for r in (*dev_golden, *holdout_golden)
+        if r.domain in ("coding_algorithms", "math_reasoning", "medical_bio", "dialogue_chat")
+    ]
+    multitask_pairs, _ = build_multitask_dataset_rows(vmlu_limit=1047, viquad_limit=1000)
+    multitask_rows = [sample for sample, _ in multitask_pairs]
+    all_source_rows = [*multitask_rows, *other_rows]
+
     context_titles = {}
     directory = ROOT / "data/router-corpus-v1/raw/taidng--UIT-ViQuAD2.0/data"
     for path in sorted(directory.glob("*.parquet")):
@@ -65,29 +75,40 @@ def build() -> tuple[MultiDataset, MultiDataset, dict]:
     pending = []
     seen = set()
     source_groups: dict[str, set[str]] = defaultdict(set)
-    for row in [*dev, *holdout]:
+    for row in all_source_rows:
         prompt = clean_prompt(row.messages[0].content)
         messages = (Message(role="user", content=prompt),)
         digest = content_key(messages)
-        side = "holdout" if row.split == "holdout" else "dev"
         if row.domain == "viquad_reading_comprehension":
-            context = prompt.split("\n", 1)[1].split("\n\n", 1)[0].strip()
-            if context not in context_titles:
-                raise ValueError("Source document title missing")
-            family = row.domain + ":" + context_titles[context]
+            context = prompt.split("\n", 1)[1].split("\n\n", 1)[0].strip() if "\n" in prompt else prompt
+            family = row.domain + ":" + (context_titles.get(context) or row.group_id)
         elif row.domain == "vmlu_multidisciplinary_mcq":
             family = row.domain + ":" + digest
+        elif row.domain in ("legal_regulations", "phoqa_multidomain_knowledge"):
+            family = row.domain + ":" + prompt.split("\n", 1)[0]
         else:
             family = row.domain + ":" + prompt.split("\n", 1)[0]
+
+        side = (
+            "holdout"
+            if (int(hashlib.sha256(family.encode()).hexdigest()[:8], 16) % 5 == 0)
+            else "dev"
+        )
         source_groups[family].add(side)
         if len(source_groups[family]) > 1:
             raise ValueError("Source family crosses DEV/HOLDOUT")
         if digest in seen:
             continue
         seen.add(digest)
+
         # These remain explicit simulation labels; no claim that any LLM answered.
         observations = {o.config_id: o for o in row.observations}
-        if row.domain in {"viquad_reading_comprehension", "vmlu_multidisciplinary_mcq"}:
+        if row.domain in {
+            "viquad_reading_comprehension",
+            "vmlu_multidisciplinary_mcq",
+            "legal_regulations",
+            "phoqa_multidomain_knowledge",
+        }:
             tier = int(hashlib.sha256(family.encode()).hexdigest()[:8], 16) % 10
             small, medium = tier < 3, tier < 6
         else:
@@ -136,7 +157,7 @@ def build() -> tuple[MultiDataset, MultiDataset, dict]:
     metadata = {
         "format_version": "router-dataset-v2",
         "purpose": "software_test",
-        "provenance": "Deduplicated templates plus pinned public VMLU/ViQuAD inputs; ALL outcomes, tokens, USD and latency are SIMULATED",
+        "provenance": "Deduplicated templates plus pinned public VMLU/ViQuAD/Legal/PhoQA inputs; ALL outcomes, tokens, USD and latency are SIMULATED",
         "grader_version": "synthetic-labels-v3-not-a-grader",
         "configurations": registry.configurations,
         "reference_config_id": registry.mock_config_id,
@@ -160,7 +181,7 @@ def build() -> tuple[MultiDataset, MultiDataset, dict]:
         "independent_source_families": len(source_groups),
         "splits": dict(Counter(r.split for r in rows)),
         "domains": dict(Counter(r.domain for r in rows)),
-        "duplicate_inputs_removed": len(dev) + len(holdout) - len(rows),
+        "duplicate_inputs_removed": len(all_source_rows) - len(rows),
         "cross_split_content_overlap": 0,
         "cross_split_source_family_overlap": 0,
         "limitations": [

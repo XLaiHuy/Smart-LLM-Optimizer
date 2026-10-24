@@ -57,7 +57,7 @@ class FeatureFlags(DTO):
 
 class Constraints(DTO):
     max_total_usd: Decimal | None = Field(default=None, gt=0)
-    deadline_ms: int = Field(default=15000, ge=100, le=120000)
+    deadline_ms: int = Field(default=60000, ge=100, le=120000)
 
 
 class ChatRequest(DTO):
@@ -75,11 +75,20 @@ class ChatRequest(DTO):
         if not self.message.strip():
             raise ValueError("Message must not be blank")
         if self.mode == "baseline":
-            if self.policy_id not in (None, "baseline") or (
+            if (
+                self.policy_id not in (None, "baseline")
+                and not (self.policy_id and self.policy_id.startswith("fixed_candidate:"))
+            ) or (
                 self.flags and any(self.flags.model_dump().values())
             ):
                 raise ValueError("Baseline conflicts with policy/flags")
-        elif self.policy_id not in (None, "foundation-mock-v3", "quality-guarded-v3"):
+        elif (
+            self.policy_id is not None
+            and not (
+                self.policy_id in ("foundation-mock-v3", "quality-guarded-v3")
+                or self.policy_id.startswith("fixed_candidate:")
+            )
+        ):
             raise ValueError("Only foundation-mock-v3 is available in G0")
         return self
 
@@ -88,6 +97,7 @@ class EffectiveConfiguration(DTO):
     policy_id: str
     policy_version: str = "g0.1"
     flags: FeatureFlags
+    candidate_id: str | None = None
 
 
 class Principal(DTO):
@@ -188,6 +198,7 @@ class ContextFeatures(DTO):
     flags: FeatureFlags
     approved_current_content: str | None = None
     evidence: tuple[Message, ...] = ()
+    memory: tuple[Message, ...] = ()
 
 
 class ContextResult(DTO):
@@ -202,11 +213,15 @@ class ContextResult(DTO):
 
 class MemoryPlan(DTO):
     enabled: bool = False
+    query: str = ""
+    token_budget: int = Field(default=0, ge=0)
+    top_k: int | None = Field(default=None, ge=1)
 
 
 class MemoryResult(DTO):
     snapshot: SessionSnapshot
     state: OptimizationState
+    memory_messages: tuple[Message, ...] = ()
 
 
 class OptimizedPrompt(DTO):

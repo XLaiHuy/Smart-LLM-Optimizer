@@ -64,6 +64,7 @@ class HybridContextManager:
 
         mandatory = (
             *snapshot.server_instructions,
+        *features.memory,
             *features.evidence,
             current,
         )
@@ -100,6 +101,7 @@ class HybridContextManager:
 
         messages = (
             *snapshot.server_instructions,
+        *features.memory,
             *selected_history,
             *features.evidence,
             current,

@@ -35,8 +35,12 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = ""
+    openai_base_url: str = ""
     gemini_api_key: SecretStr = SecretStr("")
     gemini_model: str = "gemini-3.5-flash-lite"
+    groq_api_key: SecretStr = SecretStr("")
+    huggingface_api_key: SecretStr = SecretStr("")
+    openrouter_api_key: SecretStr = SecretStr("")
     benchmark_impact_path: Path = ROOT / "config/benchmark-impact.json"
     benchmark_impact_approved: bool = False
     model_catalog_path: Path = ROOT / "config/models.json"
@@ -49,6 +53,7 @@ class Settings(BaseSettings):
     document_operation_budget_usd: Decimal = Field(default=Decimal("1.00"), gt=0, le=20)
     adaptive_prompt_enabled: bool = False
     hybrid_context_enabled: bool = False
+    memory_retrieval_enabled: bool = False
     context_token_budget: int = Field(default=8000, ge=1, le=200000)
 
     @field_validator(

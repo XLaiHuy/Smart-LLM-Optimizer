@@ -19,7 +19,9 @@ async def test_smoke_predictions_reproducible_and_labeled(tmp_path: Path) -> Non
         report = tmp_path / f"{i}.jsonl"
         assert (
             await run_smoke(
-                ROOT / "benchmark/manifests/smoke.json", Settings(database_path=path), report
+                ROOT / "benchmark/manifests/smoke.json",
+                Settings(database_path=path, app_env="test", provider_mode="mock"),
+                report,
             )
             == 3
         )

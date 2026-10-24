@@ -84,6 +84,7 @@ class DeterministicMockProvider:
 
         return ProviderResult(
             text="Phản hồi minh họa trong chế độ giả lập; chưa phải phân tích từ mô hình thật.\n\n"
-            + answer,
+            + answer
+            + f"\n\n*(Ghi nhận {len(messages)} messages received trong ngữ cảnh)*",
             duration_ms=(perf_counter() - started) * 1000,
         )

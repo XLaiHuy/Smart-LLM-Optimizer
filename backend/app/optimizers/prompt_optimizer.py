@@ -83,7 +83,16 @@ class AdaptivePromptOptimizer:
         if self.llm_compressor is None:
             return self._result(original, "skipped", "llm_compressor_unavailable", "unknown")
 
-        raw_result = await asyncio.to_thread(self.llm_compressor.compress, original)
+        try:
+            raw_result = await asyncio.to_thread(self.llm_compressor.compress, original)
+        except Exception:
+            return self._result(
+                original,
+                "skipped",
+                "llmlingua_error",
+                "unknown",
+            )
+
         proposed = raw_result.get("compressed")
         status = raw_result.get("status")
         preservation = raw_result.get("preservation", "unknown")
@@ -95,13 +104,23 @@ class AdaptivePromptOptimizer:
 
         before = raw_result.get("original_tokens")
         after = raw_result.get("compressed_tokens")
+        if not isinstance(before, int) or not isinstance(after, int) or after >= before:
+            return self._result(
+                original,
+                "skipped",
+                "llmlingua_no_token_savings",
+                "preserved",
+                before_tokens=before if isinstance(before, int) else None,
+                after_tokens=after if isinstance(after, int) else None,
+            )
+
         return self._result(
             original,
             "applied",
             "llmlingua2",
             proposed=proposed,
-            before_tokens=before if isinstance(before, int) else None,
-            after_tokens=after if isinstance(after, int) else None,
+            before_tokens=before,
+            after_tokens=after,
         )
 
     @staticmethod

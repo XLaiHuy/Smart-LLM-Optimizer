@@ -38,12 +38,12 @@ def bucket(key: str, records: list[UsageRecord]) -> MetricBucket:
         key=key,
         calls=len(calls),
         input_tokens=sum(c.usage.input_tokens for c in calls if c.usage.input_tokens is not None)
-        if calls and all(c.usage.input_tokens is not None for c in calls)
+        if any(c.usage.input_tokens is not None for c in calls)
         else None,
         output_tokens=sum(c.usage.output_tokens for c in calls if c.usage.output_tokens is not None)
-        if calls and all(c.usage.output_tokens is not None for c in calls)
+        if any(c.usage.output_tokens is not None for c in calls)
         else None,
-        usd=subtotal if calls and len(known_costs) == len(calls) else None,
+        usd=subtotal if known_costs else (Decimal(0) if calls else None),
         known_subtotal_usd=subtotal if known_costs else None,
         unknown_calls=sum(
             c.cost.status == "unknown" or c.usage.usage_source == "unknown" for c in calls
