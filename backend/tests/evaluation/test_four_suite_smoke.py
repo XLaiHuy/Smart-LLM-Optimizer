@@ -105,3 +105,33 @@ def test_four_suite_smoke_exports_paired_report(
     assert '"answer_key"' not in report_text
     assert '"gold_answers"' not in report_text
     assert '"evidence_turn_ids"' not in report_text
+
+
+def test_four_suite_cli_command(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from app.cli import cli
+
+    output_dir = tmp_path / "cli-report"
+    result = CliRunner().invoke(
+        cli,
+        [
+            "eval",
+            "four-suite",
+            "--manifest",
+            str(FIXTURE_DIR / "manifest.json"),
+            "--baseline-predictions",
+            str(FIXTURE_DIR / "baseline.predictions.jsonl"),
+            "--optimized-predictions",
+            str(FIXTURE_DIR / "optimized.predictions.jsonl"),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "FOUR-SUITE VIETNAMESE BENCHMARK EVALUATION (SMOKE)" in result.stdout
+    assert "Baseline Pass Rate: 1/4 (25.0%)" in result.stdout
+    assert "Optimized Pass Rate: 4/4 (100.0%)" in result.stdout
+    assert "sea-ifeval-smoke-001" in result.stdout
+    assert (output_dir / "paired-report.json").exists()

@@ -79,7 +79,7 @@ env \
   -q
 ```
 
-Kết quả: `276 passed`.
+Kết quả: `277 passed`.
 
 Kiểm tra toàn bộ backend với mock provider và catalog cục bộ bị vô hiệu hóa ghi nhận `420 passed, 2 failed`. Hai lỗi còn lại đều tái hiện trên `origin/develop` tại:
 
@@ -105,7 +105,7 @@ env \
 
 Kết quả: 3 functional cases, mock execution, quality/savings unknown.
 
-Chạy synthetic four-suite flow:
+Chạy synthetic four-suite flow (qua CLI hoặc script demo):
 
 ```bash
 env \
@@ -115,14 +115,20 @@ env \
   OPENROUTER_API_KEY= \
   GROQ_API_KEY= \
   GEMINI_API_KEY= \
-  .venv/bin/python \
-  benchmark/fixtures/four_suite_smoke/run_demo.py
+  .venv/bin/python -m app.cli eval four-suite
 ```
+
+(Hoặc chạy trực tiếp script: `.venv/bin/python benchmark/fixtures/four_suite_smoke/run_demo.py`)
 
 Kết quả fixture:
 
-- Baseline: 1/4 functional cases passed.
-- Optimized: 4/4 functional cases passed.
+- Baseline: 1/4 functional cases passed (25.0%).
+- Optimized: 4/4 functional cases passed (100.0%).
+- Task breakdown:
+  * SEA-IFEval (Instruction): IMPROVEMENT
+  * UIT-ViQuAD (Extractive QA): IMPROVEMENT
+  * Vi-Dialog (Conversation Memory): IMPROVEMENT
+  * VMLU (Multidisciplinary MCQ): BOTH_PASS
 - Report SHA-256: `8688c3e32272b676408428ab4d6c5ea329146665de04256efe9ec258fee2ff9d`.
 - `RESEARCH_ELIGIBLE: False`.
 
