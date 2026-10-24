@@ -7,14 +7,16 @@ import {
   ArrowUpRight,
   SlidersHorizontal,
   RefreshCw,
-  Check,
   Sparkles,
   BookOpen,
   GitCompare,
+  ChevronDown,
+  Zap,
 } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -35,11 +37,56 @@ import { ProcessingProgress } from "./processing-progress";
 import { FormattedMessage } from "./formatted-message";
 import { ErrorNotice, Spinner } from "./ui";
 
+export function getCleanModelName(configId: string, modelId?: string): string {
+  if (!configId) return modelId || "";
+  const map: Record<string, string> = {
+    "groq-llama-3.3-70b-versatile": "Llama 3.3 70B (Groq)",
+    "groq-qwen-2.5-coder-32b": "Qwen 2.5 Coder 32B (Groq)",
+    "groq-llama-3.1-8b-instant": "Llama 3.1 8B (Groq)",
+    "groq-gpt-oss-120b": "GPT OSS 120B (Groq)",
+    "groq-qwen-3.8-27b": "Qwen 3.8 27B (Groq)",
+    "groq-gpt-oss-20b": "GPT OSS 20B (Groq)",
+    "openai/gpt-oss-120b": "GPT OSS 120B (Groq)",
+    "qwen/qwen3.8-27b": "Qwen 3.8 27B (Groq)",
+    "openai/gpt-oss-20b": "GPT OSS 20B (Groq)",
+    "openrouter-gemini-2.0-flash-exp-free": "Gemini 2.0 Flash (Free)",
+    "openrouter-deepseek-r1-free": "DeepSeek R1 (Free)",
+    "openrouter-meta-llama-3.3-70b-instruct-free": "Llama 3.3 70B (Free)",
+    "openai-gpt-6-luna": "GPT-6 Luna (OpenAI)",
+    "openai-gpt-5.6-terra": "GPT-5.6 Terra (OpenAI)",
+    "openai-gpt-6.1-sol": "GPT-6.1 Sol (OpenAI)",
+    "mock-baseline": "Mock Baseline (Default)",
+    "mock-small": "Mock Fast (Small)",
+    "mock-quality": "Mock Frontier (Quality)",
+    "gpt-6-luna": "GPT-6 Luna (OpenAI)",
+    "gpt-5.6-terra": "GPT-5.6 Terra (OpenAI)",
+    "gpt-6.1-sol": "GPT-6.1 Sol (OpenAI)",
+  };
+  if (map[configId]) return map[configId];
+  if (modelId && map[modelId]) return map[modelId];
+  const lower = configId.toLowerCase();
+  if (lower.includes("luna")) return "GPT-6 Luna (OpenAI)";
+  if (lower.includes("terra")) return "GPT-5.6 Terra (OpenAI)";
+  if (lower.includes("sol")) return "GPT-6.1 Sol (OpenAI)";
+  if (lower.includes("120b")) return "GPT OSS 120B (Groq)";
+  if (lower.includes("3.8-27b")) return "Qwen 3.8 27B (Groq)";
+  if (lower.includes("20b")) return "GPT OSS 20B (Groq)";
+  if (lower.includes("llama-3.3-70b") && lower.includes("groq")) return "Llama 3.3 70B (Groq)";
+  if (lower.includes("llama-3.3-70b-versatile")) return "Llama 3.3 70B (Groq)";
+  if (lower.includes("qwen-2.5-coder-32b")) return "Qwen 2.5 Coder 32B (Groq)";
+  if (lower.includes("llama-3.1-8b-instant") || (lower.includes("llama-3.1-8b") && lower.includes("groq"))) return "Llama 3.1 8B (Groq)";
+  if (lower.includes("gemini-2.0-flash")) return "Gemini 2.0 Flash (Free)";
+  if (lower.includes("deepseek-r1")) return "DeepSeek R1 (Free)";
+  if (lower.includes("llama-3.3-70b")) return "Llama 3.3 70B (Free)";
+  return modelId || configId;
+}
+
 export function ChatPanel({
   userId,
   selected,
   createSession,
   onBusy,
+  onTrace,
 }: {
   userId: string;
   selected: string | null;
@@ -49,7 +96,6 @@ export function ChatPanel({
 }) {
   const t = useTranslations("App");
   const client = useQueryClient();
-  const mvp = useTranslations("MVP");
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [sources, setSources] = useState<{
@@ -65,6 +111,31 @@ export function ChatPanel({
     queryFn: async () => unwrap(await api.GET("/v1/models")),
   });
   const source = models.data?.[0]?.execution_source ?? "mock";
+  const genuineModels = useMemo(() => {
+    if (!models.data) return [];
+    const nonEmbeddings = models.data.filter((m) => m.endpoint !== "embeddings");
+    const nonMock = nonEmbeddings.filter(
+      (m) =>
+        !m.config_id.toLowerCase().startsWith("mock-") &&
+        !m.model_id.toLowerCase().startsWith("mock-"),
+    );
+    return nonMock.length > 0 ? nonMock : nonEmbeddings;
+  }, [models.data]);
+
+  const [candidateOverride, setCandidateOverride] = useState<string | null>(null);
+
+  const selectedCandidate = useMemo(() => {
+    if (candidateOverride && genuineModels.some((m) => m.config_id === candidateOverride)) {
+      return candidateOverride;
+    }
+    const preferred = genuineModels.find(
+      (m) => m.config_id === "groq-llama-3.3-70b-versatile",
+    );
+    if (preferred) return preferred.config_id;
+    if (genuineModels.length > 0) return genuineModels[0].config_id;
+    return candidateOverride || "groq-llama-3.3-70b-versatile";
+  }, [genuineModels, candidateOverride]);
+
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<"baseline" | "optimized">("optimized");
   const [flags, setFlags] = useState<Flags>(allFlags);
@@ -77,6 +148,7 @@ export function ChatPanel({
   const [error, setError] = useState<unknown>();
   const [retrying, setRetrying] = useState(false);
   const pending = useRef<ChatRequest | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const detail = useQuery({
@@ -99,11 +171,21 @@ export function ChatPanel({
       : resumedRequest && selected
         ? { session: selected, request: resumedRequest }
         : null;
+  const lastContent = messages[messages.length - 1]?.content;
+
+  // Stable anchor to bottom without ancestor container jitter
   useEffect(() => {
-    if (messages.length > 0 && nearBottom.current) {
-      end.current?.scrollIntoView({ behavior: "instant", block: "end" });
+    if (messages.length > 0 && nearBottom.current && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, [messages.length, busy]);
+  }, [messages.length, busy, lastContent]);
+
+  useEffect(() => {
+    nearBottom.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [selected]);
   async function send(event: FormEvent) {
     event.preventDefault();
     if (documentBusy || processing || (!draft.trim() && !pending.current))
@@ -112,6 +194,10 @@ export function ChatPanel({
     setBusy(true);
     onBusy(true);
     setError(undefined);
+    nearBottom.current = true;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
     try {
       if (!pending.current) {
         const sessionId = selected || (await createSession(draft));
@@ -129,7 +215,9 @@ export function ChatPanel({
                     ? "quality-guarded-v3"
                     : "foundation-mock-v3",
               }
-            : {}),
+            : selectedCandidate
+              ? { policy_id: `fixed_candidate:${selectedCandidate}` }
+              : {}),
         };
       }
       setFlight({
@@ -212,13 +300,14 @@ export function ChatPanel({
         </section>
       )}
       <div
+        ref={scrollContainerRef}
         className="conversation-scroll"
         aria-live="polite"
         aria-busy={processing}
         onScroll={(e) => {
           const el = e.currentTarget;
           nearBottom.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+            el.scrollHeight - el.scrollTop - el.clientHeight < 80;
         }}
       >
         <div className="scroll-inner-wrapper">
@@ -253,22 +342,17 @@ export function ChatPanel({
                 <span className="welcome-mark">
                   <Image
                     src="/brand/ou-logo.jpg"
-                    width={92}
-                    height={56}
+                    width={80}
+                    height={48}
                     alt="OU"
                     priority
                   />
                 </span>
               </div>
-              <p className="eyebrow">SMART LLM OPTIMIZER</p>
+              <p className="eyebrow">SMART LLM</p>
               <h1>{t("welcome")}</h1>
               <p>{t("welcomeHint")}</p>
-              <div className="welcome-tags">
-                <span>
-                  <Check size={14} />
-                  {t("private")}
-                </span>
-              </div>
+
               <div className="welcome-prompts">
                 <button
                   type="button"
@@ -345,13 +429,21 @@ export function ChatPanel({
                         <FormattedMessage
                           content={message.content}
                           legacyMock={source === "mock"}
+                          isStreaming={
+                            processing &&
+                            currentFlight !== null &&
+                            index === messages.length - 1
+                          }
                         />
                       ) : (
                         message.content
                       )}
                     </div>
                     {message.role === "assistant" && message.request_id && (
-                      <MessageMetrics requestId={message.request_id} />
+                      <MessageMetrics
+                        requestId={message.request_id}
+                        onTrace={onTrace}
+                      />
                     )}
                   </div>
                 </article>
@@ -378,6 +470,81 @@ export function ChatPanel({
         </div>
       </div>
       <div className="composer-wrap">
+        {/* Exterior 2-Mode Control Bar */}
+        <div
+          className="composer-mode-bar"
+          role="region"
+          aria-label="Routing Mode"
+        >
+          <div
+            className="composer-mode-toggle"
+            role="group"
+            aria-label={t("mode")}
+          >
+            <button
+              type="button"
+              className={`mode-btn ${mode === "optimized" ? "active" : ""}`}
+              aria-pressed={mode === "optimized"}
+              disabled={locked}
+              onClick={() => setMode("optimized")}
+              title={t("autoHint")}
+            >
+              <Zap size={13} className="mode-icon" />
+              <span>{t("modeAuto")}</span>
+            </button>
+            <button
+              type="button"
+              className={`mode-btn ${mode === "baseline" ? "active" : ""}`}
+              aria-pressed={mode === "baseline"}
+              disabled={locked}
+              onClick={() => setMode("baseline")}
+              title={t("standardHint")}
+            >
+              <SlidersHorizontal size={13} className="mode-icon" />
+              <span>{t("modeStandard")}</span>
+            </button>
+          </div>
+
+          <div className="composer-model-selection">
+            {mode === "baseline" ? (
+              <div className="manual-model-picker">
+                <div className="select-wrapper">
+                  <select
+                    id="model-select"
+                    value={selectedCandidate}
+                    onChange={(e) => setCandidateOverride(e.target.value)}
+                    disabled={locked}
+                    className="model-select-dropdown"
+                    aria-label={t("selectModel")}
+                  >
+                    {genuineModels.map((m) => (
+                      <option key={m.config_id} value={m.config_id}>
+                        {getCleanModelName(m.config_id, m.model_id)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={13} className="select-arrow" />
+                </div>
+                <span
+                  className="mode-tag-pill manual"
+                  title="Gửi trực tiếp đến mô hình đã chọn, bỏ qua toàn bộ module tối ưu hóa"
+                >
+                  🎯 Chuẩn (Trực tiếp)
+                </span>
+              </div>
+            ) : (
+              <div className="auto-model-display">
+                <span
+                  className="mode-tag-pill auto"
+                  title="Tự động phân tích đa chiều và chọn mô hình tối ưu"
+                >
+                  ⚡ Tối ưu tự động (ML Router)
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {error !== undefined && <ErrorNotice error={error} />}
         <form className={`composer ${busy ? "busy" : ""}`} onSubmit={send}>
           <label htmlFor="message" className="sr-only">
@@ -385,6 +552,7 @@ export function ChatPanel({
           </label>
           <textarea
             id="message"
+            className="composer-textarea"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={t("placeholder")}
@@ -403,18 +571,16 @@ export function ChatPanel({
             }}
           />
           <div className="composer-bottom">
-            <div className="mode-switch" role="group" aria-label={t("mode")}>
-              {(["baseline", "optimized"] as const).map((value) => (
-                <button
-                  type="button"
-                  key={value}
-                  aria-pressed={mode === value}
-                  disabled={locked}
-                  onClick={() => setMode(value)}
-                >
-                  {t(value)}
-                </button>
-              ))}
+            <div className="composer-bottom-info">
+              {mode === "baseline" ? (
+                <span className="active-mode-subtext">
+                  Chế độ trực tiếp · {getCleanModelName(selectedCandidate, selectedCandidate)}
+                </span>
+              ) : (
+                <span className="active-mode-subtext">
+                  Tối ưu tự động · ML Multi-Model Router
+                </span>
+              )}
             </div>
             <button
               className="send-button"
@@ -440,15 +606,7 @@ export function ChatPanel({
         </form>
         <div className="composer-footer">
           <span>{t("composerHint")}</span>
-          <span>
-            {t(source === "mock" ? "simulationMode" : "liveMode")} ·{" "}
-            {sources.session === selected ? sources.ids.length : 0}{" "}
-            {mvp("sourceSelected")}
-          </span>
         </div>
-        <p className="mock-disclosure">
-          {source === "mock" ? t("mockHint") : mvp("noOptimizer")}
-        </p>
       </div>
     </section>
   );

@@ -1,8 +1,11 @@
+import json
 from collections import deque
+from collections.abc import AsyncIterator
 from time import monotonic
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Cookie, Depends, Query, Request, Response
+from fastapi.responses import StreamingResponse
 
 from app.composition import Container
 from app.contracts.dtos import (
@@ -168,6 +171,39 @@ async def delete_session(session_id: str, c: ContainerDep, user: UserDep) -> Non
 @router.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest, c: ContainerDep, user: UserDep) -> ChatResponse:
     return await c.orchestrator.execute(user, body)
+
+
+@router.post("/chat/stream")
+async def chat_stream(
+    request: Request,
+    body: ChatRequest,
+    c: ContainerDep,
+    user: UserDep,
+) -> StreamingResponse:
+    async def sse_generator() -> AsyncIterator[str]:
+        try:
+            async for event in c.orchestrator.execute_stream(
+                user, body, is_disconnected=request.is_disconnected
+            ):
+                event_name = event.get("event", "message")
+                payload = json.dumps(event.get("data", {}), ensure_ascii=False)
+                yield f"event: {event_name}\ndata: {payload}\n\n"
+        except AppError as exc:
+            err_data = json.dumps({"code": exc.code, "message": exc.message}, ensure_ascii=False)
+            yield f"event: error\ndata: {err_data}\n\n"
+        except Exception as exc:
+            err_data = json.dumps({"code": "INTERNAL_ERROR", "message": str(exc)}, ensure_ascii=False)
+            yield f"event: error\ndata: {err_data}\n\n"
+
+    return StreamingResponse(
+        sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/traces/{request_id}", response_model=ChatResponse)

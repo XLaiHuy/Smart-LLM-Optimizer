@@ -11,8 +11,8 @@ import "./globals.css";
 import "./experience.css";
 
 export const metadata: Metadata = {
-  title: "Smart LLM Optimizer · OU",
-  description: "Smart LLM Optimizer research workspace",
+  title: "Smart LLM · OU",
+  description: "Smart LLM research workspace",
 };
 export default async function RootLayout({
   children,

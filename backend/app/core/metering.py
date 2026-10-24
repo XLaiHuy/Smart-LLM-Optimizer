@@ -185,7 +185,15 @@ class MeteredCalls:
         started = perf_counter()
         try:
             result = await provider.generate(messages, opts.model_copy(update={"call_id": call_id}))
-        except BaseException:
+        except BaseException as exc:
+            is_rate_limit = isinstance(exc, AppError) and (
+                exc.code in ("RATE_LIMITED", "QUOTA_EXCEEDED") or exc.status_code == 429
+            )
+            cost = CostEstimate(
+                scope="call",
+                status="not_billable" if is_rate_limit else ("unknown" if self.catalog else "not_billable"),
+                serving_usd=Decimal(0) if is_rate_limit else None,
+            )
             await asyncio.shield(
                 self._finish(
                     CallRecord(
@@ -193,27 +201,27 @@ class MeteredCalls:
                         stage=stage,
                         model_id=opts.model_id,
                         usage=Usage(scope="call", usage_source="unknown"),
-                        cost=CostEstimate(
-                            scope="call", status="unknown" if self.catalog else "not_billable"
-                        ),
+                        cost=cost,
                         duration_ms=(perf_counter() - started) * 1000,
                     ),
                     reservation,
                 )
             )
             raise
-        await self._finish(
-            CallRecord(
-                call_id=call_id,
-                stage=stage,
-                model_id=opts.model_id,
-                usage=result.usage,
-                provider_response_id=result.provider_response_id,
-                native_usage_json=result.native_usage_json,
-                cost=result.cost,
-                duration_ms=result.duration_ms,
-            ),
-            reservation,
+        await asyncio.shield(
+            self._finish(
+                CallRecord(
+                    call_id=call_id,
+                    stage=stage,
+                    model_id=opts.model_id,
+                    usage=result.usage,
+                    provider_response_id=result.provider_response_id,
+                    native_usage_json=result.native_usage_json,
+                    cost=result.cost,
+                    duration_ms=result.duration_ms,
+                ),
+                reservation,
+            )
         )
         return result
 
@@ -272,16 +280,18 @@ class MeteredCalls:
                 )
             )
             raise
-        await self._finish(
-            CallRecord(
-                call_id=call_id,
-                stage=stage,
-                model_id=model,
-                usage=usage,
-                cost=cost,
-                duration_ms=(perf_counter() - started) * 1000,
-            ),
-            reservation,
+        await asyncio.shield(
+            self._finish(
+                CallRecord(
+                    call_id=call_id,
+                    stage=stage,
+                    model_id=model,
+                    usage=usage,
+                    cost=cost,
+                    duration_ms=(perf_counter() - started) * 1000,
+                ),
+                reservation,
+            )
         )
         return vectors
 

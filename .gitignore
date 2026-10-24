@@ -28,6 +28,7 @@ artifacts/
 output/
 *.tsbuildinfo
 .cache/
+.agents/teamwork/
 
 config/models.json
 config/router_model.json

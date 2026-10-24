@@ -73,7 +73,7 @@ class PolicyRouter:
             reason = None
             if not model.available:
                 reason = model.availability_reason
-            elif model.endpoint != "responses" and not (
+            elif model.endpoint not in ("responses", "chat_completions") and not (
                 policy.sandbox and model.endpoint == "gemini_chat_completions"
             ):
                 reason = "unsupported_endpoint"
@@ -389,7 +389,18 @@ class PolicyRouter:
             for e in policy.evidence
             if e.domain == profile.domain and (policy.sandbox or e.provenance == "qualified_dev")
         }
-        if not policy.sandbox or policy.strategy == "rule_guarded":
+        if policy.strategy == "fixed_candidate" and policy.candidate_id:
+            selected = next(
+                (m for m in registry.configurations if m.config_id == policy.candidate_id),
+                None,
+            )
+            if selected is None:
+                selected = next(
+                    (m for m in registry.configurations if m.model_id == policy.candidate_id),
+                    None,
+                )
+            reason = "fixed_candidate"
+        elif not policy.sandbox or policy.strategy == "rule_guarded":
             eligible = []
             for model in feasible:
                 item = evidence.get(model.config_id)

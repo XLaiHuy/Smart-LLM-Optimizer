@@ -1982,6 +1982,150 @@
         }
       }
     },
+    "/v1/chat/stream": {
+      "post": {
+        "summary": "Chat Stream",
+        "operationId": "chat_stream_v1_chat_stream_post",
+        "parameters": [
+          {
+            "name": "smartllm_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Smartllm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
+          }
+        }
+      }
+    },
     "/v1/traces/{request_id}": {
       "get": {
         "summary": "Trace",
@@ -8039,6 +8183,76 @@
   },
   "components": {
     "schemas": {
+      "AblationMatrixRow": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "router": {
+            "type": "boolean",
+            "title": "Router"
+          },
+          "prompt": {
+            "type": "boolean",
+            "title": "Prompt"
+          },
+          "memory": {
+            "type": "boolean",
+            "title": "Memory"
+          },
+          "tokens": {
+            "type": "number",
+            "title": "Tokens"
+          },
+          "token_delta_percent": {
+            "type": "number",
+            "title": "Token Delta Percent"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "cost_delta_percent": {
+            "type": "number",
+            "title": "Cost Delta Percent"
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          },
+          "p90_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 Latency Ms"
+          },
+          "pass_rate": {
+            "type": "number",
+            "title": "Pass Rate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "router",
+          "prompt",
+          "memory",
+          "tokens",
+          "token_delta_percent",
+          "cost_usd",
+          "cost_delta_percent",
+          "latency_ms",
+          "pass_rate"
+        ],
+        "title": "AblationMatrixRow"
+      },
       "AblationRequest": {
         "properties": {
           "size": {
@@ -8046,10 +8260,11 @@
             "enum": [
               50,
               200,
+              500,
               600
             ],
             "title": "Size",
-            "default": 50
+            "default": 500
           },
           "router": {
             "type": "boolean",
@@ -8064,6 +8279,11 @@
           "memory": {
             "type": "boolean",
             "title": "Memory",
+            "default": false
+          },
+          "force_rerun": {
+            "type": "boolean",
+            "title": "Force Rerun",
             "default": false
           }
         },
@@ -8096,6 +8316,25 @@
           "summary": {
             "type": "string",
             "title": "Summary"
+          },
+          "p90_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 Latency Ms"
+          },
+          "ablation_matrix": {
+            "items": {
+              "$ref": "#/components/schemas/AblationMatrixRow"
+            },
+            "type": "array",
+            "title": "Ablation Matrix",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -9079,6 +9318,17 @@
           },
           "flags": {
             "$ref": "#/components/schemas/FeatureFlags"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
           }
         },
         "additionalProperties": false,
@@ -9666,6 +9916,7 @@
             "default": [
               50,
               200,
+              500,
               600
             ]
           },

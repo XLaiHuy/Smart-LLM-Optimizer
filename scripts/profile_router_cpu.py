@@ -71,11 +71,28 @@ def profile(model: Path, dataset: Path, count: int, concurrency: int) -> dict:
         engine.multi.semantic.cache.clear()
         misses.append(run(row))
         hits.append(run(row))
-    engine.multi.semantic.cache.clear()
     started = perf_counter()
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         concurrent = list(pool.map(run, rows))
     elapsed = perf_counter() - started
+
+    # Explicit benchmark of NumPy CPU cross-attention pooling
+    from app.routing.ml.attention import numpy_features
+
+    attn_timings = []
+    if engine.multi.semantic and engine.multi.semantic.state:
+        attn_state = engine.multi.semantic.state
+        mock_states = np.random.randn(32, attn_state.encoder.hidden_size).astype(np.float32)
+        mock_mask = np.ones(32, dtype=bool)
+        for _ in range(10):
+            _ = numpy_features(attn_state, mock_states, mock_mask)
+        for _ in range(200):
+            t0 = perf_counter()
+            _ = numpy_features(attn_state, mock_states, mock_mask)
+            attn_timings.append((perf_counter() - t0) * 1000)
+
+    attn_stats = stats(attn_timings) if attn_timings else {}
+
     return {
         "environment": {
             "python": platform.python_version(),
@@ -90,6 +107,8 @@ def profile(model: Path, dataset: Path, count: int, concurrency: int) -> dict:
         "samples": len(rows),
         "concurrency": concurrency,
         "load_ms": round(load_ms, 3),
+        "attention_numpy_cpu": attn_stats,
+        "attention_latency_target_met": (attn_stats.get("p50_ms", 999.0) < 0.5) if attn_stats else False,
         "cache_miss": stats(misses),
         "cache_hit": stats(hits),
         "concurrent_cache_miss": stats(concurrent),
