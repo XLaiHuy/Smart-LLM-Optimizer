@@ -2723,19 +2723,23 @@ details.activity-panel {
 .formatted-message li::marker {
   color: #034ea2;
 }
-.formatted-message code {
+.formatted-message :not(pre) > code {
   font-size: 0.88em;
-  background: #eef3f8;
-  padding: 2px 5px;
-  border-radius: 4px;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
 }
 .formatted-message pre {
   max-width: 100%;
   overflow-x: auto;
   padding: 16px;
-  background: #0f172a;
-  color: #f8fafc;
-  border: 1px solid #1e293b;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #1e293b !important;
   border-radius: 8px;
   white-space: pre;
 }
@@ -2762,8 +2766,70 @@ details.activity-panel {
   padding: 0 !important;
 }
 .formatted-message pre code {
-  padding: 0;
-  background: none;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+
+/* Empty Session Recovery Card */
+.empty-session-notice {
+  margin: 36px auto;
+  max-width: 680px;
+  width: 100%;
+  padding: 0 16px;
+}
+.empty-session-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.empty-session-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #005696;
+  background: #e8f1f8;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+.empty-session-card h3 {
+  font-size: 17px;
+  font-weight: 650;
+  color: #0f172a;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+.empty-session-card p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+.empty-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Optimistic user message badge */
+.optimistic-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+.message.user.optimistic-message {
+  opacity: 0.95;
+  border-left: 3px solid #0284c7;
 }
 .formatted-message h1,
 .formatted-message h2,

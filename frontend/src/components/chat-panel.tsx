@@ -141,6 +141,7 @@ export function ChatPanel({
   const [flags, setFlags] = useState<Flags>(allFlags);
   const [configOpen, setConfigOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [flight, setFlight] = useState<{
     session: string;
     request: string;
@@ -175,36 +176,98 @@ export function ChatPanel({
 
   // Stable anchor to bottom without ancestor container jitter
   useEffect(() => {
-    if (messages.length > 0 && nearBottom.current && scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    if ((messages.length > 0 || pendingPrompt) && scrollContainerRef.current) {
+      if (nearBottom.current || busy) {
+        end.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
-  }, [messages.length, busy, lastContent]);
+  }, [messages.length, busy, pendingPrompt, lastContent]);
 
   useEffect(() => {
     nearBottom.current = true;
+    setPendingPrompt(null);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [selected]);
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (documentBusy || processing || (!draft.trim() && !pending.current))
-      return;
+
+  async function resendSessionPrompt(text: string) {
+    if (documentBusy || processing || !text.trim()) return;
     setDocumentsOpen(false);
     setBusy(true);
     onBusy(true);
     setError(undefined);
     nearBottom.current = true;
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    setPendingPrompt(text);
+    setTimeout(() => {
+      end.current?.scrollIntoView({ behavior: "smooth" });
+    }, 40);
+    try {
+      const sessionId = selected || (await createSession(text));
+      const req: ChatRequest = {
+        session_id: sessionId,
+        client_request_id: crypto.randomUUID(),
+        message: text,
+        document_ids: sources.session === selected ? sources.ids : [],
+        constraints: { deadline_ms: 60000 },
+        mode,
+        flags: requestFlags(mode, flags),
+        ...(mode === "optimized"
+          ? {
+              policy_id:
+                source === "live"
+                  ? "quality-guarded-v3"
+                  : "foundation-mock-v3",
+            }
+          : selectedCandidate
+            ? { policy_id: `fixed_candidate:${selectedCandidate}` }
+            : {}),
+      };
+      setFlight({
+        session: sessionId,
+        request: req.client_request_id,
+      });
+      const answer = unwrap(await api.POST("/v1/chat", { body: req }));
+      setRetrying(false);
+      setPendingPrompt(null);
+      setDraft("");
+      await client.invalidateQueries({ queryKey: ["session", userId] });
+      await client.invalidateQueries({ queryKey: ["sessions", userId] });
+      await client.invalidateQueries({ queryKey: ["overview", userId] });
+      client.setQueryData(["trace", answer.request_id], answer);
+    } catch (reason) {
+      setError(reason);
+      setPendingPrompt(null);
+    } finally {
+      setBusy(false);
+      onBusy(false);
     }
+  }
+
+  async function send(event: FormEvent) {
+    event.preventDefault();
+    if (documentBusy || processing || (!draft.trim() && !pending.current))
+      return;
+    const currentText = draft.trim();
+    setDocumentsOpen(false);
+    setBusy(true);
+    onBusy(true);
+    setError(undefined);
+    nearBottom.current = true;
+    if (currentText) {
+      setPendingPrompt(currentText);
+      setDraft("");
+    }
+    setTimeout(() => {
+      end.current?.scrollIntoView({ behavior: "smooth" });
+    }, 40);
     try {
       if (!pending.current) {
-        const sessionId = selected || (await createSession(draft));
+        const sessionId = selected || (await createSession(currentText));
         pending.current = {
           session_id: sessionId,
           client_request_id: crypto.randomUUID(),
-          message: draft,
+          message: currentText,
           document_ids: sources.session === selected ? sources.ids : [],
           constraints: { deadline_ms: 60000 },
           mode,
@@ -230,7 +293,7 @@ export function ChatPanel({
       );
       pending.current = null;
       setRetrying(false);
-      setDraft("");
+      setPendingPrompt(null);
       await client.invalidateQueries({ queryKey: ["session", userId] });
       await client.invalidateQueries({ queryKey: ["sessions", userId] });
       await client.invalidateQueries({ queryKey: ["overview", userId] });
@@ -240,7 +303,10 @@ export function ChatPanel({
       const uncertain =
         !(reason instanceof ApiError) ||
         ["REQUEST_IN_PROGRESS", "SESSION_BUSY"].includes(reason.code);
-      if (!uncertain) pending.current = null;
+      if (!uncertain) {
+        pending.current = null;
+        setPendingPrompt(null);
+      }
       setRetrying(uncertain && pending.current !== null);
     } finally {
       setBusy(false);
@@ -337,70 +403,104 @@ export function ChatPanel({
             </div>
           )}
           {!detail.isLoading && !messages.length && !detail.isError && (
-            <div className="welcome">
-              <div className="welcome-hero-wrap">
-                <div className="hero-glow" />
-                <span className="welcome-mark">
-                  <Image
-                    src="/brand/ou-logo.jpg"
-                    width={80}
-                    height={48}
-                    alt="OU"
-                    priority
-                  />
-                </span>
+            selected && detail.data?.title && detail.data.title !== t("newChat") ? (
+              <div className="empty-session-notice">
+                <div className="empty-session-card">
+                  <div className="empty-session-badge">
+                    <Sparkles size={14} />
+                    <span>Phiên làm việc</span>
+                  </div>
+                  <h3>{detail.data.title}</h3>
+                  <p>
+                    Phiên trò chuyện này chưa có câu trả lời nào được lưu lại (do yêu cầu trước đó có thể đã hết thời gian chờ hoặc bị gián đoạn). Bạn có thể bấm nút bên dưới để gửi lại câu hỏi này ngay với thời hạn phản hồi đã được tối ưu (60 giây).
+                  </p>
+                  <div className="empty-session-actions">
+                    <button
+                      type="button"
+                      className="button primary"
+                      disabled={locked}
+                      onClick={() => resendSessionPrompt(detail.data!.title)}
+                    >
+                      <ArrowUp size={16} />
+                      <span>Gửi lại câu hỏi này ngay</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={locked}
+                      onClick={() => setDraft(detail.data!.title)}
+                    >
+                      <span>Nạp vào ô soạn thảo</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <p className="eyebrow">SMART LLM</p>
-              <h1>{t("welcome")}</h1>
-              <p>{t("welcomeHint")}</p>
+            ) : (
+              <div className="welcome">
+                <div className="welcome-hero-wrap">
+                  <div className="hero-glow" />
+                  <span className="welcome-mark">
+                    <Image
+                      src="/brand/ou-logo.jpg"
+                      width={80}
+                      height={48}
+                      alt="OU"
+                      priority
+                    />
+                  </span>
+                </div>
+                <p className="eyebrow">SMART LLM</p>
+                <h1>{t("welcome")}</h1>
+                <p>{t("welcomeHint")}</p>
 
-              <div className="welcome-prompts">
-                <button
-                  type="button"
-                  className="welcome-prompt-card"
-                  onClick={() => setDraft(t("promptQnaSample"))}
-                >
-                  <div className="prompt-icon-wrap">
-                    <BookOpen size={18} />
-                  </div>
-                  <div className="prompt-content">
-                    <strong>{t("promptQna")}</strong>
-                    <p>{t("promptQnaHint")}</p>
-                  </div>
-                  <ArrowUpRight className="prompt-arrow-icon" size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="welcome-prompt-card"
-                  onClick={() => setDraft(t("promptSummarySample"))}
-                >
-                  <div className="prompt-icon-wrap">
-                    <Sparkles size={18} />
-                  </div>
-                  <div className="prompt-content">
-                    <strong>{t("promptSummary")}</strong>
-                    <p>{t("promptSummaryHint")}</p>
-                  </div>
-                  <ArrowUpRight className="prompt-arrow-icon" size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="welcome-prompt-card"
-                  onClick={() => setDraft(t("promptCompareSample"))}
-                >
-                  <div className="prompt-icon-wrap">
-                    <GitCompare size={18} />
-                  </div>
-                  <div className="prompt-content">
-                    <strong>{t("promptCompare")}</strong>
-                    <p>{t("promptCompareHint")}</p>
-                  </div>
-                  <ArrowUpRight className="prompt-arrow-icon" size={16} />
-                </button>
+                <div className="welcome-prompts">
+                  <button
+                    type="button"
+                    className="welcome-prompt-card"
+                    onClick={() => setDraft(t("promptQnaSample"))}
+                  >
+                    <div className="prompt-icon-wrap">
+                      <BookOpen size={18} />
+                    </div>
+                    <div className="prompt-content">
+                      <strong>{t("promptQna")}</strong>
+                      <p>{t("promptQnaHint")}</p>
+                    </div>
+                    <ArrowUpRight className="prompt-arrow-icon" size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="welcome-prompt-card"
+                    onClick={() => setDraft(t("promptSummarySample"))}
+                  >
+                    <div className="prompt-icon-wrap">
+                      <Sparkles size={18} />
+                    </div>
+                    <div className="prompt-content">
+                      <strong>{t("promptSummary")}</strong>
+                      <p>{t("promptSummaryHint")}</p>
+                    </div>
+                    <ArrowUpRight className="prompt-arrow-icon" size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="welcome-prompt-card"
+                    onClick={() => setDraft(t("promptCompareSample"))}
+                  >
+                    <div className="prompt-icon-wrap">
+                      <GitCompare size={18} />
+                    </div>
+                    <div className="prompt-content">
+                      <strong>{t("promptCompare")}</strong>
+                      <p>{t("promptCompareHint")}</p>
+                    </div>
+                    <ArrowUpRight className="prompt-arrow-icon" size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
+            )
           )}
-          {!!messages.length && (
+          {(!!messages.length || !!pendingPrompt) && (
             <div className="message-list">
               {messages.map((message, index) => (
                 <article
@@ -449,6 +549,20 @@ export function ChatPanel({
                   </div>
                 </article>
               ))}
+              {pendingPrompt && (
+                <article className="message user optimistic-message">
+                  <div className="message-avatar user">
+                    <span>U</span>
+                  </div>
+                  <div className="message-body">
+                    <header>
+                      <strong>{t("you")}</strong>
+                      <span className="optimistic-pill">Đang gửi</span>
+                    </header>
+                    <div className="message-content">{pendingPrompt}</div>
+                  </div>
+                </article>
+              )}
             </div>
           )}
           {(processing || (!!error && !!currentFlight)) && (
