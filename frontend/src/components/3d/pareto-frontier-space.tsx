@@ -500,7 +500,9 @@ export function ParetoScatterSurface3D({
         <span>3D PARETO FRONTIER SPACE</span>
         <span className="hidden sm:inline text-slate-400">·</span>
         <span className="text-[11px] font-normal text-slate-500">
-          {locale === "en" ? "Cost (X) × Latency (Z) × Pass Rate Quality (Y)" : "Chi phí (X) × Độ trễ (Z) × Chất lượng Pass Rate (Y)"}
+          {locale === "en"
+            ? "Cost (X) × Latency (Z) × Pass Rate Quality (Y)"
+            : "Chi phí (X) × Độ trễ (Z) × Chất lượng Pass Rate (Y)"}
         </span>
       </div>
 
@@ -542,7 +544,13 @@ export function ParetoScatterSurface3D({
                   : "bg-slate-100 text-slate-600"
               }`}
             >
-              {tooltip.policy.isParetoOptimal ? (locale === "en" ? "Optimal" : "Tối ưu") : (locale === "en" ? "Dominated" : "Bị áp đảo")}
+              {tooltip.policy.isParetoOptimal
+                ? locale === "en"
+                  ? "Optimal"
+                  : "Tối ưu"
+                : locale === "en"
+                  ? "Dominated"
+                  : "Bị áp đảo"}
             </span>
           </div>
 
@@ -600,7 +608,9 @@ export function ParetoScatterSurface3D({
           </span>
         </span>
         <span className="hidden sm:inline text-slate-400">
-          {locale === "en" ? "Rotate to inspect 3D angles · Click to select policy" : "Xoay để xem đa góc độ · Click để chọn policy"}
+          {locale === "en"
+            ? "Rotate to inspect 3D angles · Click to select policy"
+            : "Xoay để xem đa góc độ · Click để chọn policy"}
         </span>
       </div>
     </div>

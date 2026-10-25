@@ -6,9 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { api, unwrap, type User } from "@/lib/api";
 import { formatMetric } from "@/lib/format";
 import { ErrorNotice, Spinner } from "./ui";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AnalyticsPanel } from "./analytics";
-import { DynamicTokenCostSpace3D, type SessionUsageMetric } from "./3d";
 
 export function OverviewPanel({
   user,
@@ -28,72 +27,9 @@ export function OverviewPanel({
   });
   const data = query.data;
 
-  const recentRequests = data?.recent_requests;
-
-  const sessions = useQuery({
-    queryKey: ["sessions-overview", user.id],
-    queryFn: async () =>
-      unwrap(
-        await api.GET("/v1/sessions", {
-          params: { query: { offset: 0, limit: 50 } },
-        }),
-      ),
-  });
-
-  const sessionList = useMemo(() => {
-    if (!sessions.data) return [];
-    if (Array.isArray(sessions.data)) return sessions.data;
-    if ("pages" in (sessions.data as any) && Array.isArray((sessions.data as any).pages)) {
-      return (sessions.data as any).pages.flat();
-    }
-    if ("sessions" in (sessions.data as any) && Array.isArray((sessions.data as any).sessions)) {
-      return (sessions.data as any).sessions;
-    }
-    return [];
-  }, [sessions.data]);
-
-  const sessionMap = useMemo(
-    () => new Map<string, string>(sessionList.map((s: any) => [String(s.id), String(s.title)])),
-    [sessionList],
-  );
-
-  const sessionMetrics: SessionUsageMetric[] | undefined = useMemo(() => {
-    if (!recentRequests || recentRequests.length === 0) return undefined;
-    return recentRequests.map((r, i) => ({
-      id: r.request_id,
-      sessionTitle:
-        r.session_id && sessionMap.has(r.session_id)
-          ? sessionMap.get(r.session_id)!
-          : r.session_id
-            ? `Phiên #${r.session_id.slice(0, 6)}`
-            : `Yêu cầu #${i + 1}`,
-      timestamp: new Intl.DateTimeFormat(locale, {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Ho_Chi_Minh",
-      }).format(new Date(r.created_at)),
-      inputTokens: 850 + ((i * 320) % 2100),
-      outputTokens: 250 + ((i * 140) % 750),
-      totalTokens: 1100 + ((i * 460) % 2850),
-      costUsd:
-        r.execution_source === "mock"
-          ? 0.0
-          : 0.00012 + ((i * 0.00007) % 0.00035),
-      latencyMs: r.e2e_ms ? Math.round(r.e2e_ms) : 120 + ((i * 12) % 55),
-      model: "groq-llama-3.3-70b-versatile",
-      optimized: true,
-    }));
-  }, [recentRequests, locale]);
-
   return (
     <div className="overview-page">
       <AnalyticsPanel user={user} onScopeChange={setPersonal} />
-
-      {personal && (
-        <section className="chart-card-3d-wrapper" style={{ marginTop: 20 }}>
-          <DynamicTokenCostSpace3D metrics={sessionMetrics} />
-        </section>
-      )}
 
       {personal && query.isLoading && <Spinner />}
       {personal && query.isError && <ErrorNotice error={query.error} />}

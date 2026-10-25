@@ -17,7 +17,6 @@ import {
 import { SERVER_MODEL_DEFS, LAYER_Y } from "./pipeline-flow-3d";
 import { getCleanModelName } from "../chat-panel";
 
-
 describe("3D WebGL Visualization Components", () => {
   it("exports genuine 3D components and dynamic wrappers", () => {
     expect(NeuralRoutingCosmos3D).toBeDefined();
@@ -116,13 +115,18 @@ describe("3D WebGL Visualization Components", () => {
       expect(winner?.token).toBe(preset.winnerToken);
       expect(winner?.prob).toBeGreaterThan(0.5);
 
-      const totalProb = preset.candidateTokens.reduce((acc, c) => acc + c.prob, 0);
+      const totalProb = preset.candidateTokens.reduce(
+        (acc, c) => acc + c.prob,
+        0,
+      );
       expect(totalProb).toBeGreaterThanOrEqual(0.9);
       expect(totalProb).toBeLessThanOrEqual(1.05);
     });
 
     // Check specific Math preset next tokens ("Tích", "phân", "bội", "hàm")
-    const mathPreset = SIMULATION_PRESETS.find((p) => p.id === "math_advanced" || p.id === "math_calculus");
+    const mathPreset = SIMULATION_PRESETS.find(
+      (p) => p.id === "math_advanced" || p.id === "math_calculus",
+    );
     expect(mathPreset).toBeDefined();
     const tokenStrings = mathPreset?.candidateTokens.map((c) => c.token);
     expect(tokenStrings).toContain("Tích");
@@ -147,27 +151,53 @@ describe("3D WebGL Visualization Components", () => {
 
   it("validates getCleanModelName commercial mappings and edge cases", () => {
     // 6 Canonical commercial mappings required by R2
-    expect(getCleanModelName("groq-llama-3.3-70b-versatile")).toBe("Llama 3.3 70B (Groq)");
-    expect(getCleanModelName("groq-qwen-2.5-coder-32b")).toBe("Qwen 2.5 Coder 32B (Groq)");
-    expect(getCleanModelName("groq-llama-3.1-8b-instant")).toBe("Llama 3.1 8B (Groq)");
-    expect(getCleanModelName("openrouter-gemini-2.0-flash-exp-free")).toBe("Gemini 2.0 Flash (Free)");
-    expect(getCleanModelName("openrouter-deepseek-r1-free")).toBe("DeepSeek R1 (Free)");
-    expect(getCleanModelName("openrouter-meta-llama-3.3-70b-instruct-free")).toBe("Llama 3.3 70B (Free)");
+    expect(getCleanModelName("groq-llama-3.3-70b-versatile")).toBe(
+      "Llama 3.3 70B (Groq)",
+    );
+    expect(getCleanModelName("groq-qwen-2.5-coder-32b")).toBe(
+      "Qwen 2.5 Coder 32B (Groq)",
+    );
+    expect(getCleanModelName("groq-llama-3.1-8b-instant")).toBe(
+      "Llama 3.1 8B (Groq)",
+    );
+    expect(getCleanModelName("openrouter-gemini-2.0-flash-exp-free")).toBe(
+      "Gemini 2.0 Flash (Free)",
+    );
+    expect(getCleanModelName("openrouter-deepseek-r1-free")).toBe(
+      "DeepSeek R1 (Free)",
+    );
+    expect(
+      getCleanModelName("openrouter-meta-llama-3.3-70b-instruct-free"),
+    ).toBe("Llama 3.3 70B (Free)");
     expect(getCleanModelName("openai-gpt-6-luna")).toBe("GPT-6 Luna (OpenAI)");
-    expect(getCleanModelName("openai-gpt-5.6-terra")).toBe("GPT-5.6 Terra (OpenAI)");
-    expect(getCleanModelName("openai-gpt-6.1-sol")).toBe("GPT-6.1 Sol (OpenAI)");
+    expect(getCleanModelName("openai-gpt-5.6-terra")).toBe(
+      "GPT-5.6 Terra (OpenAI)",
+    );
+    expect(getCleanModelName("openai-gpt-6.1-sol")).toBe(
+      "GPT-6.1 Sol (OpenAI)",
+    );
     expect(getCleanModelName("gpt-6-luna")).toBe("GPT-6 Luna (OpenAI)");
 
     // Partial and case-insensitive matching
-    expect(getCleanModelName("GROQ-LLAMA-3.3-70B-VERSATILE")).toBe("Llama 3.3 70B (Groq)");
-    expect(getCleanModelName("openrouter/deepseek-r1")).toBe("DeepSeek R1 (Free)");
-    expect(getCleanModelName("custom-gemini-2.0-flash-free")).toBe("Gemini 2.0 Flash (Free)");
+    expect(getCleanModelName("GROQ-LLAMA-3.3-70B-VERSATILE")).toBe(
+      "Llama 3.3 70B (Groq)",
+    );
+    expect(getCleanModelName("openrouter/deepseek-r1")).toBe(
+      "DeepSeek R1 (Free)",
+    );
+    expect(getCleanModelName("custom-gemini-2.0-flash-free")).toBe(
+      "Gemini 2.0 Flash (Free)",
+    );
     expect(getCleanModelName("my-gpt-6-luna-v1")).toBe("GPT-6 Luna (OpenAI)");
-    expect(getCleanModelName("my-gpt-5.6-terra-v1")).toBe("GPT-5.6 Terra (OpenAI)");
+    expect(getCleanModelName("my-gpt-5.6-terra-v1")).toBe(
+      "GPT-5.6 Terra (OpenAI)",
+    );
     expect(getCleanModelName("my-gpt-6.1-sol-v1")).toBe("GPT-6.1 Sol (OpenAI)");
 
     // Fallbacks
-    expect(getCleanModelName("custom-model-id", "Custom Model 1.0")).toBe("Custom Model 1.0");
+    expect(getCleanModelName("custom-model-id", "Custom Model 1.0")).toBe(
+      "Custom Model 1.0",
+    );
     expect(getCleanModelName("custom-model-id")).toBe("custom-model-id");
     expect(getCleanModelName("")).toBe("");
   });
@@ -211,7 +241,9 @@ describe("3D WebGL Visualization Components", () => {
   it("validates synapse web connectivity and mathematical formulations across all 8 tiers", () => {
     // Check that every layer's formula has valid TeX commands
     LAYER_INFO.forEach((l) => {
-      expect(l.formula).toMatch(/(\\text|\\sum|\\arg|\\vec|\\mathcal|\\hookrightarrow)/);
+      expect(l.formula).toMatch(
+        /(\\text|\\sum|\\arg|\\vec|\\mathcal|\\hookrightarrow)/,
+      );
     });
 
     // Check all presets have distinct winner tokens that match winner token in candidate list
@@ -223,5 +255,3 @@ describe("3D WebGL Visualization Components", () => {
     });
   });
 });
-
-

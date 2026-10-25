@@ -31,6 +31,7 @@ import {
   type ChatRequest,
   type Flags,
 } from "@/lib/api";
+import { parseChatPreferences } from "@/lib/workspace-preferences";
 import { DocumentsPanel } from "./documents-panel";
 import { MessageMetrics } from "./message-metrics";
 import { ProcessingProgress } from "./processing-progress";
@@ -77,10 +78,15 @@ export function getCleanModelName(configId: string, modelId?: string): string {
   if (lower.includes("120b")) return "GPT OSS 120B (Groq)";
   if (lower.includes("3.8-27b")) return "Qwen 3.8 27B (Groq)";
   if (lower.includes("20b")) return "GPT OSS 20B (Groq)";
-  if (lower.includes("llama-3.3-70b") && lower.includes("groq")) return "Llama 3.3 70B (Groq)";
+  if (lower.includes("llama-3.3-70b") && lower.includes("groq"))
+    return "Llama 3.3 70B (Groq)";
   if (lower.includes("llama-3.3-70b-versatile")) return "Llama 3.3 70B (Groq)";
   if (lower.includes("qwen-2.5-coder-32b")) return "Qwen 2.5 Coder 32B (Groq)";
-  if (lower.includes("llama-3.1-8b-instant") || (lower.includes("llama-3.1-8b") && lower.includes("groq"))) return "Llama 3.1 8B (Groq)";
+  if (
+    lower.includes("llama-3.1-8b-instant") ||
+    (lower.includes("llama-3.1-8b") && lower.includes("groq"))
+  )
+    return "Llama 3.1 8B (Groq)";
   if (lower.includes("gemini-2.0-flash")) return "Gemini 2.0 Flash (Free)";
   if (lower.includes("deepseek-r1")) return "DeepSeek R1 (Free)";
   if (lower.includes("llama-3.3-70b")) return "Llama 3.3 70B (Free)";
@@ -211,7 +217,9 @@ export function ChatPanel({
   const source = models.data?.[0]?.execution_source ?? "mock";
   const genuineModels = useMemo(() => {
     if (!models.data) return [];
-    const nonEmbeddings = models.data.filter((m) => m.endpoint !== "embeddings");
+    const nonEmbeddings = models.data.filter(
+      (m) => m.endpoint !== "embeddings",
+    );
     const nonMock = nonEmbeddings.filter(
       (m) =>
         !m.config_id.toLowerCase().startsWith("mock-") &&
@@ -248,10 +256,15 @@ export function ChatPanel({
     return { fast, code, reasoning };
   }, [genuineModels]);
 
-  const [candidateOverride, setCandidateOverride] = useState<string | null>(null);
+  const [candidateOverride, setCandidateOverride] = useState<string | null>(
+    null,
+  );
 
   const selectedCandidate = useMemo(() => {
-    if (candidateOverride && genuineModels.some((m) => m.config_id === candidateOverride)) {
+    if (
+      candidateOverride &&
+      genuineModels.some((m) => m.config_id === candidateOverride)
+    ) {
       return candidateOverride;
     }
     const preferred = genuineModels.find(
@@ -264,6 +277,7 @@ export function ChatPanel({
 
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<"baseline" | "optimized">("optimized");
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [flags, setFlags] = useState<Flags>(allFlags);
   const [configOpen, setConfigOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -278,6 +292,29 @@ export function ChatPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const saved = parseChatPreferences(
+        window.localStorage.getItem(`smart-llm:chat-preferences:${userId}`),
+      );
+      if (saved) {
+        setMode(saved.mode);
+        setCandidateOverride(saved.candidate);
+      }
+      setPreferencesLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    window.localStorage.setItem(
+      `smart-llm:chat-preferences:${userId}`,
+      JSON.stringify({ mode, candidate: selectedCandidate }),
+    );
+  }, [preferencesLoaded, mode, selectedCandidate, userId]);
+
   const detail = useQuery({
     queryKey: ["session", userId, selected],
     enabled: !!selected,
@@ -310,11 +347,15 @@ export function ChatPanel({
   }, [messages.length, busy, pendingPrompt, lastContent]);
 
   useEffect(() => {
-    nearBottom.current = true;
-    setPendingPrompt(null);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-    }
+    const timer = window.setTimeout(() => {
+      nearBottom.current = true;
+      setPendingPrompt(null);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop =
+          scrollContainerRef.current.scrollHeight;
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [selected]);
 
   async function resendSessionPrompt(
@@ -348,9 +389,7 @@ export function ChatPanel({
         ...(effectiveMode === "optimized"
           ? {
               policy_id:
-                source === "live"
-                  ? "quality-guarded-v3"
-                  : "foundation-mock-v3",
+                source === "live" ? "quality-guarded-v3" : "foundation-mock-v3",
             }
           : selectedCandidate
             ? { policy_id: `fixed_candidate:${selectedCandidate}` }
@@ -541,8 +580,12 @@ export function ChatPanel({
               </button>
             </div>
           )}
-          {!detail.isLoading && !messages.length && !detail.isError && (
-            selected && detail.data?.title && detail.data.title !== t("newChat") ? (
+          {!detail.isLoading &&
+            !messages.length &&
+            !detail.isError &&
+            (selected &&
+            detail.data?.title &&
+            detail.data.title !== t("newChat") ? (
               <div className="empty-session-notice">
                 <div className="empty-session-card">
                   <div className="empty-session-badge">
@@ -635,8 +678,7 @@ export function ChatPanel({
                   </button>
                 </div>
               </div>
-            )
-          )}
+            ))}
           {(!!messages.length || !!pendingPrompt) && (
             <div className="message-list">
               {messages.map((message, index) => (
@@ -694,7 +736,9 @@ export function ChatPanel({
                   <div className="message-body">
                     <header>
                       <strong>{t("you")}</strong>
-                      <span className="optimistic-pill">{t("optimisticSending")}</span>
+                      <span className="optimistic-pill">
+                        {t("optimisticSending")}
+                      </span>
                     </header>
                     <div className="message-content">{pendingPrompt}</div>
                   </div>
@@ -808,10 +852,7 @@ export function ChatPanel({
               </div>
             ) : (
               <div className="auto-model-display">
-                <span
-                  className="mode-tag-pill auto"
-                  title={t("modeAutoHint")}
-                >
+                <span className="mode-tag-pill auto" title={t("modeAutoHint")}>
                   {t("modeAutoPill")}
                 </span>
               </div>
@@ -851,7 +892,10 @@ export function ChatPanel({
               {mode === "baseline" ? (
                 <span className="active-mode-subtext">
                   {t("modeDirectSubtext", {
-                    model: getCleanModelName(selectedCandidate, selectedCandidate),
+                    model: getCleanModelName(
+                      selectedCandidate,
+                      selectedCandidate,
+                    ),
                   })}
                 </span>
               ) : (

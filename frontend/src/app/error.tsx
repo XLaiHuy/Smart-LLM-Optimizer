@@ -9,8 +9,17 @@ export default function ErrorPage({
   return (
     <main className="fatal">
       <h1>Không thể tải trang / Unable to load page</h1>
-      <p style={{ color: "#64748b", fontSize: 14, margin: "8px 0 16px", maxWidth: 600 }}>
-        Máy chủ đang bận hoặc đang khởi động lại. Vui lòng bấm thử lại hoặc tải lại trang. / The server is busy or restarting. Please try again or reload the page.
+      <p
+        style={{
+          color: "#64748b",
+          fontSize: 14,
+          margin: "8px 0 16px",
+          maxWidth: 600,
+        }}
+      >
+        Máy chủ đang bận hoặc đang khởi động lại. Vui lòng bấm thử lại hoặc tải
+        lại trang. / The server is busy or restarting. Please try again or
+        reload the page.
       </p>
       {error?.message && (
         <pre

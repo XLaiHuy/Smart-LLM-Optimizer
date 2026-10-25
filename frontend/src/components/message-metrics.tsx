@@ -84,10 +84,7 @@ export function MessageMetrics({
           <span className="mock-badge">{i(data.execution_source)}</span>
         )}
         {isBaseline && (
-          <span
-            className="baseline-tag-pill"
-            title={i("baselineHint")}
-          >
+          <span className="baseline-tag-pill" title={i("baselineHint")}>
             {i("baselineTag")}
           </span>
         )}

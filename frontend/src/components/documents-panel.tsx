@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { FileUp, FileText, Trash2, Eye } from "lucide-react";
 import { api, unwrap, ApiError } from "@/lib/api";
+import { shouldPollDocumentJobs } from "@/lib/workspace-preferences";
 import { Drawer, ErrorNotice, Spinner } from "./ui";
 
 export function DocumentsPanel({
@@ -47,7 +48,7 @@ export function DocumentsPanel({
   const jobs = useQuery({
     queryKey: ["document-jobs", userId, sessionId],
     enabled: !!sessionId,
-    refetchInterval: 1000,
+    refetchInterval: (query) => shouldPollDocumentJobs(query.state.data),
     queryFn: async () =>
       unwrap(
         await api.GET("/v1/sessions/{session_id}/document-jobs", {
@@ -80,13 +81,14 @@ export function DocumentsPanel({
     onBusy(active);
   }, [active, onBusy]);
   useEffect(() => {
+    if (!jobs.data) return;
     void client.invalidateQueries({
       queryKey: ["documents", userId, sessionId],
     });
     void client.invalidateQueries({ queryKey: ["session", userId, sessionId] });
     void client.invalidateQueries({ queryKey: ["sessions", userId] });
     void client.invalidateQueries({ queryKey: ["usage", userId] });
-  }, [signature, client, userId, sessionId]);
+  }, [signature, jobs.data, client, userId, sessionId]);
   function choose(ids: string[]) {
     setSelected(ids);
     onSelected(
