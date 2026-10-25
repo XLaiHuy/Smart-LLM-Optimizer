@@ -132,6 +132,31 @@ async def test_research_offline_matrix_isolated_deduped_and_exported(app, client
     assert (await client.get("/v1/research/configs")).status_code == 403
     await admin_login(app, client)
 
+    lab = (await client.get("/v1/research/lab")).json()
+    modules = {module["id"]: module for module in lab["modules"]}
+    assert modules["router"] == {
+        "id": "router",
+        "implemented": True,
+        "status": "requires_qualified_data",
+    }
+    assert modules["prompt"] == {
+        "id": "prompt",
+        "implemented": False,
+        "status": "not_implemented",
+    }
+    assert modules["memory"] == {
+        "id": "memory",
+        "implemented": False,
+        "status": "not_implemented",
+    }
+
+    unavailable = await client.post(
+        "/v1/research/ablation",
+        json={"size": 500, "router": True, "prompt": True, "memory": True},
+    )
+    assert unavailable.status_code == 409
+    assert unavailable.json()["error"]["code"] == "BENCHMARK_NOT_READY"
+
     def no_network(*args, **kwargs):
         raise AssertionError("Simulation opened a network connection")
 

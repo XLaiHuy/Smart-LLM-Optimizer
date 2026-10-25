@@ -69,7 +69,11 @@ export type {
   PolicyCandidateMetrics,
 } from "./pareto-frontier-space";
 
-export { PipelineFlow3D, SIMULATION_PRESETS, LAYER_INFO } from "./pipeline-flow-3d";
+export {
+  PipelineFlow3D,
+  SIMULATION_PRESETS,
+  LAYER_INFO,
+} from "./pipeline-flow-3d";
 export type {
   PipelineFlow3DProps,
   PipelineSimulationPreset,

@@ -66,7 +66,8 @@ export const SIMULATION_PRESETS: PipelineSimulationPreset[] = [
       "Tính tích phân bội hai của hàm f(x,y) = x^2 * exp(-y) trên miền giới hạn D và chứng minh sự hội tụ theo tiêu chuẩn Weierstrass.",
     inputTokens: 1680,
     memorySlotsHit: 3,
-    memoryFact: "Ký ức: Người dùng yêu cầu chứng minh chặt chẽ từng bước bằng ký hiệu LaTeX chuẩn",
+    memoryFact:
+      "Ký ức: Người dùng yêu cầu chứng minh chặt chẽ từng bước bằng ký hiệu LaTeX chuẩn",
     compactedTokens: 720,
     compactionPct: 57,
     attentionScores: {
@@ -100,7 +101,8 @@ export const SIMULATION_PRESETS: PipelineSimulationPreset[] = [
       "Thiết kế kiến trúc Concurrency chống Race Condition trong SQLite WAL pool cho microservice FastAPI chịu tải cao.",
     inputTokens: 2450,
     memorySlotsHit: 4,
-    memoryFact: "Ký ức: Tech stack gồm FastAPI, Python 3.12, SQLite WAL pool, Redis advisory locks",
+    memoryFact:
+      "Ký ức: Tech stack gồm FastAPI, Python 3.12, SQLite WAL pool, Redis advisory locks",
     compactedTokens: 1050,
     compactionPct: 57,
     attentionScores: {
@@ -134,7 +136,8 @@ export const SIMULATION_PRESETS: PipelineSimulationPreset[] = [
       "Trích xuất nhanh các điều kiện xét học bổng khuyến khích học tập và mức cảnh báo học vụ từ quy chế OU 2026.",
     inputTokens: 3800,
     memorySlotsHit: 3,
-    memoryFact: "Ký ức: Sinh viên Khoa CNTT khóa 2022, chương trình chuẩn Trường ĐH Mở TP.HCM",
+    memoryFact:
+      "Ký ức: Sinh viên Khoa CNTT khóa 2022, chương trình chuẩn Trường ĐH Mở TP.HCM",
     compactedTokens: 1590,
     compactionPct: 58,
     attentionScores: {
@@ -168,7 +171,8 @@ export const SIMULATION_PRESETS: PipelineSimulationPreset[] = [
       "Cài đặt thuật toán Dijkstra tìm đường đi ngắn nhất với Priority Queue trong Python và phân tích độ phức tạp O((V + E) log V).",
     inputTokens: 1350,
     memorySlotsHit: 2,
-    memoryFact: "Ký ức: Ưu tiên mã nguồn Python 3 tối ưu bộ nhớ và kèm type hints",
+    memoryFact:
+      "Ký ức: Ưu tiên mã nguồn Python 3 tối ưu bộ nhớ và kèm type hints",
     compactedTokens: 620,
     compactionPct: 54,
     attentionScores: {
@@ -232,10 +236,12 @@ export const SIMULATION_PRESETS: PipelineSimulationPreset[] = [
     id: "daily_dialogue",
     name: "Hội Thoại Thường Nhật & Hỏi Đáp Nhanh (Daily Dialogue)",
     category: "Casual Inquiries / Fast",
-    prompt: "Chào bạn, hôm nay thời tiết thế nào và bạn có thể gợi ý cho tôi kế hoạch học tập buổi tối không?",
+    prompt:
+      "Chào bạn, hôm nay thời tiết thế nào và bạn có thể gợi ý cho tôi kế hoạch học tập buổi tối không?",
     inputTokens: 380,
     memorySlotsHit: 1,
-    memoryFact: "Ký ức: Người dùng là sinh viên năm cuối đang chuẩn bị đồ án tốt nghiệp",
+    memoryFact:
+      "Ký ức: Người dùng là sinh viên năm cuối đang chuẩn bị đồ án tốt nghiệp",
     compactedTokens: 190,
     compactionPct: 50,
     attentionScores: {
@@ -286,7 +292,8 @@ export const LAYER_INFO = [
     title: "Tầng 2: Holographic KV Fact Memory Vault",
     module: "Module Khoa (Session Memory)",
     color: "#10b981",
-    formula: "K_{retrieved}, V_{retrieved} = \\text{TopK}_{\\cos}(\\vec{q}, \\mathcal{M}_{facts})",
+    formula:
+      "K_{retrieved}, V_{retrieved} = \\text{TopK}_{\\cos}(\\vec{q}, \\mathcal{M}_{facts})",
     description:
       "Kho lưu trữ ký ức dài hạn dạng vòng đồng tâm. Tự động truy xuất các sự thật đã ghim (Pinned Facts) và ngữ cảnh hội thoại đa lượt bằng chùm laser hologram để tiêm vào chuỗi token.",
   },
@@ -295,7 +302,8 @@ export const LAYER_INFO = [
     title: "Tầng 3: Adaptive Entropy Token Sieve",
     module: "Module Tân (Prompt Compactor)",
     color: "#38bdf8",
-    formula: "H(x_i) = -\\sum p \\log p \\ge \\tau_{entropy} \\implies \\text{Retain}(x_i)",
+    formula:
+      "H(x_i) = -\\sum p \\log p \\ge \\tau_{entropy} \\implies \\text{Retain}(x_i)",
     description:
       "Mặt phẳng quét laser Entropy phân tách các từ đệm dễ đoán tan biến thành bụi ánh sáng. Giữ nguyên 100% cấu trúc Toán, Code và Thực thể quan trọng, nén chặt 52% - 58% kích thước tensor.",
   },
@@ -304,7 +312,8 @@ export const LAYER_INFO = [
     title: "Tầng 4: 6D Attention Prism & Pareto Decision Lens",
     module: "Module Huy (ML Multi-task Router)",
     color: "#8b5cf6",
-    formula: "\\vec{\\alpha}_{6D} = \\text{SDPA}(Q_{task}, K_{x}, V_{x}), \\quad \\kappa = \\vec{\\alpha} \\cdot \\vec{w}_{task}",
+    formula:
+      "\\vec{\\alpha}_{6D} = \\text{SDPA}(Q_{task}, K_{x}, V_{x}), \\quad \\kappa = \\vec{\\alpha} \\cdot \\vec{w}_{task}",
     description:
       "Lăng kính thạch anh 6 chiều chiếu các vector tác vụ (Toán, Code, Suy luận, Trích xuất, Viết, Đa ngữ) qua 3 đĩa thấu kính Pareto (Chi phí, Độ trễ, Chất lượng) và Task Complexity Head κ để chọn mô hình tối ưu.",
   },
@@ -313,7 +322,8 @@ export const LAYER_INFO = [
     title: "Tầng 5: Target Model Compute Array",
     module: "Bệ Máy Chủ Đích (Compute Cluster)",
     color: "#f59e0b",
-    formula: "\\mathcal{M}^* = \\arg\\max_{\\mathcal{M} \\in \\mathcal{P}} \\mathcal{U}(\\mathcal{M} \\mid \\text{Cost}, \\text{Latency}, \\text{PassRate})",
+    formula:
+      "\\mathcal{M}^* = \\arg\\max_{\\mathcal{M} \\in \\mathcal{P}} \\mathcal{U}(\\mathcal{M} \\mid \\text{Cost}, \\text{Latency}, \\text{PassRate})",
     description:
       "Bệ máy chủ bán nguyệt obsidian bóng gương chứa các mô hình: GPT OSS 120B, Qwen 3.8 27B, GPT OSS 20B, GPT-6 Luna, GPT-5.6 Terra, GPT-6.1 Sol. Cột sáng laser kích hoạt máy chủ chiến thắng.",
   },
@@ -322,7 +332,8 @@ export const LAYER_INFO = [
     title: "Tầng 6: Transformer Core Decoder Stack (3Blue1Brown)",
     module: "Lõi Giải Mã Transformer (Decoder Blocks)",
     color: "#00d2ff",
-    formula: "\\text{Attention}(Q,K,V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V, \\quad \\text{FFN}(x) = \\text{SwiGLU}(x)",
+    formula:
+      "\\text{Attention}(Q,K,V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V, \\quad \\text{FFN}(x) = \\text{SwiGLU}(x)",
     description:
       "Mô phỏng 3D chính xác cơ chế của 3Blue1Brown & bbycroft: Phép chiếu ma trận Q, K, V, bản đồ nhiệt Attention Score Map, bộ nhớ FlashAttention KV-Cache, tầng mở rộng SwiGLU 4x và ống dẫn tắt Skip Connection RMSNorm.",
   },
@@ -331,7 +342,8 @@ export const LAYER_INFO = [
     title: "Tầng 7: LM Head & Softmax Probability Tower (3Blue1Brown)",
     module: "Tháp Xác Suất Softmax (Unembedding & Sampling)",
     color: "#f59e0b",
-    formula: "P(w_i) = \\frac{e^{z_i / T}}{\\sum_j e^{z_j / T}}, \\quad \\sum_{i \\in V^{(p)}} P(w_i) \\ge p",
+    formula:
+      "P(w_i) = \\frac{e^{z_i / T}}{\\sum_j e^{z_j / T}}, \\quad \\sum_{i \\in V^{(p)}} P(w_i) \\ge p",
     description:
       "Chiếu ngược ẩn trạng thái (Unembedding) sang không gian 128.000 logits. Tháp biểu đồ cột 3D hiển thị phân phối Softmax cho các token ứng viên; con trỏ Top-p / Nhiệt độ Temperature chọn token chiến thắng cao nhất.",
   },
@@ -340,7 +352,8 @@ export const LAYER_INFO = [
     title: "Tầng 8: Autoregressive SSE Stream & Chat Delivery",
     module: "Vòng Hồi Quy & Kênh SSE Phát Thời Gian Thực",
     color: "#10b981",
-    formula: "x_{t+1} \\hookrightarrow \\text{KV-Cache}(t+1) \\quad \\& \\quad x_{t+1} \\xrightarrow{\\text{SSE Chunk}} \\text{Chat Typewriter}",
+    formula:
+      "x_{t+1} \\hookrightarrow \\text{KV-Cache}(t+1) \\quad \\& \\quad x_{t+1} \\xrightarrow{\\text{SSE Chunk}} \\text{Chat Typewriter}",
     description:
       "Token chiến thắng tách làm 2 nhánh: Nhánh 1 bay ngược theo đường cong spline phát sáng nạp vào KV-Cache tầng 6 cho bước giải mã kế tiếp; Nhánh 2 phóng thẳng qua cáp quang hiển thị ngay lên khung Chat qua SSE.",
   },
@@ -430,7 +443,10 @@ export function createTextSprite(
     }
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
-    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const spriteMat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
     const sprite = new THREE.Sprite(spriteMat);
     sprite.scale.set(1.1, 0.28, 1);
     return sprite;
@@ -447,6 +463,10 @@ export function PipelineFlow3D({
   const mountRef = useRef<HTMLDivElement>(null);
   const [selectedPresetId, setSelectedPresetId] = useState(initialPresetId);
   const [activeLayer, setActiveLayer] = useState<number>(1);
+  const activeLayerRef = useRef(activeLayer);
+  useEffect(() => {
+    activeLayerRef.current = activeLayer;
+  }, [activeLayer]);
   const [isPlaying, setIsPlaying] = useState(true);
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
@@ -466,7 +486,9 @@ export function PipelineFlow3D({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
   // Smooth camera interpolation targets
-  const targetCamPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.2, 24.0));
+  const targetCamPosRef = useRef<THREE.Vector3>(
+    new THREE.Vector3(0, 1.2, 24.0),
+  );
   const targetLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
   const isTransitioningCameraRef = useRef<boolean>(false);
 
@@ -491,7 +513,14 @@ export function PipelineFlow3D({
   const particlesDownRef = useRef<THREE.Mesh[]>([]);
   const particlesReturnRef = useRef<THREE.Mesh[]>([]);
   const particlesSseRef = useRef<THREE.Mesh[]>([]);
-  const synapsePhotonsRef = useRef<{ mesh: THREE.Mesh; points: THREE.Vector3[]; speed: number; offset: number }[]>([]);
+  const synapsePhotonsRef = useRef<
+    {
+      mesh: THREE.Mesh;
+      points: THREE.Vector3[];
+      speed: number;
+      offset: number;
+    }[]
+  >([]);
   const ropeWaveRibbonRef = useRef<THREE.Line | null>(null);
   const mistParticlesRef = useRef<THREE.Points | null>(null);
   const jewelMeshRef = useRef<THREE.Mesh | null>(null);
@@ -650,7 +679,12 @@ export function PipelineFlow3D({
     ropeWaveRibbonRef.current = waveLine;
 
     // 3D In-scene Label Sprite
-    const l1Sprite = createTextSprite("T1: Token Embeddings + RoPE", "#00d2ff", "rgba(15, 23, 42, 0.82)", 24);
+    const l1Sprite = createTextSprite(
+      "T1: Token Embeddings + RoPE",
+      "#00d2ff",
+      "rgba(15, 23, 42, 0.82)",
+      24,
+    );
     l1Sprite.position.set(0, 0.8, 1.8);
     l1Group.add(l1Sprite);
 
@@ -723,7 +757,12 @@ export function PipelineFlow3D({
       }
     }
 
-    const l2Sprite = createTextSprite("T2: Khoa KV Memory Vault", "#10b981", "rgba(15, 23, 42, 0.82)", 24);
+    const l2Sprite = createTextSprite(
+      "T2: Khoa KV Memory Vault",
+      "#10b981",
+      "rgba(15, 23, 42, 0.82)",
+      24,
+    );
     l2Sprite.position.set(0, 0.9, 2.8);
     l2Group.add(l2Sprite);
 
@@ -787,7 +826,10 @@ export function PipelineFlow3D({
       mistPositions[m * 3 + 1] = (Math.random() - 0.5) * 0.8;
       mistPositions[m * 3 + 2] = (Math.random() - 0.5) * 3.0;
     }
-    mistGeo.setAttribute("position", new THREE.BufferAttribute(mistPositions, 3));
+    mistGeo.setAttribute(
+      "position",
+      new THREE.BufferAttribute(mistPositions, 3),
+    );
     const mistMat = new THREE.PointsMaterial({
       color: 0x94a3b8,
       size: 0.065,
@@ -798,7 +840,12 @@ export function PipelineFlow3D({
     l3Group.add(mist);
     mistParticlesRef.current = mist;
 
-    const l3Sprite = createTextSprite("T3: Tân Entropy Sieve (-55%)", "#38bdf8", "rgba(15, 23, 42, 0.82)", 24);
+    const l3Sprite = createTextSprite(
+      "T3: Tân Entropy Sieve (-55%)",
+      "#38bdf8",
+      "rgba(15, 23, 42, 0.82)",
+      24,
+    );
     l3Sprite.position.set(0, 1.0, 1.8);
     l3Group.add(l3Sprite);
 
@@ -850,12 +897,19 @@ export function PipelineFlow3D({
       l4Group.add(new THREE.Line(rayGeo, rayMat));
 
       const headSphereGeo = new THREE.SphereGeometry(0.14, 14, 14);
-      const headSphereMat = new THREE.MeshBasicMaterial({ color: taskDefs[r].color });
+      const headSphereMat = new THREE.MeshBasicMaterial({
+        color: taskDefs[r].color,
+      });
       const headSphere = new THREE.Mesh(headSphereGeo, headSphereMat);
       headSphere.position.set(rx, 0, rz);
       l4Group.add(headSphere);
 
-      const taskSprite = createTextSprite(taskDefs[r].name, `#${taskDefs[r].color.toString(16).padStart(6, "0")}`, "rgba(15, 23, 42, 0.75)", 20);
+      const taskSprite = createTextSprite(
+        taskDefs[r].name,
+        `#${taskDefs[r].color.toString(16).padStart(6, "0")}`,
+        "rgba(15, 23, 42, 0.75)",
+        20,
+      );
       taskSprite.position.set(rx * 1.18, 0.35, rz * 1.18);
       taskSprite.scale.set(0.7, 0.2, 1);
       l4Group.add(taskSprite);
@@ -884,7 +938,12 @@ export function PipelineFlow3D({
     });
     paretoRingsRef.current = paretoRings;
 
-    const l4Sprite = createTextSprite("T4: Huy 6D Attention & Pareto Lens", "#8b5cf6", "rgba(15, 23, 42, 0.82)", 24);
+    const l4Sprite = createTextSprite(
+      "T4: Huy 6D Attention & Pareto Lens",
+      "#8b5cf6",
+      "rgba(15, 23, 42, 0.82)",
+      24,
+    );
     l4Sprite.position.set(0, 1.0, 2.6);
     l4Group.add(l4Sprite);
 
@@ -908,7 +967,12 @@ export function PipelineFlow3D({
     l5Group.add(l5PedMesh);
 
     // 5 Server Blades along the semicircle arc
-    const towers: { id: string; mesh: THREE.Mesh; beacon: THREE.Mesh; defColor: number }[] = [];
+    const towers: {
+      id: string;
+      mesh: THREE.Mesh;
+      beacon: THREE.Mesh;
+      defColor: number;
+    }[] = [];
     const defaultWinnerId = SIMULATION_PRESETS[0].winnerModelId;
     SERVER_MODEL_DEFS.forEach((def) => {
       const towerGeo = new THREE.BoxGeometry(0.8, 1.3, 0.8);
@@ -934,16 +998,26 @@ export function PipelineFlow3D({
       l5Group.add(beacon);
 
       // Server Blade Name Label
-      const serverSprite = createTextSprite(def.name, `#${def.color.toString(16).padStart(6, "0")}`, "rgba(15, 23, 42, 0.82)", 20);
+      const serverSprite = createTextSprite(
+        def.name,
+        `#${def.color.toString(16).padStart(6, "0")}`,
+        "rgba(15, 23, 42, 0.82)",
+        20,
+      );
       serverSprite.position.set(def.pos[0], def.pos[1] + 1.15, def.pos[2]);
       serverSprite.scale.set(0.85, 0.24, 1);
       l5Group.add(serverSprite);
 
       // Capability Tier Badge
       if (def.tier) {
-        const tierSprite = createTextSprite(def.tier, def.tierColor || "#ffffff", "rgba(15, 23, 42, 0.88)", 16);
+        const tierSprite = createTextSprite(
+          def.tier,
+          def.tierColor || "#ffffff",
+          "rgba(15, 23, 42, 0.88)",
+          16,
+        );
         tierSprite.position.set(def.pos[0], def.pos[1] + 1.48, def.pos[2]);
-        tierSprite.scale.set(0.85, 0.20, 1);
+        tierSprite.scale.set(0.85, 0.2, 1);
         l5Group.add(tierSprite);
       }
 
@@ -962,7 +1036,11 @@ export function PipelineFlow3D({
       opacity: 0.85,
     });
     const laserBeam = new THREE.Mesh(laserBeamGeo, laserBeamMat);
-    laserBeam.position.set(winningDef.pos[0] * 0.5, 1.2, winningDef.pos[2] * 0.5);
+    laserBeam.position.set(
+      winningDef.pos[0] * 0.5,
+      1.2,
+      winningDef.pos[2] * 0.5,
+    );
     l5Group.add(laserBeam);
     serverLaserBeamRef.current = laserBeam;
 
@@ -1009,7 +1087,12 @@ export function PipelineFlow3D({
       qMesh.position.set(qkv.x, 0.6, 0);
       l6Group.add(qMesh);
 
-      const qkvSprite = createTextSprite(qkv.name, "#ffffff", "rgba(15, 23, 42, 0.82)", 24);
+      const qkvSprite = createTextSprite(
+        qkv.name,
+        "#ffffff",
+        "rgba(15, 23, 42, 0.82)",
+        24,
+      );
       qkvSprite.position.set(qkv.x, 1.05, 0);
       qkvSprite.scale.set(0.65, 0.2, 1);
       l6Group.add(qkvSprite);
@@ -1040,7 +1123,12 @@ export function PipelineFlow3D({
       cacheMesh.position.set(-2.8, 0.15 + c * 0.22, 0);
       l6Group.add(cacheMesh);
     }
-    const cacheLabel = createTextSprite("KV-Cache Bank", "#10b981", "rgba(15, 23, 42, 0.8)", 20);
+    const cacheLabel = createTextSprite(
+      "KV-Cache Bank",
+      "#10b981",
+      "rgba(15, 23, 42, 0.8)",
+      20,
+    );
     cacheLabel.position.set(-2.8, 1.15, 0);
     cacheLabel.scale.set(0.75, 0.2, 1);
     l6Group.add(cacheLabel);
@@ -1060,7 +1148,12 @@ export function PipelineFlow3D({
     mlpExp.position.set(0, -0.55, 0);
     l6Group.add(mlpExp);
 
-    const ffnSprite = createTextSprite("SwiGLU FFN (4x d_model)", "#f59e0b", "rgba(15, 23, 42, 0.82)", 24);
+    const ffnSprite = createTextSprite(
+      "SwiGLU FFN (4x d_model)",
+      "#f59e0b",
+      "rgba(15, 23, 42, 0.82)",
+      24,
+    );
     ffnSprite.position.set(0, -0.9, 0.6);
     ffnSprite.scale.set(1.2, 0.26, 1);
     l6Group.add(ffnSprite);
@@ -1112,7 +1205,12 @@ export function PipelineFlow3D({
     topp.position.set(0, 0.85, 0.3);
     l7Group.add(topp);
 
-    const toppLabel = createTextSprite("Top-p Cutoff (p=0.90)", "#ef4444", "rgba(15, 23, 42, 0.8)", 20);
+    const toppLabel = createTextSprite(
+      "Top-p Cutoff (p=0.90)",
+      "#ef4444",
+      "rgba(15, 23, 42, 0.8)",
+      20,
+    );
     toppLabel.position.set(2.6, 0.85, 0.3);
     toppLabel.scale.set(0.9, 0.22, 1);
     l7Group.add(toppLabel);
@@ -1148,7 +1246,13 @@ export function PipelineFlow3D({
       new THREE.Vector3(-3.8, (LAYER_Y[7] + LAYER_Y[5]) / 2, 1.2),
       new THREE.Vector3(-2.8, LAYER_Y[5] + 0.2, 0),
     ]);
-    const returnTubeGeo = new THREE.TubeGeometry(returnSpline, 48, 0.055, 8, false);
+    const returnTubeGeo = new THREE.TubeGeometry(
+      returnSpline,
+      48,
+      0.055,
+      8,
+      false,
+    );
     const returnTubeMat = new THREE.MeshBasicMaterial({
       color: 0x8b5cf6,
       transparent: true,
@@ -1172,7 +1276,12 @@ export function PipelineFlow3D({
     scene.add(new THREE.Mesh(sseTubeGeo, sseTubeMat));
     const ssePoints = sseSpline.getPoints(24);
 
-    const l8Sprite = createTextSprite("T8: Autoregressive Loop & SSE Stream", "#10b981", "rgba(15, 23, 42, 0.82)", 24);
+    const l8Sprite = createTextSprite(
+      "T8: Autoregressive Loop & SSE Stream",
+      "#10b981",
+      "rgba(15, 23, 42, 0.82)",
+      24,
+    );
     l8Sprite.position.set(0, 1.1, 1.8);
     l8Group.add(l8Sprite);
 
@@ -1185,7 +1294,12 @@ export function PipelineFlow3D({
     const synapseGroup = new THREE.Group();
     scene.add(synapseGroup);
 
-    const synapsePhotons: { mesh: THREE.Mesh; points: THREE.Vector3[]; speed: number; offset: number }[] = [];
+    const synapsePhotons: {
+      mesh: THREE.Mesh;
+      points: THREE.Vector3[];
+      speed: number;
+      offset: number;
+    }[] = [];
     const photonSphereGeo = new THREE.SphereGeometry(0.048, 8, 8);
     const photonSphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
@@ -1324,7 +1438,8 @@ export function PipelineFlow3D({
     // ANIMATION & RENDER LOOP (High-Performance 60 FPS, O(1) Precomputed Lookups)
     // =========================================================================
     let animId: number;
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
     let pulseTime = 0;
     let isVisible = true;
 
@@ -1332,17 +1447,21 @@ export function PipelineFlow3D({
       ([entry]) => {
         isVisible = entry.isIntersecting;
       },
-      { threshold: 0.05 }
+      { threshold: 0.05 },
     );
     observer.observe(container);
 
-    const animate = () => {
+    const animate = (timestamp: number) => {
       animId = requestAnimationFrame(animate);
 
       // Skip render when offscreen or browser tab is hidden to save GPU/CPU
       if (!isVisible || document.hidden) return;
 
-      const delta = Math.min(clock.getDelta(), 0.1);
+      timer.update(timestamp);
+      const measuredDelta = timer.getDelta();
+      const delta = Number.isFinite(measuredDelta)
+        ? Math.min(Math.max(measuredDelta, 0), 0.1)
+        : 0;
       pulseTime += delta;
 
       // Smooth camera and controls interpolation
@@ -1362,7 +1481,7 @@ export function PipelineFlow3D({
 
       // Smooth Neon Halo Bounding Box lerp & pulse
       if (haloBoundingBoxRef.current) {
-        const targetY = LAYER_Y[activeLayer - 1];
+        const targetY = LAYER_Y[activeLayerRef.current - 1];
         haloBoundingBoxRef.current.position.y = THREE.MathUtils.lerp(
           haloBoundingBoxRef.current.position.y,
           targetY,
@@ -1370,20 +1489,26 @@ export function PipelineFlow3D({
         );
 
         if (haloLineMatRef.current) {
-          haloLineMatRef.current.opacity = 0.75 + Math.sin(pulseTime * 4.5) * 0.24;
+          haloLineMatRef.current.opacity =
+            0.75 + Math.sin(pulseTime * 4.5) * 0.24;
         }
         if (haloPlaneMatRef.current) {
-          haloPlaneMatRef.current.opacity = 0.07 + Math.sin(pulseTime * 4.5) * 0.04;
+          haloPlaneMatRef.current.opacity =
+            0.07 + Math.sin(pulseTime * 4.5) * 0.04;
         }
       }
 
       if (isPlayingRef.current) {
         // Layer 1: RoPE Wave phase animation
         if (ropeWaveRibbonRef.current) {
-          const positions = ropeWaveRibbonRef.current.geometry.attributes.position;
+          const positions =
+            ropeWaveRibbonRef.current.geometry.attributes.position;
           for (let i = 0; i < positions.count; i++) {
             const x = positions.getX(i);
-            positions.setY(i, 0.25 + Math.sin(x * 2.8 + pulseTime * 3.2) * 0.22);
+            positions.setY(
+              i,
+              0.25 + Math.sin(x * 2.8 + pulseTime * 3.2) * 0.22,
+            );
             positions.setZ(i, 1.7 + Math.cos(x * 2.8 + pulseTime * 3.2) * 0.15);
           }
           positions.needsUpdate = true;
@@ -1406,7 +1531,8 @@ export function PipelineFlow3D({
         if (shockwaveRingRef.current) {
           const scale = 1.0 + (pulseTime % 1.5) * 1.8;
           shockwaveRingRef.current.scale.set(scale, scale, scale);
-          const mat = shockwaveRingRef.current.material as THREE.MeshBasicMaterial;
+          const mat = shockwaveRingRef.current
+            .material as THREE.MeshBasicMaterial;
           mat.opacity = Math.max(0, 1.0 - (pulseTime % 1.5) / 1.5);
         }
 
@@ -1435,14 +1561,14 @@ export function PipelineFlow3D({
         pRetList.forEach((pm, idx) => {
           const t = (pulseTime * 0.5 + idx / returnCount) % 1.0;
           const pt = returnPoints[Math.min(36, Math.floor(t * 36))];
-          pm.position.set(pt.x, pt.y, pt.z);
+          if (pt) pm.position.copy(pt);
         });
 
         // Loop 2 particles (down SSE optical fiber) - Instant O(1) Precomputed Lookup
         pSseList.forEach((pm, idx) => {
           const t = (pulseTime * 0.8 + idx / sseCount) % 1.0;
           const pt = ssePoints[Math.min(24, Math.floor(t * 24))];
-          pm.position.set(pt.x, pt.y, pt.z);
+          if (pt) pm.position.copy(pt);
         });
 
         // Synapse web traveling photon pulses - Instant O(1) Precomputed Lookup
@@ -1451,7 +1577,7 @@ export function PipelineFlow3D({
           const t = (pulseTime * sp.speed + sp.offset) % 1.0;
           const idx = Math.min(24, Math.floor(t * 24));
           const pt = sp.points[idx];
-          sp.mesh.position.set(pt.x, pt.y, pt.z);
+          if (pt) sp.mesh.position.copy(pt);
         }
       }
 
@@ -1459,7 +1585,7 @@ export function PipelineFlow3D({
       renderer.render(scene, camera);
     };
 
-    animate();
+    animId = requestAnimationFrame(animate);
 
     const handleResize = () => {
       if (!container) return;
@@ -1474,6 +1600,7 @@ export function PipelineFlow3D({
     return () => {
       observer.disconnect();
       cancelAnimationFrame(animId);
+      timer.dispose();
       window.removeEventListener("resize", handleResize);
       controls.dispose();
 
@@ -1533,7 +1660,10 @@ export function PipelineFlow3D({
               obj.material.opacity = isActive ? 0.85 : 0.28;
             }
           }
-        } else if (obj instanceof THREE.Line || obj instanceof THREE.LineSegments) {
+        } else if (
+          obj instanceof THREE.Line ||
+          obj instanceof THREE.LineSegments
+        ) {
           if (obj.material instanceof THREE.LineBasicMaterial) {
             obj.material.transparent = true;
             obj.material.opacity = isActive ? 1.0 : 0.28;
@@ -1564,11 +1694,23 @@ export function PipelineFlow3D({
       SERVER_MODEL_DEFS.find((d) => d.id === currentPreset.winnerModelId) ||
       SERVER_MODEL_DEFS[0];
     if (shockwaveRingRef.current) {
-      shockwaveRingRef.current.position.set(winningDef.pos[0], 0.18, winningDef.pos[2]);
+      shockwaveRingRef.current.position.set(
+        winningDef.pos[0],
+        0.18,
+        winningDef.pos[2],
+      );
     }
     if (serverLaserBeamRef.current) {
-      serverLaserBeamRef.current.position.set(winningDef.pos[0] * 0.5, 1.2, winningDef.pos[2] * 0.5);
-      serverLaserBeamRef.current.lookAt(winningDef.pos[0], 0.75, winningDef.pos[2]);
+      serverLaserBeamRef.current.position.set(
+        winningDef.pos[0] * 0.5,
+        1.2,
+        winningDef.pos[2] * 0.5,
+      );
+      serverLaserBeamRef.current.lookAt(
+        winningDef.pos[0],
+        0.75,
+        winningDef.pos[2],
+      );
     }
 
     // 3. Update Layer 7 Probability Bars & In-scene Candidate Token Sprites
@@ -1579,7 +1721,13 @@ export function PipelineFlow3D({
         if (child instanceof THREE.Mesh) {
           child.geometry?.dispose();
         }
-        const mat = (child as any).material;
+        const mat =
+          child instanceof THREE.Mesh ||
+          child instanceof THREE.Line ||
+          child instanceof THREE.Points ||
+          child instanceof THREE.Sprite
+            ? child.material
+            : undefined;
         if (mat) {
           if (Array.isArray(mat)) {
             mat.forEach((m) => {
@@ -1671,15 +1819,18 @@ export function PipelineFlow3D({
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
-              <Layers size={14} /> KIẾN TRÚC 8 TẦNG HOÀN CHỈNH (END-TO-END TRANSFORMER)
+              <Layers size={14} /> KIẾN TRÚC 8 TẦNG HOÀN CHỈNH (END-TO-END
+              TRANSFORMER)
             </span>
           </div>
           <h1 className="mt-1 text-2xl font-bold text-slate-900 tracking-tight">
-            Luồng Trực Quan Hóa 3D Toàn Trình (End-to-End Pipeline & Transformer Core)
+            Luồng Trực Quan Hóa 3D Toàn Trình (End-to-End Pipeline & Transformer
+            Core)
           </h1>
           <p className="text-sm text-slate-500">
-            Hành trình dữ liệu từ Input Tensor, KV Memory Khoa, Nén Tân, Router Huy, Máy chủ,
-            giải mã Transformer QKV & SwiGLU, tháp Logits Softmax đến dòng phát SSE thời gian thực.
+            Hành trình dữ liệu từ Input Tensor, KV Memory Khoa, Nén Tân, Router
+            Huy, Máy chủ, giải mã Transformer QKV & SwiGLU, tháp Logits Softmax
+            đến dòng phát SSE thời gian thực.
           </p>
         </div>
 
@@ -1747,7 +1898,8 @@ export function PipelineFlow3D({
       {/* Step-by-Step Layer Navigator (1 to 8) */}
       <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm">
         <div className="flex items-center gap-1 text-xs text-slate-600 font-semibold px-2">
-          <Eye size={14} className="text-[#005696]" /> Bước duyệt tầng (Step Controller):
+          <Eye size={14} className="text-[#005696]" /> Bước duyệt tầng (Step
+          Controller):
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto py-1">
           <button
@@ -1793,11 +1945,13 @@ export function PipelineFlow3D({
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-semibold text-slate-700">
-                WebGL 3D Engine · 8 Tầng Thần Kinh Liên Tầng (Synapse Web & Lerp Focus)
+                WebGL 3D Engine · 8 Tầng Thần Kinh Liên Tầng (Synapse Web & Lerp
+                Focus)
               </span>
             </div>
             <span className="text-xs text-slate-400">
-              Nhấp & kéo chuột để xoay 360° · Cuộn để zoom · Chọn tầng T1-T8 để zoom chi tiết
+              Nhấp & kéo chuột để xoay 360° · Cuộn để zoom · Chọn tầng T1-T8 để
+              zoom chi tiết
             </span>
           </div>
 
@@ -1883,16 +2037,34 @@ export function PipelineFlow3D({
               {activeLayer === 1 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Raw Token Count:" : "Số lượng Token thô:"}</span>
-                    <strong className="text-slate-800">{currentPreset.inputTokens} tokens</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Raw Token Count:"
+                        : "Số lượng Token thô:"}
+                    </span>
+                    <strong className="text-slate-800">
+                      {currentPreset.inputTokens} tokens
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Tensor Dimension:" : "Kích thước Tensor:"}</span>
-                    <strong className="text-slate-800">[1, {currentPreset.inputTokens}, 4096]</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Tensor Dimension:"
+                        : "Kích thước Tensor:"}
+                    </span>
+                    <strong className="text-slate-800">
+                      [1, {currentPreset.inputTokens}, 4096]
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Positional Encoding:" : "Mã hóa vị trí:"}</span>
-                    <strong className="text-sky-700">RoPE 3D Wave Ribbon</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Positional Encoding:"
+                        : "Mã hóa vị trí:"}
+                    </span>
+                    <strong className="text-sky-700">
+                      RoPE 3D Wave Ribbon
+                    </strong>
                   </div>
                 </>
               )}
@@ -1900,17 +2072,31 @@ export function PipelineFlow3D({
               {activeLayer === 2 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Activated Memory Slots:" : "Số Slots ký ức kích hoạt:"}</span>
-                    <strong className="text-emerald-700">{currentPreset.memorySlotsHit} / 10 slots</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Activated Memory Slots:"
+                        : "Số Slots ký ức kích hoạt:"}
+                    </span>
+                    <strong className="text-emerald-700">
+                      {currentPreset.memorySlotsHit} / 10 slots
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Recovered Fact:" : "Sự thật hồi phục:"}</span>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Recovered Fact:"
+                        : "Sự thật hồi phục:"}
+                    </span>
                     <span className="text-slate-800 font-medium italic text-right max-w-[200px]">
                       {currentPreset.memoryFact}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Retrieval Accuracy:" : "Độ chính xác truy xuất:"}</span>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Retrieval Accuracy:"
+                        : "Độ chính xác truy xuất:"}
+                    </span>
                     <strong className="text-emerald-700">99.4%</strong>
                   </div>
                 </>
@@ -1919,20 +2105,42 @@ export function PipelineFlow3D({
               {activeLayer === 3 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Pre-compaction Tokens:" : "Token trước nén:"}</span>
-                    <strong className="text-slate-800">{currentPreset.inputTokens}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Pre-compaction Tokens:"
+                        : "Token trước nén:"}
+                    </span>
+                    <strong className="text-slate-800">
+                      {currentPreset.inputTokens}
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Post-compaction Tokens:" : "Token sau nén:"}</span>
-                    <strong className="text-emerald-600">{currentPreset.compactedTokens}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Post-compaction Tokens:"
+                        : "Token sau nén:"}
+                    </span>
+                    <strong className="text-emerald-600">
+                      {currentPreset.compactedTokens}
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Reduction Ratio:" : "Tỷ lệ giảm tải:"}</span>
-                    <strong className="text-emerald-600">-{currentPreset.compactionPct}%</strong>
+                    <span className="text-slate-500">
+                      {locale === "en" ? "Reduction Ratio:" : "Tỷ lệ giảm tải:"}
+                    </span>
+                    <strong className="text-emerald-600">
+                      -{currentPreset.compactionPct}%
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Entity Preservation:" : "Bảo toàn thực thể:"}</span>
-                    <strong className="text-sky-700">100% (Math & Code Invariant)</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Entity Preservation:"
+                        : "Bảo toàn thực thể:"}
+                    </span>
+                    <strong className="text-sky-700">
+                      100% (Math & Code Invariant)
+                    </strong>
                   </div>
                 </>
               )}
@@ -1940,26 +2148,39 @@ export function PipelineFlow3D({
               {activeLayer === 4 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Winning Model:" : "Mô hình chiến thắng:"}</span>
-                    <strong className="text-indigo-700">{currentPreset.winnerModelName}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Winning Model:"
+                        : "Mô hình chiến thắng:"}
+                    </span>
+                    <strong className="text-indigo-700">
+                      {currentPreset.winnerModelName}
+                    </strong>
                   </div>
                   <div className="mt-2 space-y-1">
-                    {Object.entries(currentPreset.attentionScores).map(([dim, val]) => (
-                      <div key={dim} className="flex items-center justify-between text-[11px]">
-                        <span className="capitalize text-slate-500">{dim}:</span>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-20 h-1 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-indigo-600 rounded-full"
-                              style={{ width: `${val * 100}%` }}
-                            />
-                          </div>
-                          <span className="font-mono text-slate-700 w-7 text-right">
-                            {(val * 100).toFixed(0)}%
+                    {Object.entries(currentPreset.attentionScores).map(
+                      ([dim, val]) => (
+                        <div
+                          key={dim}
+                          className="flex items-center justify-between text-[11px]"
+                        >
+                          <span className="capitalize text-slate-500">
+                            {dim}:
                           </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-20 h-1 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-indigo-600 rounded-full"
+                                style={{ width: `${val * 100}%` }}
+                              />
+                            </div>
+                            <span className="font-mono text-slate-700 w-7 text-right">
+                              {(val * 100).toFixed(0)}%
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ),
+                    )}
                   </div>
                 </>
               )}
@@ -1967,16 +2188,32 @@ export function PipelineFlow3D({
               {activeLayer === 5 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Dispatched Model:" : "Mô hình được điều động:"}</span>
-                    <strong className="text-slate-900">{currentPreset.winnerModelName}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Dispatched Model:"
+                        : "Mô hình được điều động:"}
+                    </span>
+                    <strong className="text-slate-900">
+                      {currentPreset.winnerModelName}
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Estimated P50 Latency:" : "Độ trễ P50 ước tính:"}</span>
-                    <strong className="text-slate-800">{currentPreset.estimatedLatencyMs} ms</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Estimated P50 Latency:"
+                        : "Độ trễ P50 ước tính:"}
+                    </span>
+                    <strong className="text-slate-800">
+                      {currentPreset.estimatedLatencyMs} ms
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Serving Cost:" : "Chi phí phục vụ:"}</span>
-                    <strong className="text-emerald-600">${currentPreset.estimatedCostUsd.toFixed(5)}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en" ? "Serving Cost:" : "Chi phí phục vụ:"}
+                    </span>
+                    <strong className="text-emerald-600">
+                      ${currentPreset.estimatedCostUsd.toFixed(5)}
+                    </strong>
                   </div>
                 </>
               )}
@@ -1984,16 +2221,34 @@ export function PipelineFlow3D({
               {activeLayer === 6 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Attention Heads:" : "Số Attention Heads:"}</span>
-                    <strong className="text-slate-900">{currentPreset.transformerHeads} heads</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Attention Heads:"
+                        : "Số Attention Heads:"}
+                    </span>
+                    <strong className="text-slate-900">
+                      {currentPreset.transformerHeads} heads
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "SwiGLU FFN Dimension:" : "Kích thước SwiGLU FFN:"}</span>
-                    <strong className="text-amber-700">{currentPreset.mlpExpansion}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "SwiGLU FFN Dimension:"
+                        : "Kích thước SwiGLU FFN:"}
+                    </span>
+                    <strong className="text-amber-700">
+                      {currentPreset.mlpExpansion}
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "KV-Cache Optimization:" : "Tối ưu KV-Cache:"}</span>
-                    <strong className="text-emerald-600">FlashAttention-2 Kernel</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "KV-Cache Optimization:"
+                        : "Tối ưu KV-Cache:"}
+                    </span>
+                    <strong className="text-emerald-600">
+                      FlashAttention-2 Kernel
+                    </strong>
                   </div>
                 </>
               )}
@@ -2001,15 +2256,24 @@ export function PipelineFlow3D({
               {activeLayer === 7 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Winning Next Token:" : "Token chiến thắng:"}</span>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Winning Next Token:"
+                        : "Token chiến thắng:"}
+                    </span>
                     <strong className="text-amber-700 font-mono text-sm">
                       &quot;{currentPreset.winnerToken}&quot;
                     </strong>
                   </div>
                   <div className="mt-2 space-y-1">
                     {currentPreset.candidateTokens.map((cand) => (
-                      <div key={cand.token} className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono text-slate-600">&quot;{cand.token}&quot;:</span>
+                      <div
+                        key={cand.token}
+                        className="flex items-center justify-between text-[11px]"
+                      >
+                        <span className="font-mono text-slate-600">
+                          &quot;{cand.token}&quot;:
+                        </span>
                         <div className="flex items-center gap-1.5">
                           <div className="w-20 h-1 bg-slate-200 rounded-full overflow-hidden">
                             <div
@@ -2032,15 +2296,31 @@ export function PipelineFlow3D({
               {activeLayer === 8 && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Autoregressive (Loop 1):" : "Vòng lặp tự hồi quy (Loop 1):"}</span>
-                    <strong className="text-purple-700">{locale === "en" ? "Append to KV-Cache (t+1)" : "Nạp vào KV-Cache (t+1)"}</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Autoregressive (Loop 1):"
+                        : "Vòng lặp tự hồi quy (Loop 1):"}
+                    </span>
+                    <strong className="text-purple-700">
+                      {locale === "en"
+                        ? "Append to KV-Cache (t+1)"
+                        : "Nạp vào KV-Cache (t+1)"}
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Real-time SSE (Loop 2):" : "Luồng SSE phát trực tiếp (Loop 2):"}</span>
-                    <strong className="text-emerald-700">Typewriter Effect</strong>
+                    <span className="text-slate-500">
+                      {locale === "en"
+                        ? "Real-time SSE (Loop 2):"
+                        : "Luồng SSE phát trực tiếp (Loop 2):"}
+                    </span>
+                    <strong className="text-emerald-700">
+                      Typewriter Effect
+                    </strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">{locale === "en" ? "Generated Token:" : "Token đã sinh:"}</span>
+                    <span className="text-slate-500">
+                      {locale === "en" ? "Generated Token:" : "Token đã sinh:"}
+                    </span>
                     <span className="text-amber-800 font-mono bg-amber-50 px-2 py-0.5 rounded font-bold">
                       {currentPreset.winnerToken}
                     </span>
@@ -2053,21 +2333,42 @@ export function PipelineFlow3D({
           {/* Real-time Architecture Status Card */}
           <div className="rounded-2xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
             <span className="text-[11px] font-semibold tracking-wider uppercase text-sky-400">
-              {locale === "en" ? "Architecture Pipeline Status" : "Trạng thái Luồng Kiến trúc"}
+              {locale === "en"
+                ? "Architecture Pipeline Status"
+                : "Trạng thái Luồng Kiến trúc"}
             </span>
             <div className="mt-3 space-y-2 text-xs text-slate-300">
               <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">{locale === "en" ? "Current Subsystem:" : "Phân hệ đang xem:"}</span>
-                <strong className="text-white">{locale === "en" ? `Layer ${activeLayer}: ${activeLayerData.title}` : `Tầng ${activeLayer}: ${activeLayerData.title}`}</strong>
+                <span className="text-slate-400">
+                  {locale === "en" ? "Current Subsystem:" : "Phân hệ đang xem:"}
+                </span>
+                <strong className="text-white">
+                  {locale === "en"
+                    ? `Layer ${activeLayer}: ${activeLayerData.title}`
+                    : `Tầng ${activeLayer}: ${activeLayerData.title}`}
+                </strong>
               </div>
               <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">{locale === "en" ? "Processing Engine:" : "Cơ chế xử lý:"}</span>
-                <span className="text-emerald-400 font-medium">NumPy CPU Vectorization (&lt;0.5ms)</span>
+                <span className="text-slate-400">
+                  {locale === "en" ? "Processing Engine:" : "Cơ chế xử lý:"}
+                </span>
+                <span className="text-emerald-400 font-medium">
+                  NumPy CPU Vectorization (&lt;0.5ms)
+                </span>
               </div>
               <div className="flex justify-between pt-1">
-                <span className="text-slate-400">{locale === "en" ? "Ablation Benchmark:" : "Đo lường Ablation:"}</span>
-                <a href="/research" className="text-sky-400 hover:underline font-medium">
-                  {locale === "en" ? "View 500-sample Benchmark Matrix →" : "Xem bảng Benchmark 500 mẫu →"}
+                <span className="text-slate-400">
+                  {locale === "en"
+                    ? "Ablation Benchmark:"
+                    : "Đo lường Ablation:"}
+                </span>
+                <a
+                  href="/research"
+                  className="text-sky-400 hover:underline font-medium"
+                >
+                  {locale === "en"
+                    ? "View 500-sample Benchmark Matrix →"
+                    : "Xem bảng Benchmark 500 mẫu →"}
                 </a>
               </div>
             </div>

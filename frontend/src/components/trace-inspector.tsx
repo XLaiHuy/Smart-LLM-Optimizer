@@ -88,7 +88,11 @@ export function TraceInspector({
           </dl>
           <div className="trace-3d-section">
             <div className="trace-3d-header">
-              <span>{locale === "en" ? "3D Neural Routing Cosmos" : "Không gian Định tuyến 3D (Router Galaxy)"}</span>
+              <span>
+                {locale === "en"
+                  ? "3D Neural Routing Cosmos"
+                  : "Không gian Định tuyến 3D (Router Galaxy)"}
+              </span>
               <span className="mono text-[11px] font-normal text-slate-500">
                 {data.route.model_id}
               </span>

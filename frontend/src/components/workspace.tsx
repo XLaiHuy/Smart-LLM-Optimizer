@@ -35,8 +35,11 @@ export function Workspace({
     initialData: initialSignedOut ? null : undefined,
     initialDataUpdatedAt: 0,
     retry: (failureCount, error) => {
-      const status = (error as { status?: number; response?: { status?: number } })?.status ??
-        (error as { status?: number; response?: { status?: number } })?.response?.status;
+      const status =
+        (error as { status?: number; response?: { status?: number } })
+          ?.status ??
+        (error as { status?: number; response?: { status?: number } })?.response
+          ?.status;
       if (status === 401) return false;
       return failureCount < 3;
     },

@@ -4,10 +4,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useLocale } from "next-intl";
-import {
-  RotateCcw,
-  Box,
-} from "lucide-react";
+import { RotateCcw, Box } from "lucide-react";
 
 export interface SessionUsageMetric {
   id: string;
@@ -169,7 +166,8 @@ export function TokenCostSpace3D({
     if (!container) return;
 
     const w = container.clientWidth || 800;
-    const h = typeof height === "number" ? height : container.clientHeight || 420;
+    const h =
+      typeof height === "number" ? height : container.clientHeight || 420;
 
     // 1. Scene & Camera Setup
     const scene = new THREE.Scene();
@@ -251,7 +249,8 @@ export function TokenCostSpace3D({
     const maxTokens = Math.max(...dataList.map((d) => d.totalTokens), 1000);
     const maxCost = Math.max(...dataList.map((d) => d.costUsd), 0.0005);
 
-    const interactiveMeshes: { mesh: THREE.Mesh; data: SessionUsageMetric }[] = [];
+    const interactiveMeshes: { mesh: THREE.Mesh; data: SessionUsageMetric }[] =
+      [];
     const peakPoints: THREE.Vector3[] = [];
 
     dataList.forEach((metric, index) => {
@@ -327,9 +326,14 @@ export function TokenCostSpace3D({
       );
 
       if (intersects.length > 0) {
-        const hit = interactiveMeshes.find((im) => im.mesh === intersects[0].object);
+        const hit = interactiveMeshes.find(
+          (im) => im.mesh === intersects[0].object,
+        );
         if (hit) {
-          const clampedX = Math.min(event.clientX - rect.left + 12, rect.width - 240);
+          const clampedX = Math.min(
+            event.clientX - rect.left + 12,
+            rect.width - 240,
+          );
           const clampedY = Math.max(event.clientY - rect.top - 120, 12);
           setTooltip({
             metric: hit.data,
@@ -454,25 +458,33 @@ export function TokenCostSpace3D({
       {/* Summary KPI Badges */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Sessions Tracked" : "Số phiên theo dõi"}</span>
+          <span className="text-[11px] text-slate-400 block">
+            {locale === "en" ? "Sessions Tracked" : "Số phiên theo dõi"}
+          </span>
           <strong className="text-sm font-bold text-slate-800">
             {dataList.length} {locale === "en" ? "sessions" : "phiên"}
           </strong>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Total Tokens" : "Tổng Tokens"}</span>
+          <span className="text-[11px] text-slate-400 block">
+            {locale === "en" ? "Total Tokens" : "Tổng Tokens"}
+          </span>
           <strong className="text-sm font-bold text-sky-700">
             {totalTokensSum.toLocaleString()} tok
           </strong>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Cumulative Cost" : "Chi phí tích luỹ"}</span>
+          <span className="text-[11px] text-slate-400 block">
+            {locale === "en" ? "Cumulative Cost" : "Chi phí tích luỹ"}
+          </span>
           <strong className="text-sm font-bold text-emerald-600">
             ${totalCostSum.toFixed(5)}
           </strong>
         </div>
         <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
-          <span className="text-[11px] text-slate-400 block">{locale === "en" ? "Average Savings" : "Tiết kiệm trung bình"}</span>
+          <span className="text-[11px] text-slate-400 block">
+            {locale === "en" ? "Average Savings" : "Tiết kiệm trung bình"}
+          </span>
           <strong className="text-sm font-bold text-indigo-600">54.2%</strong>
         </div>
       </div>
@@ -482,7 +494,9 @@ export function TokenCostSpace3D({
         <div
           ref={mountRef}
           className="w-full"
-          style={{ height: typeof height === "number" ? `${height}px` : height }}
+          style={{
+            height: typeof height === "number" ? `${height}px` : height,
+          }}
         />
 
         {/* Legend */}
@@ -521,7 +535,9 @@ export function TokenCostSpace3D({
             </div>
             <div className="space-y-1 text-slate-600 text-[11px]">
               <div className="flex justify-between">
-                <span>{locale === "en" ? "Total Tokens:" : "Tổng Tokens:"}</span>
+                <span>
+                  {locale === "en" ? "Total Tokens:" : "Tổng Tokens:"}
+                </span>
                 <strong className="text-slate-900">
                   {tooltip.metric.totalTokens.toLocaleString()}
                 </strong>
@@ -536,7 +552,9 @@ export function TokenCostSpace3D({
                 <span>{locale === "en" ? "Cost USD:" : "Chi phí USD:"}</span>
                 <strong className="text-emerald-600 font-semibold">
                   {tooltip.metric.costUsd === 0
-                    ? (locale === "en" ? "Free ($0.00)" : "Miễn phí ($0.00)")
+                    ? locale === "en"
+                      ? "Free ($0.00)"
+                      : "Miễn phí ($0.00)"
                     : `$${tooltip.metric.costUsd.toFixed(5)}`}
                 </strong>
               </div>

@@ -42,7 +42,8 @@ function inline(text: string): ReactNode[] {
   // - `...`
   // - **...**
   // - *...*
-  const pattern = /(\\\([^\n]+?\\\)|(?<![\w\\])\$(?!\s)[^\$\n]+?(?<!\s)\$|`[^`\n]+`|\*\*[^*\n]+\*\*|(?<!\*)\*[^*\n]+\*(?!\*))/g;
+  const pattern =
+    /(\\\([^\n]+?\\\)|(?<![\w\\])\$(?!\s)[^$\n]+?(?<!\s)\$|`[^`\n]+`|\*\*[^*\n]+\*\*|(?<!\*)\*[^*\n]+\*(?!\*))/g;
 
   return text.split(pattern).map((part, i) => {
     if (!part) return null;
@@ -86,11 +87,11 @@ function inline(text: string): ReactNode[] {
 
 // Interactive Mermaid Diagram Renderer
 function MermaidBlock({ code }: { code: string }) {
+  const locale = useLocale();
   const [svg, setSvg] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const idRef = React.useRef(
-    `mermaid-${Math.random().toString(36).substring(2, 9)}`,
-  );
+  const componentId = React.useId();
+  const idRef = React.useRef(`mermaid-${componentId.replaceAll(":", "")}`);
 
   React.useEffect(() => {
     let mounted = true;
@@ -129,18 +130,13 @@ function MermaidBlock({ code }: { code: string }) {
     );
   }
 
-  let locale = "vi";
-  try {
-    locale = useLocale();
-  } catch {
-    locale = "vi";
-  }
-
   if (!svg) {
     return (
       <div className="my-3 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50/60 p-6 text-xs text-slate-500">
         <span className="animate-pulse">
-          {locale === "en" ? "Rendering Mermaid diagram..." : "Đang dựng sơ đồ Mermaid..."}
+          {locale === "en"
+            ? "Rendering Mermaid diagram..."
+            : "Đang dựng sơ đồ Mermaid..."}
         </span>
       </div>
     );
@@ -149,7 +145,9 @@ function MermaidBlock({ code }: { code: string }) {
   return (
     <div className="mermaid-diagram my-3 overflow-x-auto rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
       <div className="mb-2 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-        {locale === "en" ? "Process Diagram (Mermaid)" : "Sơ đồ quy trình (Mermaid)"}
+        {locale === "en"
+          ? "Process Diagram (Mermaid)"
+          : "Sơ đồ quy trình (Mermaid)"}
       </div>
       <div
         className="flex justify-center"
@@ -161,13 +159,8 @@ function MermaidBlock({ code }: { code: string }) {
 
 // Code Block with Language Tag and 1-Click Copy
 function CodeBlock({ language, code }: { language: string; code: string }) {
+  const locale = useLocale();
   const [copied, setCopied] = React.useState(false);
-  let locale = "vi";
-  try {
-    locale = useLocale();
-  } catch {
-    locale = "vi";
-  }
 
   function handleCopy() {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -211,7 +204,9 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
         className="overflow-x-auto p-4 font-mono text-[13.5px] leading-relaxed text-[#f8fafc]"
         style={{ background: "#0f172a", color: "#f8fafc" }}
       >
-        <code style={{ background: "transparent", color: "#f8fafc" }}>{code}</code>
+        <code style={{ background: "transparent", color: "#f8fafc" }}>
+          {code}
+        </code>
       </pre>
     </div>
   );
@@ -299,7 +294,7 @@ function parseMarkdownCells(line: string): string[] {
 // GFM Markdown Table Renderer
 function MarkdownTable({ rows }: { rows: string[] }) {
   const headers = parseMarkdownCells(rows[0]);
-  const alignments = rows[1]
+  const alignments: React.CSSProperties["textAlign"][] = rows[1]
     ? parseMarkdownCells(rows[1]).map((sep) => {
         if (sep.startsWith(":") && sep.endsWith(":")) return "center";
         if (sep.endsWith(":")) return "right";
@@ -315,10 +310,7 @@ function MarkdownTable({ rows }: { rows: string[] }) {
         <thead>
           <tr>
             {headers.map((h, i) => (
-              <th
-                key={i}
-                style={{ textAlign: (alignments[i] as any) || "left" }}
-              >
+              <th key={i} style={{ textAlign: alignments[i] || "left" }}>
                 {inline(h)}
               </th>
             ))}
@@ -328,10 +320,7 @@ function MarkdownTable({ rows }: { rows: string[] }) {
           {bodyRows.map((row, r) => (
             <tr key={r}>
               {row.map((cell, c) => (
-                <td
-                  key={c}
-                  style={{ textAlign: (alignments[c] as any) || "left" }}
-                >
+                <td key={c} style={{ textAlign: alignments[c] || "left" }}>
                   {inline(cell)}
                 </td>
               ))}
@@ -423,11 +412,7 @@ export function FormattedMessage({
         blocks.push(<MermaidBlock key={key} code={code.join("\n")} />);
       } else {
         blocks.push(
-          <CodeBlock
-            key={key}
-            language={language}
-            code={code.join("\n")}
-          />,
+          <CodeBlock key={key} language={language} code={code.join("\n")} />,
         );
       }
       continue;
@@ -440,16 +425,25 @@ export function FormattedMessage({
 
       let firstContent = trimmed.slice(2).trim();
 
-      if (firstContent.endsWith(endMarker) && firstContent.length > endMarker.length) {
+      if (
+        firstContent.endsWith(endMarker) &&
+        firstContent.length > endMarker.length
+      ) {
         // Single-line block math
         firstContent = firstContent.slice(0, -endMarker.length).trim();
-        blocks.push(<React.Fragment key={key}>{renderMath(firstContent, true)}</React.Fragment>);
+        blocks.push(
+          <React.Fragment key={key}>
+            {renderMath(firstContent, true)}
+          </React.Fragment>,
+        );
         index++;
         continue;
       }
 
       // Check if closing marker exists in subsequent lines
-      const hasClosingMarker = lines.slice(index + 1).some((l) => l.includes(endMarker));
+      const hasClosingMarker = lines
+        .slice(index + 1)
+        .some((l) => l.includes(endMarker));
       if (hasClosingMarker) {
         const mathLines: string[] = [];
         if (firstContent) mathLines.push(firstContent);
@@ -517,9 +511,7 @@ export function FormattedMessage({
         quoteLines.push(lines[index++].trim().slice(2));
       }
       blocks.push(
-        <blockquote key={key}>
-          {inline(quoteLines.join("\n"))}
-        </blockquote>,
+        <blockquote key={key}>{inline(quoteLines.join("\n"))}</blockquote>,
       );
       continue;
     }

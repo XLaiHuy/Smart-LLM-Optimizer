@@ -1,11 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import { FormattedMessage } from "./formatted-message";
+
+vi.mock("next-intl", () => ({ useLocale: () => "vi" }));
 
 describe("FormattedMessage GFM Markdown & KaTeX Parser", () => {
   it("renders LaTeX formulas cleanly", () => {
     const html = renderToString(
-      <FormattedMessage content={"Công thức: \\(z = \\theta^T x\\)\n\n\\[\\hat{y} = \\sigma(z)\\]"} />
+      <FormattedMessage
+        content={
+          "Công thức: \\(z = \\theta^T x\\)\n\n\\[\\hat{y} = \\sigma(z)\\]"
+        }
+      />,
     );
     expect(html).toContain("katex");
     expect(html).toContain("katex-display");
@@ -48,7 +54,7 @@ describe("FormattedMessage GFM Markdown & KaTeX Parser", () => {
   it("renders lightweight stream view with pulse cursor when isStreaming is true", () => {
     const streamContent = "Đang sinh token cho `print('hello')`...";
     const html = renderToString(
-      <FormattedMessage content={streamContent} isStreaming={true} />
+      <FormattedMessage content={streamContent} isStreaming={true} />,
     );
     expect(html).toContain("is-streaming");
     expect(html).toContain("after:content-[&#x27;▋&#x27;]");
@@ -60,9 +66,15 @@ describe("FormattedMessage GFM Markdown & KaTeX Parser", () => {
   });
 
   it("handles undefined, nullish, or empty content gracefully without error", () => {
-    expect(() => renderToString(<FormattedMessage content={undefined} />)).not.toThrow();
-    expect(() => renderToString(<FormattedMessage content={""} />)).not.toThrow();
-    expect(() => renderToString(<FormattedMessage content={""} isStreaming={true} />)).not.toThrow();
+    expect(() =>
+      renderToString(<FormattedMessage content={undefined} />),
+    ).not.toThrow();
+    expect(() =>
+      renderToString(<FormattedMessage content={""} />),
+    ).not.toThrow();
+    expect(() =>
+      renderToString(<FormattedMessage content={""} isStreaming={true} />),
+    ).not.toThrow();
   });
 
   it("handles unclosed block math without swallowing subsequent paragraphs", () => {
@@ -78,14 +90,15 @@ describe("FormattedMessage GFM Markdown & KaTeX Parser", () => {
   });
 
   it("handles unclosed inline LaTeX without throwing parse errors", () => {
-    const unclosedInline = "Công thức dở dang: \\(\\frac{1}{2 và văn bản tiếp tục";
+    const unclosedInline =
+      "Công thức dở dang: \\(\\frac{1}{2 và văn bản tiếp tục";
     const streamingHtml = renderToString(
-      <FormattedMessage content={unclosedInline} isStreaming={true} />
+      <FormattedMessage content={unclosedInline} isStreaming={true} />,
     );
     expect(streamingHtml).toContain("Công thức dở dang");
 
     const finalHtml = renderToString(
-      <FormattedMessage content={unclosedInline} isStreaming={false} />
+      <FormattedMessage content={unclosedInline} isStreaming={false} />,
     );
     expect(finalHtml).toContain("Công thức dở dang");
   });

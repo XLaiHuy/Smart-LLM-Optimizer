@@ -234,20 +234,12 @@ export function AnalyticsPanel({
         }),
       ),
   });
-  const sessionList = useMemo(() => {
-    if (!userSessions.data) return [];
-    if (Array.isArray(userSessions.data)) return userSessions.data;
-    if ("pages" in (userSessions.data as any) && Array.isArray((userSessions.data as any).pages)) {
-      return (userSessions.data as any).pages.flat();
-    }
-    if ("sessions" in (userSessions.data as any) && Array.isArray((userSessions.data as any).sessions)) {
-      return (userSessions.data as any).sessions;
-    }
-    return [];
-  }, [userSessions.data]);
   const sessionMap = useMemo(
-    () => new Map<string, string>(sessionList.map((s: any) => [String(s.id), String(s.title)])),
-    [sessionList],
+    () =>
+      new Map<string, string>(
+        (userSessions.data ?? []).map((session) => [session.id, session.title]),
+      ),
+    [userSessions.data],
   );
   const getRowTitle = (key: string, isSession: boolean) => {
     if (isSession) {
@@ -257,7 +249,9 @@ export function AnalyticsPanel({
           : "Router Lab Research";
       if (sessionMap.has(key)) return sessionMap.get(key);
       return key.length > 10
-        ? (locale === "vi" ? `Hội thoại #${key.slice(0, 8)}` : `Chat #${key.slice(0, 8)}`)
+        ? locale === "vi"
+          ? `Hội thoại #${key.slice(0, 8)}`
+          : `Chat #${key.slice(0, 8)}`
         : key;
     }
     return m.has(key) ? m(key) : key;
@@ -452,7 +446,9 @@ export function AnalyticsPanel({
                       ? sessionMap.get(r.key)!.length > 32
                         ? `${sessionMap.get(r.key)!.slice(0, 32)}...`
                         : sessionMap.get(r.key)
-                      : (locale === "vi" ? `Phiên #${r.key.slice(0, 8)}` : `Session #${r.key.slice(0, 8)}`)}
+                      : locale === "vi"
+                        ? `Phiên #${r.key.slice(0, 8)}`
+                        : `Session #${r.key.slice(0, 8)}`}
                   </option>
                 ))}
             </select>

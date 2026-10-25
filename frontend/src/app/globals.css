@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 
-
 html {
   scroll-behavior: smooth;
 }
@@ -2854,7 +2853,9 @@ details.activity-panel {
   padding: 2px 6px !important;
   border-radius: 4px !important;
   font-weight: 500;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace !important;
 }
 .formatted-message pre {
   max-width: 100%;
@@ -2879,7 +2880,9 @@ details.activity-panel {
   border: none !important;
   border-radius: 0 !important;
   padding: 14px 16px !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace !important;
   font-size: 13.5px !important;
   line-height: 1.6 !important;
 }
@@ -2962,9 +2965,17 @@ details.activity-panel {
   margin: 18px 0 10px;
   line-height: 1.35;
 }
-.formatted-message h1 { font-size: 1.25rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-.formatted-message h2 { font-size: 1.12rem; }
-.formatted-message h3 { font-size: 1.0rem; }
+.formatted-message h1 {
+  font-size: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+.formatted-message h2 {
+  font-size: 1.12rem;
+}
+.formatted-message h3 {
+  font-size: 1rem;
+}
 .formatted-message hr {
   margin: 16px 0;
   border: none;
@@ -3862,4 +3873,3 @@ details.activity-panel {
 .katex-formula .katex-display {
   margin: 0.35em 0;
 }
-
