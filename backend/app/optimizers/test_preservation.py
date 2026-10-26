@@ -67,11 +67,11 @@ def test_rule_based_preserved() -> None:
     )
 
 
-def test_llmlingua_unknown() -> None:
+def test_llmlingua_accepts_compression_when_protected_spans_survive() -> None:
     assert (
         check(
             "Explain artificial intelligence in detail.",
             "Explain artificial intelligence.",
         )
-        == "unknown"
+        == "preserved"
     )

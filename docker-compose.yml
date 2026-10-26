@@ -14,6 +14,10 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MODEL_CATALOG_PATH=/app/config/models.json
       - APP_ENV=development
+      - AUTO_ROUTING_STRATEGY=${AUTO_ROUTING_STRATEGY:-ml_multi_model}
+      - ML_ROUTER_ARTIFACT_PATH=${ML_ROUTER_ARTIFACT_PATH:-config/router_multitask_vietnamese_model.json}
+      - ML_ROUTER_LIVE_APPROVED=${ML_ROUTER_LIVE_APPROVED:-false}
+      - ML_ROUTER_ALLOW_RESEARCH_CANDIDATE=${ML_ROUTER_ALLOW_RESEARCH_CANDIDATE:-false}
       - LOG_LEVEL=INFO
       - MEMORY_RETRIEVAL_ENABLED=true
       - HYBRID_CONTEXT_ENABLED=true

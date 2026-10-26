@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     auto_routing_strategy: Literal["rule_guarded", "ml_router", "ml_multi_model"] = "rule_guarded"
     ml_router_artifact_path: Path = ROOT / "config/router_model.json"
     ml_router_live_approved: bool = False
+    # Development-only opt-in for testing research_candidate artifacts.
+    ml_router_allow_research_candidate: bool = False
     router_training_manifest_path: Path = ROOT / "data/router-training/manifest.json"
     router_training_directory: Path = ROOT / "data/router-training"
     tools_live_approved: bool = False

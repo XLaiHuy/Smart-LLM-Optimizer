@@ -10,7 +10,9 @@ from app.contracts.dtos import DTO, CostSnapshot, Message, ModelConfiguration
 
 class TrainingRequest(DTO):
     client_request_id: str = Field(min_length=1, max_length=100)
-    mode: Literal["cache", "huggingface_gemini"] = "cache"
+    # ``huggingface_gemini`` is retained only so existing saved jobs can be read.
+    # New live training uses the configured provider catalog.
+    mode: Literal["cache", "live", "huggingface_gemini"] = "cache"
     budget_usd: Decimal = Field(default=Decimal("1"), gt=0, le=20, allow_inf_nan=False)
     hybrid: bool = True
     auto_import: bool = True

@@ -21,6 +21,14 @@ from app.routing.ml.feedback import RoutingDrift
 from app.routing.ml.service import MLRouterService
 
 
+def _artifact_cost_hash(costs: CostSnapshot, config_ids: set[str]) -> str:
+    """Hash only rates bound to the artifact's fixed three-model universe."""
+    scoped = costs.model_copy(
+        update={"rates": tuple(rate for rate in costs.rates if rate.config_id in config_ids)}
+    )
+    return hashlib.sha256(scoped.model_dump_json().encode()).hexdigest()
+
+
 class RoutingRejected(AppError):
     def __init__(
         self,
@@ -111,6 +119,10 @@ class PolicyRouter:
                 artifact2
                 and not policy.sandbox
                 and (not self.ml.live_approved or artifact2.purpose != "qualified_dev")
+                and not (
+                    artifact2.purpose == "research_candidate"
+                    and self.ml.allow_research_candidate
+                )
             ):
                 why = "ML_NOT_QUALIFIED_FALLBACK"
             if artifact2 and not why:
@@ -126,7 +138,7 @@ class PolicyRouter:
                     why = "ML_MODEL_MISMATCH_FALLBACK"
                 elif (
                     costs.version != artifact2.catalog_version
-                    or hashlib.sha256(costs.model_dump_json().encode()).hexdigest()
+                    or _artifact_cost_hash(costs, set(artifact2.configuration_hashes))
                     != artifact2.costs_hash
                 ):
                     why = "ML_CATALOG_CHANGED_FALLBACK"
@@ -281,6 +293,10 @@ class PolicyRouter:
                 artifact
                 and not policy.sandbox
                 and (not self.ml.live_approved or artifact.purpose != "qualified_dev")
+                and not (
+                    artifact.purpose == "research_candidate"
+                    and self.ml.allow_research_candidate
+                )
             ):
                 why = "ML_NOT_QUALIFIED_FALLBACK"
             if artifact and not why:

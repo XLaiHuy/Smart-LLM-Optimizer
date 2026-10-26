@@ -11,13 +11,13 @@ describe("honest metrics and configuration", () => {
     expect(formatMetric(0, "en", " ms")).toBe("0 ms");
     expect(formatCost("0.000000001", "en")).toContain("0.000000001");
   });
-  it("baseline flags cannot leak selected optimized flags", () => {
+  it("preserves selected optimizer flags for manual and automatic modes", () => {
     const flags = { router: true, rewrite: true, context: true, memory: true };
     expect(Object.values(requestFlags("baseline", flags))).toEqual([
       false,
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
     ]);
     expect(Object.values(flags)).toEqual([true, true, true, true]);
   });

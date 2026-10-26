@@ -11,7 +11,9 @@ from app.documents.service import DocumentService
 from app.documents.tasks import DocumentTaskProcessor
 from app.memory.memory_manager import NoOpMemoryManager, RetrievalMemoryManager
 from app.memory.retrieval import MemoryRetriever
-from app.optimizers.context_manager import HybridContextManager, PassThroughContext
+from app.optimizers.context_manager import PassThroughContext
+from app.optimizers.context_optimizer import ContextOptimizer
+from app.optimizers.context_summarizer import ContextSummarizer, extractive_summary_generator
 from app.optimizers.prompt_optimizer import AdaptivePromptOptimizer, NoOpPromptOptimizer
 from app.providers.catalog import Catalog
 from app.providers.mock_provider import DeterministicMockProvider
@@ -57,7 +59,9 @@ class Container:
         if catalog:
             if settings.provider_mode == "live":
                 if not server_key:
-                    raise AppError("DEPENDENCY_UNAVAILABLE", 503, "Live mode requires a server API key")
+                    raise AppError(
+                        "DEPENDENCY_UNAVAILABLE", 503, "Live mode requires a server API key"
+                    )
                 baseline = catalog.entry(catalog.baseline_config)
                 embedding = catalog.entry(catalog.embedding_config)
                 if baseline.kind != "generation" or embedding.kind != "embedding":
@@ -103,17 +107,38 @@ class Container:
                 mock_config_id=settings.mock_config_id,
                 configurations=(
                     ModelConfiguration(
-                        config_id="mock-baseline", model_id="mock-echo-v1", function_calling=True
+                        config_id="mock-baseline",
+                        model_id="mock-echo-v1",
+                        function_calling=True,
+                    ),
+                    ModelConfiguration(
+                        config_id="mock-coder-32b",
+                        model_id="mock-coder-32b",
+                        function_calling=True,
+                    ),
+                    ModelConfiguration(
+                        config_id="mock-reasoning-70b",
+                        model_id="mock-reasoning-70b",
+                        function_calling=True,
                     ),
                 ),
             )
         self.live = live
         self.provider = live or DeterministicMockProvider()
         self.metering = MeteredCalls(
-            self.db, settings, self.ledger, catalog if settings.provider_mode == "live" else None, live
+            self.db,
+            settings,
+            self.ledger,
+            catalog if settings.provider_mode == "live" else None,
+            live,
         )
         self.ml_router = MLRouterService.load(
-            settings.ml_router_artifact_path, live_approved=settings.ml_router_live_approved
+            settings.ml_router_artifact_path,
+            live_approved=settings.ml_router_live_approved,
+            allow_research_candidate=(
+                settings.app_env == "development"
+                and settings.ml_router_allow_research_candidate
+            ),
         )
         self.router_drift = RoutingDrift()
         self.router_feedback = RouterFeedbackService(self.db, self.router_drift)
@@ -125,7 +150,11 @@ class Container:
             ml=self.ml_router,
         )
         self.training = RouterTrainingPipeline(
-            settings, self.db, self.ledger, self.import_research_router
+            settings,
+            self.db,
+            self.ledger,
+            self.import_research_router,
+            live,
         )
         imported = settings.router_training_directory / "imported.json"
         if imported.exists():
@@ -161,7 +190,10 @@ class Container:
                 else NoOpMemoryManager()
             ),
             (
-                HybridContextManager(settings.context_token_budget)
+                ContextOptimizer(
+                    settings.context_token_budget,
+                    summarizer=ContextSummarizer(extractive_summary_generator()),
+                )
                 if settings.hybrid_context_enabled
                 else PassThroughContext()
             ),

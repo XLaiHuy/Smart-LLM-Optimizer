@@ -15,7 +15,11 @@ def resolve_configuration(req: ChatRequest) -> EffectiveConfiguration:
             candidate_id = policy_id.split(":", 1)[1]
         return EffectiveConfiguration(
             policy_id=policy_id,
-            flags=FeatureFlags(router=False, rewrite=False, context=False, memory=False),
+            flags=(
+                (req.flags or FeatureFlags()).model_copy(update={"router": False})
+                if candidate_id is not None
+                else FeatureFlags(router=False, rewrite=False, context=False, memory=False)
+            ),
             candidate_id=candidate_id,
         )
     return EffectiveConfiguration(

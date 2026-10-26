@@ -85,6 +85,17 @@ def parse_corpus(raw: bytes, source: TrainingSource, limit: int = 2000) -> Train
     samples = []
     if source.adapter in {"gsm8k", "mbpp", "aya"}:
         rows = document if isinstance(document, list) else document["data"]
+        if source.adapter == "aya":
+            # Do not truncate Aya by file order.  The source contains many
+            # Vietnamese rows; choose a deterministic hash-spread subset from
+            # the complete source before constructing the capped corpus.
+            rows = [row for row in rows if row.get("language_code") == "vie"]
+            rows = sorted(
+                rows,
+                key=lambda row: hashlib.sha256(
+                    str(row.get("inputs", "")).encode("utf-8")
+                ).hexdigest(),
+            )[:limit]
         for row in rows:
             identity_prompt = None
             if source.adapter == "gsm8k":
@@ -123,8 +134,6 @@ def parse_corpus(raw: bytes, source: TrainingSource, limit: int = 2000) -> Train
                 prompt += "\nRequired callable name(s): " + ", ".join(names) + "."
                 domain = "coding_algorithms"
             else:
-                if row.get("language_code") != "vie":
-                    continue
                 prompt, gold = str(row["inputs"]).strip(), str(row["targets"]).strip()
                 grading = GradingSpec(kind="open")
                 domain = "dialogue_chat"

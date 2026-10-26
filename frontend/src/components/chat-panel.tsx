@@ -59,10 +59,16 @@ export function getCleanModelName(configId: string, modelId?: string): string {
     "qwen/qwen-2.5-coder-32b-instruct:free": "Qwen 2.5 Coder 32B (Free)",
     "openrouter/free": "OpenRouter (Free Tier)",
     "openrouter-free-v1": "OpenRouter (Free Tier)",
+    "openrouter-lfm-2.5-2.6b-free": "LFM 2.5 2.6B (OpenRouter Free)",
+    "openrouter-north-mini-code-free": "North Mini Code (OpenRouter Free)",
+    "openrouter-nemotron-3-nano-reasoning-free": "Nemotron 3 Nano Reasoning (OpenRouter Free)",
     "openai-gpt-6-luna": "GPT-6 Luna (OpenAI)",
     "openai-gpt-5.6-terra": "GPT-5.6 Terra (OpenAI)",
     "openai-gpt-6.1-sol": "GPT-6.1 Sol (OpenAI)",
+    "openai-gpt-6-astra": "GPT-6 Astra (OpenAI)",
     "mock-baseline": "Mock Baseline (Default)",
+    "mock-coder-32b": "Mock Coding 32B (Demo)",
+    "mock-reasoning-70b": "Mock Reasoning 70B (Demo)",
     "mock-small": "Mock Fast (Small)",
     "mock-quality": "Mock Frontier (Quality)",
     "gpt-6-luna": "GPT-6 Luna (OpenAI)",
@@ -246,7 +252,9 @@ export function ChatPanel({
         lower.includes("70b") ||
         lower.includes("120b") ||
         lower.includes("r1") ||
-        lower.includes("terra")
+        lower.includes("terra") ||
+        lower.includes("reasoning") ||
+        lower.includes("astra")
       ) {
         reasoning.push(m);
       } else {
@@ -523,15 +531,15 @@ export function ChatPanel({
                 <span>
                   {t(key)}
                   <small>
-                    {mode === "optimized" && flags[key]
-                      ? t("not_implemented")
+                    {(mode !== "baseline" || key !== "router") && flags[key]
+                      ? t("applied")
                       : t("disabled")}
                   </small>
                 </span>
                 <Switch.Root
                   className="switch"
-                  checked={mode === "optimized" && flags[key]}
-                  disabled={locked || mode === "baseline"}
+                  checked={mode === "baseline" && key === "router" ? false : flags[key]}
+                  disabled={locked || (mode === "baseline" && key === "router")}
                   onCheckedChange={(checked) =>
                     setFlags({ ...flags, [key]: checked })
                   }

@@ -57,7 +57,5 @@ export function requestFlags(
   mode: "baseline" | "optimized",
   flags: Flags,
 ): Flags {
-  return mode === "baseline"
-    ? { router: false, rewrite: false, context: false, memory: false }
-    : { ...flags };
+  return mode === "baseline" ? { ...flags, router: false } : { ...flags };
 }

@@ -291,11 +291,18 @@ class MultiArtifact(DTO):
 
 
 class MultiRouterService:
-    def __init__(self, raw: str | None = None, *, live_approved: bool = False):
+    def __init__(
+        self,
+        raw: str | None = None,
+        *,
+        live_approved: bool = False,
+        allow_research_candidate: bool = False,
+    ):
         self.artifact: MultiArtifact | None = None
         self.hash: str | None = None
         self.artifact_json: str | None = None
         self.live_approved = live_approved
+        self.allow_research_candidate = allow_research_candidate
         self.status = "ML_ARTIFACT_MISSING_FALLBACK"
         self.vectors: dict[str, tuple[TfidfVectorizer, TfidfVectorizer]] = {}
         self.coefficients: dict[str, np.ndarray] = {}

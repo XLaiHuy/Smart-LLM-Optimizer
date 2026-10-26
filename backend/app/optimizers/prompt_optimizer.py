@@ -17,11 +17,11 @@ from app.optimizers.prompt_analyzer import analyze_prompt
 from app.optimizers.strategy_selector import select_strategy
 
 
-class PromptCompressorPort(Protocol):
+class PromptCompressorPort(Protocol):  # interface cho prompt compressor
     def compress(self, prompt: str) -> Mapping[str, object]: ...
 
 
-class NoOpPromptOptimizer:
+class NoOpPromptOptimizer:  # tra ve original prompt without any optimization, used for testing or when optimization is disabled.
     async def optimize(
         self, req: ExecutionRequest, context: ContextResult, flags: FeatureFlags
     ) -> OptimizedPrompt:
@@ -86,13 +86,7 @@ class AdaptivePromptOptimizer:
         try:
             raw_result = await asyncio.to_thread(self.llm_compressor.compress, original)
         except Exception:
-            return self._result(
-                original,
-                "skipped",
-                "llmlingua_error",
-                "unknown",
-            )
-
+            return self._result(original, "skipped", "llmlingua_error", "unknown")
         proposed = raw_result.get("compressed")
         status = raw_result.get("status")
         preservation = raw_result.get("preservation", "unknown")
@@ -100,7 +94,10 @@ class AdaptivePromptOptimizer:
             validation = (
                 preservation if preservation in {"preserved", "violation", "unknown"} else "unknown"
             )
-            return self._result(original, "skipped", f"llmlingua_{validation}", validation)
+            reason = raw_result.get("reason")
+            if not isinstance(reason, str):
+                reason = f"llmlingua_{validation}"
+            return self._result(original, "skipped", reason, validation)
 
         before = raw_result.get("original_tokens")
         after = raw_result.get("compressed_tokens")
@@ -113,7 +110,6 @@ class AdaptivePromptOptimizer:
                 before_tokens=before if isinstance(before, int) else None,
                 after_tokens=after if isinstance(after, int) else None,
             )
-
         return self._result(
             original,
             "applied",

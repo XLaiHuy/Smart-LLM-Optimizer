@@ -240,7 +240,12 @@ class MeteredCalls:
         call_id, reservation = await self._start(execution, stage, model, upper)
         started = perf_counter()
         try:
-            if self.live and entry and self.catalog:
+            if (
+                self.live
+                and entry
+                and self.catalog
+                and entry.model_id != "mock-hash-embedding-v1"
+            ):
                 live_client = (
                     self.live.get_client(entry)
                     if hasattr(self.live, "get_client")
@@ -258,14 +263,21 @@ class MeteredCalls:
                 )
                 cost = price(entry, usage, self.catalog.version)
             else:
-                # Functional fixture only: explicitly mock, never semantic quality evidence.
+                # Local fallback when the selected chat provider has no embedding endpoint.
+                # It keeps document flows functional but is not semantic embedding evidence.
                 vectors = []
                 for value in texts:
                     vector = np.zeros(64)
                     for word in value.casefold().split():
                         vector[int(hashlib.sha256(word.encode()).hexdigest()[:8], 16) % 64] += 1
                     vectors.append((vector / (np.linalg.norm(vector) or 1)).tolist())
-                usage, cost = Usage(scope="call"), CostEstimate(scope="call")
+                usage = Usage(scope="call", usage_source="estimated")
+                cost = CostEstimate(
+                    scope="call",
+                    status="estimated" if entry else "not_billable",
+                    serving_usd=Decimal(0) if entry else None,
+                    price_catalog_version=self.catalog.version if self.catalog else None,
+                )
             if len(vectors) != len(texts):
                 raise AppError("OUTPUT_INVALID", 502, "Embedding count mismatch")
         except BaseException:

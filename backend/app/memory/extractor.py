@@ -7,14 +7,54 @@ import re
 from app.contracts.dtos import Fact
 
 _PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("name", re.compile(r"\b(?:my name is|tên tôi là)\s+([^.!?\n]{1,80})", re.I)),
+    (
+        "name",
+        re.compile(
+            r"\b(?:my name is|tên tôi là|tôi tên(?: là)?|toi ten(?: la)?)\s+([^.!?\n]{1,80})",
+            re.I,
+        ),
+    ),
     (
         "preference",
-        re.compile(r"\b(?:i prefer|i like|tôi thích|tôi ưu tiên)\s+([^.!?\n]{1,120})", re.I),
+        re.compile(
+            r"\b(?:i prefer|i like|tôi thích|tôi ưu tiên|toi thich|toi uu tien)\s+([^.!?\n]{1,120})",
+            re.I,
+        ),
     ),
     (
         "deadline",
-        re.compile(r"\b(?:deadline|hạn chót|hạn cuối)\s+(?:is|là)?\s*([^.!?\n]{1,80})", re.I),
+        re.compile(
+            r"\b(?:deadline|hạn chót|hạn cuối|han chot|han cuoi)"
+            r"(?:\s+(?:nộp(?:\s+báo cáo)?|báo cáo|nop(?:\s+bao cao)?|bao cao))?"
+            r"\s*(?:is|là|la)?\s*([^.!?\n]{1,80})",
+            re.I,
+        ),
+    ),
+    (
+        "major",
+        re.compile(
+            r"\b(?:tôi học ngành|ngành học của tôi là|ngành của tôi là|"
+            r"toi hoc nganh|nganh hoc cua toi la|nganh cua toi la)\s+([^.!?\n]{1,120})",
+            re.I,
+        ),
+    ),
+    (
+        "school",
+        re.compile(
+            r"\b(?:tôi học tại|tôi là sinh viên (?:của|tại)|trường của tôi là|"
+            r"toi hoc tai|toi la sinh vien (?:cua|tai)|truong cua toi la)\s+"
+            r"((?:[^.!?\n]|\.(?=\S)){1,120})",
+            re.I,
+        ),
+    ),
+    (
+        "research_topic",
+        re.compile(
+            r"\b(?:đề tài nghiên cứu của tôi là|đề tài của tôi là|tôi đang nghiên cứu(?: về)?|"
+            r"de tai nghien cuu cua toi la|de tai cua toi la|toi dang nghien cuu(?: ve)?)"
+            r"\s+([^.!?\n]{1,160})",
+            re.I,
+        ),
     ),
 )
 

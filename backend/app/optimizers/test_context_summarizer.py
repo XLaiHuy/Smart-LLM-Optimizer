@@ -1,5 +1,9 @@
 from app.contracts.dtos import Message, SessionSnapshot, Summary
-from app.optimizers.context_summarizer import ContextSummarizer, SummaryValidator
+from app.optimizers.context_summarizer import (
+    ContextSummarizer,
+    SummaryValidator,
+    extractive_summary_generator,
+)
 
 
 def source_snapshot() -> tuple[SessionSnapshot, tuple[Message, ...]]:
@@ -47,3 +51,13 @@ def test_validator_rejects_duplicate_coverage() -> None:
     summary = Summary(revision=3, content="x", covered_message_ids=("m1", "m1"))
 
     assert SummaryValidator.validate(summary, messages, snapshot.revision) is False
+
+
+async def test_extractive_generator_preserves_committed_coverage() -> None:
+    snapshot, messages = source_snapshot()
+
+    summary = await ContextSummarizer(extractive_summary_generator()).summarize(snapshot, messages)
+
+    assert summary is not None
+    assert summary.covered_message_ids == ("m1", "m2")
+    assert "user:" in summary.content

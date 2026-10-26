@@ -14,7 +14,7 @@ from app.optimizers.context_selection import (
 
 
 class PassThroughContext:
-    """Keep the original context when hybrid selection is disabled."""
+    """Assemble the original conversation without selecting or compacting history."""
 
     def prepare(
         self,
@@ -25,9 +25,9 @@ class PassThroughContext:
         current = features.current_turn
         if features.approved_current_content is not None:
             current = current.model_copy(update={"content": features.approved_current_content})
-
         messages = (
             *snapshot.server_instructions,
+            *features.memory,
             *snapshot.raw_turns,
             *features.evidence,
             current,
@@ -61,10 +61,9 @@ class HybridContextManager:
                     "content": features.approved_current_content,
                 }
             )
-
         mandatory = (
             *snapshot.server_instructions,
-        *features.memory,
+            *features.memory,
             *features.evidence,
             current,
         )
@@ -72,6 +71,7 @@ class HybridContextManager:
         if not features.flags.context:
             messages = (
                 *snapshot.server_instructions,
+                *features.memory,
                 *snapshot.raw_turns,
                 *features.evidence,
                 current,
@@ -79,7 +79,7 @@ class HybridContextManager:
             return ContextResult(
                 messages=messages,
                 provenance=tuple(message.id or message.role for message in messages),
-                state=noop_state("context", features.flags.context),
+                state=noop_state("context", False),
                 token_estimates=budgets.estimates,
             )
 
@@ -101,7 +101,7 @@ class HybridContextManager:
 
         messages = (
             *snapshot.server_instructions,
-        *features.memory,
+            *features.memory,
             *selected_history,
             *features.evidence,
             current,
@@ -113,6 +113,7 @@ class HybridContextManager:
             selected_history = tuple(message for turn in selected_turns for message in turn)
             messages = (
                 *snapshot.server_instructions,
+                *features.memory,
                 *selected_history,
                 *features.evidence,
                 current,

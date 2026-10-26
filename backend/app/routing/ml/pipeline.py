@@ -782,10 +782,10 @@ class RouterTrainingPipeline:
                     if exc.response.status_code in (401, 403, 404)
                     else "PROVIDER_REQUEST_FAILED"
                 )
-            if isinstance(exc, ValueError) and str(exc) in {
-                "Each candidate needs both labels in train and calibration",
-                "Hybrid needs at least two independent source groups per class for grouped OOF",
-            }:
+            if isinstance(exc, ValueError) and (
+                str(exc).startswith("Each candidate needs both labels in train and calibration")
+                or str(exc).startswith("Hybrid needs at least two independent source groups")
+            ):
                 code = "TRAINING_LABELS_REQUIRED"
                 if manifest.pilot:
                     code = "INSUFFICIENT_EVIDENCE"

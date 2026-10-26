@@ -11,6 +11,8 @@ RUN npm install
 # Stage 2: Build the production Next.js application
 FROM base AS builder
 WORKDIR /app
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=${BACKEND_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1

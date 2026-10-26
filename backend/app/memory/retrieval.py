@@ -29,11 +29,7 @@ class MemoryRetrievalResult:
 
     @property
     def selected_source_ids(self) -> tuple[str, ...]:
-        return tuple(
-            source_id
-            for item in self.selected
-            for source_id in item.source_message_ids
-        )
+        return tuple(source_id for item in self.selected for source_id in item.source_message_ids)
 
 
 def recall_at_k(result: MemoryRetrievalResult, relevant_source_ids: set[str]) -> float:
@@ -95,9 +91,7 @@ class MemoryRetriever:
             selected.append(item)
             used += item_tokens
 
-        all_tokens = sum(
-            count_messages_tokens((self._message(item),)) for item in candidates
-        )
+        all_tokens = sum(count_messages_tokens((self._message(item),)) for item in candidates)
         messages = tuple(self._message(item) for item in selected)
         return MemoryRetrievalResult(
             messages=messages,
@@ -173,14 +167,14 @@ class MemoryRetriever:
         indexes: dict[str | None, int],
         total: int,
     ) -> float:
-        latest_index = max((indexes.get(source_id, 0) for source_id in item.source_message_ids), default=0)
+        latest_index = max(
+            (indexes.get(source_id, 0) for source_id in item.source_message_ids), default=0
+        )
         hybrid = hybrid_score(query, item.content, latest_index, total, self.alpha)
         return (1 - self.importance_weight) * hybrid + self.importance_weight * item.importance
 
     @staticmethod
-    def _candidates(
-        snapshot: SessionSnapshot, *, prefix: str = ""
-    ) -> tuple[MemoryCandidate, ...]:
+    def _candidates(snapshot: SessionSnapshot, *, prefix: str = "") -> tuple[MemoryCandidate, ...]:
         facts = tuple(
             MemoryCandidate(
                 kind="fact",
@@ -194,7 +188,11 @@ class MemoryRetriever:
         summaries = tuple(
             MemoryCandidate(
                 kind="summary",
-                key=(f"{prefix}:summary:{summary.revision}" if prefix else f"summary:{summary.revision}"),
+                key=(
+                    f"{prefix}:summary:{summary.revision}"
+                    if prefix
+                    else f"summary:{summary.revision}"
+                ),
                 content=summary.content,
                 source_message_ids=summary.covered_message_ids,
                 importance=0.8,

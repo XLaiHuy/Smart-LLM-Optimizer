@@ -43,7 +43,9 @@ def bucket(key: str, records: list[UsageRecord]) -> MetricBucket:
         output_tokens=sum(c.usage.output_tokens for c in calls if c.usage.output_tokens is not None)
         if any(c.usage.output_tokens is not None for c in calls)
         else None,
-        usd=subtotal if known_costs else (Decimal(0) if calls else None),
+        # A total is meaningful only when every recorded call has a known
+        # serving cost. Do not present partial or mock usage as $0.
+        usd=subtotal if calls and len(known_costs) == len(calls) else None,
         known_subtotal_usd=subtotal if known_costs else None,
         unknown_calls=sum(
             c.cost.status == "unknown" or c.usage.usage_source == "unknown" for c in calls

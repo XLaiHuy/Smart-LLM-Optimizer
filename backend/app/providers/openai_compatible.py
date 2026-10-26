@@ -101,6 +101,22 @@ class OpenAICompatibleProvider:
         key, base_url = self._resolve_key_and_url(entry)
         return self._get_client(base_url, key)
 
+    @staticmethod
+    def _provider_status_error(status_code: int, message: str) -> AppError:
+        """Keep provider failures distinguishable for routing and cooldowns."""
+        if status_code == 401:
+            code = "UNAUTHORIZED"
+        elif status_code == 404:
+            code = "MODEL_NOT_FOUND"
+        elif status_code == 429:
+            code = "RATE_LIMITED"
+        else:
+            code = "DEPENDENCY_UNAVAILABLE"
+
+        # Only expose provider statuses that the API contract understands.
+        public_status = status_code if status_code in (401, 404, 429) else 503
+        return AppError(code, public_status, f"Provider rejected request: {message}")
+
     async def generate(
         self, messages: tuple[Message, ...], opts: ProviderOptions
     ) -> ProviderResult:
@@ -176,11 +192,7 @@ class OpenAICompatibleProvider:
                 "DEPENDENCY_UNAVAILABLE", 503, "Provider connection failed; billing unresolved"
             ) from exc
         except APIStatusError as exc:
-            raise AppError(
-                "RATE_LIMITED" if exc.status_code == 429 else "DEPENDENCY_UNAVAILABLE",
-                429 if exc.status_code == 429 else 503,
-                f"Provider rejected request: {exc.message}",
-            ) from exc
+            raise self._provider_status_error(exc.status_code, exc.message) from exc
 
         native = result.usage.model_dump() if result.usage else {}
         inputs = native.get("input_tokens_details") or {}
@@ -190,7 +202,10 @@ class OpenAICompatibleProvider:
             usage_source="provider",
             input_tokens=native.get("input_tokens"),
             output_tokens=native.get("output_tokens"),
-            cached_input_tokens=inputs.get("cached_tokens"),
+            # Providers omit cache details when no cached tokens were used.
+            # Treat an omitted detail block as zero so ordinary live calls get
+            # a deterministic price instead of an unnecessary `unknown`.
+            cached_input_tokens=inputs.get("cached_tokens", 0),
             reasoning_tokens=outputs.get("reasoning_tokens"),
         )
         text = result.output_text if result.status == "completed" else ""
@@ -286,11 +301,7 @@ class OpenAICompatibleProvider:
                 "DEPENDENCY_UNAVAILABLE", 503, "Provider connection failed; billing unresolved"
             ) from exc
         except APIStatusError as exc:
-            raise AppError(
-                "RATE_LIMITED" if exc.status_code == 429 else "DEPENDENCY_UNAVAILABLE",
-                429 if exc.status_code == 429 else 503,
-                f"Provider rejected request: {exc.message}",
-            ) from exc
+            raise self._provider_status_error(exc.status_code, exc.message) from exc
 
         choice = result.choices[0] if result.choices else None
         text = (choice.message.content or "") if choice and choice.message else ""
@@ -322,7 +333,9 @@ class OpenAICompatibleProvider:
             usage_source="provider",
             input_tokens=native.get("prompt_tokens"),
             output_tokens=native.get("completion_tokens"),
-            cached_input_tokens=(native.get("prompt_tokens_details") or {}).get("cached_tokens"),
+            # Chat-completions providers commonly omit prompt cache details
+            # when the value is zero.
+            cached_input_tokens=(native.get("prompt_tokens_details") or {}).get("cached_tokens", 0),
             reasoning_tokens=(native.get("completion_tokens_details") or {}).get("reasoning_tokens"),
         )
         finish_reason = choice.finish_reason if choice else "stop"
@@ -396,11 +409,7 @@ class OpenAICompatibleProvider:
             except APIConnectionError as exc:
                 raise AppError("DEPENDENCY_UNAVAILABLE", 503, "Provider connection failed") from exc
             except APIStatusError as exc:
-                raise AppError(
-                    "RATE_LIMITED" if exc.status_code == 429 else "DEPENDENCY_UNAVAILABLE",
-                    429 if exc.status_code == 429 else 503,
-                    f"Provider rejected request: {exc.message}",
-                ) from exc
+                raise self._provider_status_error(exc.status_code, exc.message) from exc
         else:
             # Fallback to non-streaming generation if responses endpoint does not support streaming
             result = await self.generate(messages, opts)
