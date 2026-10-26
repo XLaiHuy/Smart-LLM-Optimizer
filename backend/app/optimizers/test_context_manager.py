@@ -110,3 +110,26 @@ def test_recent_turn_overflow_does_not_fail() -> None:
     )
 
     assert result.messages[-1].content == "Current question"
+
+
+def test_retrieved_memory_is_included_and_budgeted() -> None:
+    memory = Message(
+        role="system",
+        id="memory:fact:deadline",
+        content="[Retrieved memory]\ndeadline: Friday",
+    )
+    current = Message(role="user", content="When is my deadline?")
+    token_budget = count_messages_tokens((memory, current))
+
+    result = HybridContextManager(token_budget=token_budget).prepare(
+        SessionSnapshot(owner_user_id="u1", session_id="s1", revision=1),
+        ContextBudgets(),
+        ContextFeatures(
+            current_turn=current,
+            flags=FeatureFlags(context=True, memory=True),
+            memory=(memory,),
+        ),
+    )
+
+    assert memory in result.messages
+    assert count_messages_tokens(result.messages) <= token_budget

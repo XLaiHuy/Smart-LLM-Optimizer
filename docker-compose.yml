@@ -7,12 +7,28 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_PATH=data/smartllm.db
-      - PROVIDER_MODE=mock
+      - DATABASE_PATH=/app/data/smartllm.db
+      - PROVIDER_MODE=live
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_CATALOG_PATH=/app/config/models.json
       - APP_ENV=development
+      - AUTO_ROUTING_STRATEGY=${AUTO_ROUTING_STRATEGY:-ml_multi_model}
+      - ML_ROUTER_ARTIFACT_PATH=${ML_ROUTER_ARTIFACT_PATH:-config/router_multitask_vietnamese_model.json}
+      - ML_ROUTER_LIVE_APPROVED=${ML_ROUTER_LIVE_APPROVED:-false}
+      - ML_ROUTER_ALLOW_RESEARCH_CANDIDATE=${ML_ROUTER_ALLOW_RESEARCH_CANDIDATE:-false}
       - LOG_LEVEL=INFO
+      - MEMORY_RETRIEVAL_ENABLED=true
+      - HYBRID_CONTEXT_ENABLED=true
+      - ADAPTIVE_PROMPT_ENABLED=${ADAPTIVE_PROMPT_ENABLED}
+      - RESEARCH_LIVE_ENABLED=${RESEARCH_LIVE_ENABLED:-false}
+      - ROUTER_TRAINING_MANIFEST_PATH=/app/data/router-training/manifest.json
+      - ROUTER_TRAINING_DIRECTORY=/app/data/router-training
     volumes:
       - ./data:/app/data
+      - ./config:/app/config:ro
+      - ./config:/config:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/platform-info')"]
       interval: 10s
@@ -27,6 +43,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:8000
     container_name: smartllm-frontend
     ports:
       - "3000:3000"

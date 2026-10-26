@@ -347,8 +347,28 @@ def train_multi(
                 for r in rows
             ]
 
-        if len(set(labels(splits["train"]))) != 2 or len(set(labels(splits["calibration"]))) != 2:
-            raise ValueError("Each candidate needs both labels in train and calibration")
+        label_counts = {
+            split_name: {
+                "pass": sum(labels(rows)),
+                "fail": len(rows) - sum(labels(rows)),
+            }
+            for split_name, rows in splits.items()
+        }
+        missing = [
+            f"{split_name}:{label}"
+            for split_name, counts in label_counts.items()
+            for label, count in counts.items()
+            if count == 0 and split_name in ("train", "calibration")
+        ]
+        if missing:
+            summary = "; ".join(
+                f"{split_name}=PASS:{counts['pass']}/FAIL:{counts['fail']}"
+                for split_name, counts in label_counts.items()
+            )
+            raise ValueError(
+                "Each candidate needs both labels in train and calibration; "
+                f"candidate={config.config_id}; missing={','.join(missing)}; {summary}"
+            )
 
         if hybrid:
             train_text_probs, oof_folds = _oof_text_probabilities(splits["train"], config.config_id)

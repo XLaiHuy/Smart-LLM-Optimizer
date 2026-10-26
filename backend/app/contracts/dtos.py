@@ -75,19 +75,14 @@ class ChatRequest(DTO):
         if not self.message.strip():
             raise ValueError("Message must not be blank")
         if self.mode == "baseline":
-            if (
-                self.policy_id not in (None, "baseline")
-                and not (self.policy_id and self.policy_id.startswith("fixed_candidate:"))
-            ) or (
-                self.flags and any(self.flags.model_dump().values())
+            fixed_candidate = bool(self.policy_id and self.policy_id.startswith("fixed_candidate:"))
+            if (self.policy_id not in (None, "baseline") and not fixed_candidate) or (
+                self.flags and any(self.flags.model_dump().values()) and not fixed_candidate
             ):
                 raise ValueError("Baseline conflicts with policy/flags")
-        elif (
-            self.policy_id is not None
-            and not (
-                self.policy_id in ("foundation-mock-v3", "quality-guarded-v3")
-                or self.policy_id.startswith("fixed_candidate:")
-            )
+        elif self.policy_id is not None and not (
+            self.policy_id in ("foundation-mock-v3", "quality-guarded-v3")
+            or self.policy_id.startswith("fixed_candidate:")
         ):
             raise ValueError("Only foundation-mock-v3 is available in G0")
         return self

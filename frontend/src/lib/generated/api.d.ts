@@ -2293,7 +2293,7 @@ export interface components {
              * @default cache
              * @enum {string}
              */
-            mode: "cache" | "huggingface_gemini";
+            mode: "cache" | "live" | "huggingface_gemini";
             /**
              * Budget Usd
              * @default 1
@@ -2335,7 +2335,7 @@ export interface components {
              * @default cache
              * @enum {string}
              */
-            mode: "cache" | "huggingface_gemini";
+            mode: "cache" | "live" | "huggingface_gemini";
             /**
              * Budget Usd
              * @default 1

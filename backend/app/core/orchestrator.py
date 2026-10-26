@@ -4,19 +4,19 @@ import json
 from collections.abc import AsyncIterator, Callable, Coroutine
 from decimal import Decimal
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
+from uuid import uuid4
 
 if TYPE_CHECKING:
     from app.core.metering import MeteredCalls
     from app.documents.service import DocumentService
-from uuid import uuid4
-
 from app.contracts.dtos import (
     CallRecord,
     ChatRequest,
     ChatResponse,
     ContextBudgets,
     ContextFeatures,
+    ContextResult,
     CostEstimate,
     CostSnapshot,
     ExecutionRequest,
@@ -31,12 +31,14 @@ from app.contracts.dtos import (
     RegistrySnapshot,
     RemainingBudget,
     RouteDecision,
+    SessionSnapshot,
     Timing,
     ToolEvent,
     Usage,
 )
 from app.contracts.errors import AppError
 from app.contracts.protocols import (
+    AsyncContextManager,
     ContextManager,
     LLMProvider,
     MemoryManager,
@@ -49,6 +51,7 @@ from app.contracts.protocols import (
 )
 from app.core.policy import noop_state, resolve_configuration
 from app.core.tools import ToolExecutor, tool_definitions
+from app.routing.model_health import ModelHealth
 
 
 class Orchestrator:
@@ -58,7 +61,7 @@ class Orchestrator:
         provider: LLMProvider,
         analyzer: TaskAnalyzer,
         memory: MemoryManager,
-        context: ContextManager,
+        context: ContextManager | AsyncContextManager,
         prompt: PromptOptimizer,
         router: ModelRouter,
         registry: RegistrySnapshot,
@@ -77,6 +80,7 @@ class Orchestrator:
         self.prompt = prompt
         self.router = router
         self.registry = registry
+        self.model_health = ModelHealth()
         self.memory_token_budget = memory_token_budget
 
     @staticmethod
@@ -85,8 +89,39 @@ class Orchestrator:
     ) -> tuple[Message, ...]:
         for index in range(len(messages) - 1, -1, -1):
             if messages[index].role == "user":
-                return messages[:index] + (messages[index].model_copy(update={"content": content}),) + messages[index + 1 :]
+                return (
+                    messages[:index]
+                    + (messages[index].model_copy(update={"content": content}),)
+                    + messages[index + 1 :]
+                )
         return messages
+
+    def _healthy_registry(self) -> RegistrySnapshot:
+        configurations = tuple(
+            config
+            if self.model_health.is_available(config.config_id)
+            else config.model_copy(
+                update={
+                    "available": False,
+                    "availability_reason": "provider_cooldown",
+                }
+            )
+            for config in self.registry.configurations
+        )
+
+        return self.registry.model_copy(update={"configurations": configurations})
+
+    async def _prepare_context(
+        self,
+        snapshot: SessionSnapshot,
+        budgets: ContextBudgets,
+        features: ContextFeatures,
+    ) -> ContextResult:
+        if hasattr(self.context, "optimize"):
+            return await cast(AsyncContextManager, self.context).optimize(
+                snapshot, budgets, features
+            )
+        return cast(ContextManager, self.context).prepare(snapshot, budgets, features)
 
     def _find_fallback_candidate(
         self,
@@ -102,6 +137,7 @@ class Orchestrator:
             for c in self.registry.configurations
             if c.config_id not in exhausted_configs
             and c.available
+            and self.model_health.is_available(c.config_id)
             and (not is_live or c.execution_source == "live")
         ]
         if not candidates:
@@ -119,9 +155,24 @@ class Orchestrator:
             return None
 
         # Cross-provider capability tiers
-        tier_fast = {"groq-llama-3.1-8b-instant", "groq-gpt-oss-20b", "openai-gpt-6-luna", "gpt-6-luna"}
-        tier_code = {"groq-qwen-2.5-coder-32b", "groq-qwen-3.8-27b", "openai-gpt-6.1-sol", "gpt-6.1-sol"}
-        tier_reasoning = {"groq-llama-3.3-70b-versatile", "groq-gpt-oss-120b", "openai-gpt-5.6-terra", "gpt-5.6-terra"}
+        tier_fast = {
+            "groq-llama-3.1-8b-instant",
+            "groq-gpt-oss-20b",
+            "openai-gpt-6-luna",
+            "gpt-6-luna",
+        }
+        tier_code = {
+            "groq-qwen-2.5-coder-32b",
+            "groq-qwen-3.8-27b",
+            "openai-gpt-6.1-sol",
+            "gpt-6.1-sol",
+        }
+        tier_reasoning = {
+            "groq-llama-3.3-70b-versatile",
+            "groq-gpt-oss-120b",
+            "openai-gpt-5.6-terra",
+            "gpt-5.6-terra",
+        }
 
         failed_tier: set[str] | None = None
         if failed_config_id:
@@ -138,11 +189,21 @@ class Orchestrator:
             mid = c.model_id.lower()
 
             # Cross-Provider Same-Tier Priority: Prioritize alternate provider in the same capability tier
-            if failed_tier and (cid in failed_tier or mid in failed_tier or any(k in cid for k in failed_tier)):
+            if failed_tier and (
+                cid in failed_tier or mid in failed_tier or any(k in cid for k in failed_tier)
+            ):
                 # If the failed model was Groq, prioritize OpenAI in same tier (and vice versa)
-                if failed_config_id and "groq" in failed_config_id.lower() and ("openai" in cid or "gpt-" in cid):
+                if (
+                    failed_config_id
+                    and "groq" in failed_config_id.lower()
+                    and ("openai" in cid or "gpt-" in cid)
+                ):
                     return 0
-                if failed_config_id and ("openai" in failed_config_id.lower() or "gpt-" in failed_config_id.lower()) and "groq" in cid:
+                if (
+                    failed_config_id
+                    and ("openai" in failed_config_id.lower() or "gpt-" in failed_config_id.lower())
+                    and "groq" in cid
+                ):
                     return 0
                 return 1
 
@@ -254,7 +315,7 @@ class Orchestrator:
                         token_budget=self.memory_token_budget,
                     ),
                 )
-                prepared = self.context.prepare(
+                prepared = await self._prepare_context(
                     memory.snapshot,
                     ContextBudgets(),
                     ContextFeatures(
@@ -296,7 +357,10 @@ class Orchestrator:
                 )
                 from app.optimizers.prompt_optimizer import NoOpPromptOptimizer
 
-                if isinstance(self.prompt, NoOpPromptOptimizer) and rewrite.proposed != request.message:
+                if (
+                    isinstance(self.prompt, NoOpPromptOptimizer)
+                    and rewrite.proposed != request.message
+                ):
                     raise AppError(
                         "OUTPUT_INVALID", 502, "G0 no-op altered input", execution.request_id
                     )
@@ -349,7 +413,7 @@ class Orchestrator:
                     self.router.select,
                     profile,
                     prepared,
-                    self.registry,
+                    self._healthy_registry(),
                     costs,
                     PolicySnapshot(
                         **{
@@ -402,6 +466,14 @@ class Orchestrator:
                     )
 
                 exhausted_configs: set[str] = set()
+                fallback_attempts = 0
+                # Each failed config is exhausted before retrying, so this is
+                # bounded by the registry and cannot cycle indefinitely.
+                max_fallback_attempts = max(0, len(self.registry.configurations) - 1)
+                response_fragments: list[str] = []
+                continuation_attempts = 0
+                max_continuation_attempts = 2
+                generation_messages = prepared.messages
                 for generation in range(3):
                     await stage("generate")
                     current_options = options.model_copy(
@@ -411,11 +483,11 @@ class Orchestrator:
                         try:
                             if self.metering:
                                 result = await self.metering.generate(
-                                    execution, prepared.messages, current_options, self.provider
+                                    execution, generation_messages, current_options, self.provider
                                 )
                             else:
                                 result = await self.provider.generate(
-                                    prepared.messages, current_options
+                                    generation_messages, current_options
                                 )
                                 fallback_calls.append(
                                     CallRecord(
@@ -427,63 +499,104 @@ class Orchestrator:
                                     )
                                 )
                             if result.status == "incomplete":
-                                raise AppError(
-                                    "OUTPUT_INCOMPLETE",
-                                    502,
-                                    "Provider output incomplete",
-                                    execution.request_id,
+                                if not result.text:
+                                    raise AppError(
+                                        "OUTPUT_INCOMPLETE",
+                                        502,
+                                        "Provider returned no usable partial output",
+                                        execution.request_id,
+                                    )
+                                if continuation_attempts >= max_continuation_attempts:
+                                    result = result.model_copy(
+                                        update={
+                                            "text": "".join((*response_fragments, result.text))
+                                            + "\n\n---\n"
+                                            + "*Câu trả lời đã chạm giới hạn độ dài; "
+                                            "hãy yêu cầu tôi tiếp tục nếu cần.*",
+                                            "status": "completed",
+                                        }
+                                    )
+                                    self.model_health.record_success(current_options.config_id)
+                                    break
+                                response_fragments.append(result.text)
+                                continuation_attempts += 1
+                                generation_messages = (
+                                    *generation_messages,
+                                    Message(role="assistant", content=result.text),
+                                    Message(
+                                        role="user",
+                                        content=(
+                                            "Continue exactly where your previous answer ended. "
+                                            "Do not repeat any earlier text."
+                                        ),
+                                    ),
                                 )
+                                current_options = current_options.model_copy(
+                                    update={"call_id": str(uuid4())}
+                                )
+                                continue
+                            if response_fragments:
+                                result = result.model_copy(
+                                    update={"text": "".join((*response_fragments, result.text))}
+                                )
+                            self.model_health.record_success(current_options.config_id)
                             break
                         except AppError as exc:
+                            if exc.code == "OUTPUT_INCOMPLETE":
+                                raise
+                            self.model_health.record_failure(
+                                current_options.config_id, status_code=exc.status_code
+                            )
                             if (
-                                (
-                                    exc.code
-                                    in (
-                                        "RATE_LIMITED",
-                                        "QUOTA_EXCEEDED",
-                                        "DEPENDENCY_UNAVAILABLE",
-                                        "PROVIDER_TIMEOUT",
-                                        "NO_COMPATIBLE_MODEL",
-                                        "UNAUTHORIZED",
-                                        "OUTPUT_INCOMPLETE",
-                                    )
-                                    or exc.status_code in (401, 404, 422, 429, 502, 503, 504)
+                                exc.code
+                                in (
+                                    "RATE_LIMITED",
+                                    "QUOTA_EXCEEDED",
+                                    "DEPENDENCY_UNAVAILABLE",
+                                    "PROVIDER_TIMEOUT",
+                                    "NO_COMPATIBLE_MODEL",
+                                    "UNAUTHORIZED",
                                 )
-                                and self.registry
-                            ):
+                                or exc.status_code in (401, 404, 422, 429, 502, 503, 504)
+                            ) and self.registry:
                                 exhausted_configs.add(current_options.config_id)
                                 next_candidate = self._find_fallback_candidate(
                                     exhausted_configs, failed_config_id=current_options.config_id
                                 )
-                                if next_candidate is not None:
-                                    reason_code = (
-                                        "PROVIDER_RATE_LIMITED_FALLBACK"
-                                        if exc.code in ("RATE_LIMITED", "QUOTA_EXCEEDED") or exc.status_code == 429
-                                        else f"PROVIDER_FAILOVER_{exc.code}"
-                                    )
-                                    route = route.model_copy(
-                                        update={
-                                            "config_id": next_candidate.config_id,
-                                            "model_id": next_candidate.model_id,
-                                            "fallback_used": True,
-                                            "reason": reason_code,
-                                            "reason_code": reason_code,
-                                        }
-                                    )
-                                    current_options = current_options.model_copy(
-                                        update={
-                                            "config_id": next_candidate.config_id,
-                                            "model_id": next_candidate.model_id,
-                                            "call_id": str(uuid4()),
-                                        }
-                                    )
-                                    options = options.model_copy(
-                                        update={
-                                            "config_id": next_candidate.config_id,
-                                            "model_id": next_candidate.model_id,
-                                        }
-                                    )
-                                    continue
+                            if (
+                                next_candidate is not None
+                                and fallback_attempts < max_fallback_attempts
+                            ):
+                                fallback_attempts += 1
+                                reason_code = (
+                                    "PROVIDER_RATE_LIMITED_FALLBACK"
+                                    if exc.code in ("RATE_LIMITED", "QUOTA_EXCEEDED")
+                                    or exc.status_code == 429
+                                    else f"PROVIDER_FAILOVER_{exc.code}"
+                                )
+                                route = route.model_copy(
+                                    update={
+                                        "config_id": next_candidate.config_id,
+                                        "model_id": next_candidate.model_id,
+                                        "fallback_used": True,
+                                        "reason": reason_code,
+                                        "reason_code": reason_code,
+                                    }
+                                )
+                                current_options = current_options.model_copy(
+                                    update={
+                                        "config_id": next_candidate.config_id,
+                                        "model_id": next_candidate.model_id,
+                                        "call_id": str(uuid4()),
+                                    }
+                                )
+                                options = options.model_copy(
+                                    update={
+                                        "config_id": next_candidate.config_id,
+                                        "model_id": next_candidate.model_id,
+                                    }
+                                )
+                                continue
                             raise
                     if not result.tool_calls:
                         break
@@ -612,9 +725,7 @@ class Orchestrator:
                 )
                 committed = await asyncio.shield(self.sessions.commit(execution, response))
                 try:
-                    latest_snapshot = await self.sessions.snapshot(
-                        principal, request.session_id
-                    )
+                    latest_snapshot = await self.sessions.snapshot(principal, request.session_id)
                     await self.memory.update(execution, latest_snapshot)
                 except Exception:
                     import logging
@@ -698,9 +809,7 @@ class Orchestrator:
         try:
             snapshot = await self.sessions.snapshot(principal, request.session_id)
             config = resolve_configuration(request)
-            is_live = (
-                self.metering is not None and self.metering.settings.provider_mode == "live"
-            )
+            is_live = self.metering is not None and self.metering.settings.provider_mode == "live"
             if is_live:
                 config = config.model_copy(update={"policy_version": "router-p0-v1"})
                 if request.policy_id == "foundation-mock-v3":
@@ -713,9 +822,7 @@ class Orchestrator:
                 await self.documents.retrieve(execution) if self.documents else ((), ())
             )
             if request.document_ids and self.documents:
-                await self.documents.sources(
-                    principal, request.session_id, request.document_ids
-                )
+                await self.documents.sources(principal, request.session_id, request.document_ids)
             if evidence:
                 snapshot = snapshot.model_copy(
                     update={
@@ -729,15 +836,21 @@ class Orchestrator:
                     }
                 )
             memory = await self.memory.prepare(
-                snapshot, MemoryPlan(enabled=config.flags.memory)
+                snapshot,
+                MemoryPlan(
+                    enabled=config.flags.memory,
+                    query=request.message,
+                    token_budget=self.memory_token_budget,
+                ),
             )
-            prepared = self.context.prepare(
+            prepared = await self._prepare_context(
                 memory.snapshot,
                 ContextBudgets(),
                 ContextFeatures(
                     current_turn=Message(role="user", content=request.message),
                     flags=config.flags,
                     evidence=evidence,
+                    memory=memory.memory_messages,
                 ),
             )
             rewrite = await self.prompt.optimize(execution, prepared, config.flags)
@@ -852,9 +965,7 @@ class Orchestrator:
                             is_responses_endpoint = False
 
                     if has_stream and not is_responses_endpoint:
-                        async for chunk in self.provider.stream(
-                            prepared.messages, current_options
-                        ):
+                        async for chunk in self.provider.stream(prepared.messages, current_options):
                             if is_disconnected and await is_disconnected():
                                 is_client_aborted = True
                                 break
@@ -914,7 +1025,8 @@ class Orchestrator:
                         if next_cand is not None:
                             reason_code = (
                                 "PROVIDER_RATE_LIMITED_FALLBACK"
-                                if exc.code in ("RATE_LIMITED", "QUOTA_EXCEEDED") or exc.status_code == 429
+                                if exc.code in ("RATE_LIMITED", "QUOTA_EXCEEDED")
+                                or exc.status_code == 429
                                 else f"PROVIDER_FAILOVER_{exc.code}"
                             )
                             route = route.model_copy(
@@ -955,9 +1067,7 @@ class Orchestrator:
                 effective_configuration=config,
                 usage=usage,
                 cost=cost,
-                execution_source=self.metering.settings.provider_mode
-                if self.metering
-                else "mock",
+                execution_source=self.metering.settings.provider_mode if self.metering else "mock",
                 citations=citations,
                 timing=Timing(
                     e2e_ms=(perf_counter() - started) * 1000,

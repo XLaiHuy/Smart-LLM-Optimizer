@@ -87,14 +87,24 @@ class MLRouterService:
                 self.multi.semantic.encoder.shared = port
                 self.multi.semantic.cache.clear()
 
-    def __init__(self, artifact_json: str | None = None, *, live_approved: bool = False):
+    def __init__(
+        self,
+        artifact_json: str | None = None,
+        *,
+        live_approved: bool = False,
+        allow_research_candidate: bool = False,
+    ):
         from app.routing.ml.multi import MultiRouterService
 
-        self.multi = MultiRouterService(live_approved=live_approved)
+        self.multi = MultiRouterService(
+            live_approved=live_approved,
+            allow_research_candidate=allow_research_candidate,
+        )
         self.artifact: RouterArtifact | None = None
         self.hash: str | None = None
         self.artifact_json: str | None = None
         self.live_approved = live_approved
+        self.allow_research_candidate = allow_research_candidate
         self.status = "ML_ARTIFACT_MISSING_FALLBACK"
         self.word = None
         self.char = None
@@ -104,7 +114,11 @@ class MLRouterService:
                 if not isinstance(document, dict):
                     raise ValueError("Artifact must be an object")
                 if document.get("format_version") == "router-json-v2":
-                    self.multi = MultiRouterService(artifact_json, live_approved=live_approved)
+                    self.multi = MultiRouterService(
+                        artifact_json,
+                        live_approved=live_approved,
+                        allow_research_candidate=allow_research_candidate,
+                    )
                     self.hash, self.artifact_json, self.status = (
                         self.multi.hash,
                         self.multi.artifact_json,
@@ -122,15 +136,31 @@ class MLRouterService:
                 self.status = "ML_ARTIFACT_INVALID_FALLBACK"
 
     @classmethod
-    def load(cls, path: Path, *, live_approved: bool = False) -> "MLRouterService":
+    def load(
+        cls,
+        path: Path,
+        *,
+        live_approved: bool = False,
+        allow_research_candidate: bool = False,
+    ) -> "MLRouterService":
         try:
             if path.stat().st_size > 20 * 1024 * 1024:
                 raise ValueError("Artifact too large")
-            return cls(path.read_text(encoding="utf-8"), live_approved=live_approved)
+            return cls(
+                path.read_text(encoding="utf-8"),
+                live_approved=live_approved,
+                allow_research_candidate=allow_research_candidate,
+            )
         except FileNotFoundError:
-            return cls(live_approved=live_approved)
+            return cls(
+                live_approved=live_approved,
+                allow_research_candidate=allow_research_candidate,
+            )
         except (OSError, ValueError):
-            service = cls(live_approved=live_approved)
+            service = cls(
+                live_approved=live_approved,
+                allow_research_candidate=allow_research_candidate,
+            )
             service.status = "ML_ARTIFACT_INVALID_FALLBACK"
             return service
 

@@ -27,11 +27,14 @@ class ContextOptimizer:
         token_budget: int,
         summarizer: ContextSummarizer | None = None,
         memory_retriever: MemoryRetriever | None = None,
+        summary_reserve_tokens: int = 384,
     ) -> None:
-        self.selector = HybridContextManager(token_budget)
+        if summary_reserve_tokens < 0:
+            raise ValueError("summary_reserve_tokens must be non-negative")
         self.summarizer = summarizer or ContextSummarizer()
         self.memory_retriever = memory_retriever
         self.token_budget = token_budget
+        self.summary_reserve_tokens = summary_reserve_tokens
 
     async def optimize(
         self,
@@ -52,7 +55,14 @@ class ContextOptimizer:
                 min(memory_budget, self.token_budget // 3),
             )
             features = features.model_copy(update={"memory": memory.messages})
-        selected = self.selector.prepare(snapshot, budgets, features)
+        reserve = min(self.summary_reserve_tokens, max(0, self.token_budget // 4))
+        try:
+            selected = HybridContextManager(self.token_budget - reserve).prepare(
+                snapshot, budgets, features
+            )
+        except ValueError:
+            # Mandatory system/context content leaves no room to reserve.
+            selected = HybridContextManager(self.token_budget).prepare(snapshot, budgets, features)
         if not features.flags.context or selected.state.status != "applied":
             return selected
 

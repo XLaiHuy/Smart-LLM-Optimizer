@@ -22,7 +22,7 @@ export function RouterTraining({ user }: { user: User }) {
   const client = useQueryClient();
   const [mode, setMode] = useState<Request["mode"]>("cache");
   const [budget, setBudget] = useState("1");
-  const [autoImport, setAutoImport] = useState(true);
+  const [autoImport, setAutoImport] = useState(false);
   const [attention, setAttention] = useState(false);
   const [phase, setPhase] = useState<Request["phase"]>("full");
   const [selected, setSelected] = useState<string | null>(null);
@@ -200,7 +200,7 @@ export function RouterTraining({ user }: { user: User }) {
             onChange={(e) => setMode(e.target.value as Request["mode"])}
           >
             <option value="cache">{t("cache")}</option>
-            <option value="huggingface_gemini">{t("live")}</option>
+            <option value="live">{t("live")}</option>
           </select>
         </label>
         <label>
@@ -230,7 +230,7 @@ export function RouterTraining({ user }: { user: User }) {
         )}
       </div>
       {pilot && <p className="training-note">{t("pilotCap")}</p>}
-      {mode === "huggingface_gemini" && !info.data?.live_available && (
+      {mode === "live" && !info.data?.live_available && (
         <p className="training-note">{t("liveLocked")}</p>
       )}
       <label className="training-auto-import">

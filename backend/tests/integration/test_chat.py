@@ -18,6 +18,14 @@ async def session(client: httpx.AsyncClient) -> str:
     return response.json()["id"]
 
 
+async def test_mock_registry_exposes_three_demo_tiers(client: httpx.AsyncClient) -> None:
+    response = await client.get("/v1/models")
+    assert response.status_code == 200
+
+    config_ids = {model["config_id"] for model in response.json()}
+    assert {"mock-baseline", "mock-coder-32b", "mock-reasoning-70b"} <= config_ids
+
+
 @pytest.mark.parametrize("values", list(product((False, True), repeat=4)))
 async def test_all_flags_preserve_history_and_one_call(
     client: httpx.AsyncClient, app: FastAPI, values: tuple[bool, ...]

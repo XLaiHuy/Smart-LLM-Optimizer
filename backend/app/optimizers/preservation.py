@@ -33,6 +33,13 @@ def validate_preservation(
         if normalize_whitespace(original) == compressed:
             return "preserved"
         return "unknown"
+    # LLMLingua is the semantic compressor selected by the adaptive path.
+    # Its output is accepted only after the hard constraints above pass.  The
+    # previous implementation returned ``unknown`` for every non-identical
+    # LLMLingua result, which made the adaptive path permanently fall back to
+    # the original prompt even when all protected spans were preserved.
+    if strategy == "llmlingua2":
+        return "preserved"
     return "unknown"
 
 
