@@ -2,7 +2,7 @@ import json
 from collections import deque
 from collections.abc import AsyncIterator
 from time import monotonic
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Cookie, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
@@ -272,7 +272,7 @@ async def runtime_settings(c: ContainerDep, user: UserDep) -> RuntimeSettings:
             RuntimeModel(
                 model_id=model_id,
                 label=label,
-                provider=provider,
+                provider=cast(Literal["openrouter", "openai"], provider),
                 config_id=config.config_id if config else None,
                 available=bool(config and config.available and c.settings.provider_mode == "live"),
             )
@@ -282,7 +282,7 @@ async def runtime_settings(c: ContainerDep, user: UserDep) -> RuntimeSettings:
     return RuntimeSettings(
         execution_source=c.settings.provider_mode,
         models=tuple(models),
-        group_policy_status=c.orchestrator.group_policy.status,
+        group_policy_status=c.orchestrator.group_policy.status if c.orchestrator.group_policy else "GROUP_POLICY_MISSING_SHADOW",
         reporting_epoch=epoch.started_at if epoch else None,
     )
 

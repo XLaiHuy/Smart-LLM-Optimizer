@@ -30,11 +30,11 @@ def test_ambiguous_text_is_not_saved() -> None:
         "Bạn nhớ tôi học tại đâu?",
     ],
 )
-def test_recall_queries_do_not_become_explicit_facts(question):
+def test_recall_queries_do_not_become_explicit_facts(question: str) -> None:
     assert extract_explicit_facts(question, "q") == ()
 
 
-def test_nested_deadline_correction_keeps_only_new_value():
+def test_nested_deadline_correction_keeps_only_new_value() -> None:
     facts = extract_explicit_facts(
         "Tôi cập nhật hạn chót: hạn chót là 25/11/2026, thay cho 18/11/2026. Chỉ xác nhận ngắn.",
         "m2",

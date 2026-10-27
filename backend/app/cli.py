@@ -36,7 +36,7 @@ def start_reporting_epoch(
 ) -> None:
     """Idempotent reporting watermark. Does not change financial balances."""
 
-    async def run():
+    async def run() -> None:
         from app.storage.models import AnalyticsEpoch
         from app.storage.repositories import now
 
@@ -58,7 +58,7 @@ def start_reporting_epoch(
 def mark_audit_user(user_id: str) -> None:
     """Explicit IDs only; never infer account purpose from its username."""
 
-    async def run():
+    async def run() -> None:
         from app.storage.models import User
 
         db = Database(Settings())

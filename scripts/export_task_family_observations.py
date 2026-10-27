@@ -79,22 +79,22 @@ def run(directory):
                 writer.writerow(
                     {
                         k: cell(v)
-                        for k, v in dict(
-                            task_id=row["task_id"],
-                            family=row["domain"],
-                            split=row["split"],
-                            prompt=prepared["original_messages"][0]["content"],
-                            response=cached["text"],
-                            model=config.model_id,
-                            config_id=config_id,
-                            qualified=observation["qualified"],
-                            input_tokens=observation["input_tokens"],
-                            output_tokens=observation["output_tokens"],
-                            usd=observation["usd"],
-                            provider_ms=observation["latency_ms"],
-                            preparation_ms=prepared["prepare_ms"],
-                            measurement="paired_provider_DEV_not_auto_route_or_E2E",
-                        ).items()
+                        for k, v in {
+                            "task_id": row["task_id"],
+                            "family": row["domain"],
+                            "split": row["split"],
+                            "prompt": prepared["original_messages"][0]["content"],
+                            "response": cached["text"],
+                            "model": config.model_id,
+                            "config_id": config_id,
+                            "qualified": observation["qualified"],
+                            "input_tokens": observation["input_tokens"],
+                            "output_tokens": observation["output_tokens"],
+                            "usd": observation["usd"],
+                            "provider_ms": observation["latency_ms"],
+                            "preparation_ms": prepared["prepare_ms"],
+                            "measurement": "paired_provider_DEV_not_auto_route_or_E2E",
+                        }.items()
                     }
                 )
     lines = [

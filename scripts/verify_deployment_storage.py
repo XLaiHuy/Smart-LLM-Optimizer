@@ -1,6 +1,5 @@
 """Read-only comparison of migrated live DB against the pre-migration snapshot."""
 import argparse
-import hashlib
 import json
 import sqlite3
 from pathlib import Path

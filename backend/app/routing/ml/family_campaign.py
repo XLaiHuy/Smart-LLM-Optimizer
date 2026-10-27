@@ -11,7 +11,7 @@ from collections import Counter
 from decimal import Decimal
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import select
 
@@ -23,11 +23,12 @@ from app.contracts.dtos import (
     ExecutionRequest,
     FeatureFlags,
     Message,
+    ModelConfiguration,
     Principal,
     SessionSnapshot,
 )
 from app.contracts.errors import AppError
-from app.contracts.training import TrainingCorpus, TrainingJob, TrainingManifest
+from app.contracts.training import CachedGeneration, TrainingCorpus, TrainingJob, TrainingManifest
 from app.routing.ml.graders import grade
 from app.routing.ml.multi_training import MultiSample, Observation
 from app.routing.ml.pipeline import RouterTrainingPipeline, atomic_text, cache_key
@@ -36,7 +37,7 @@ from app.storage.models import UsageRecord
 VERSION = "task-family-v1-20261027"
 
 
-def stop_requested(directory, completed: int) -> bool:
+def stop_requested(directory: Path, completed: int) -> bool:
     control = directory / "collection-control.json"
     if not control.exists():
         return False
@@ -54,7 +55,7 @@ def continuation_approval(
         if unknown_ids:
             raise ValueError("No explicit exception for unresolved dispatch")
         return None
-    approval = json.loads(path.read_text())
+    approval = cast(dict[str, Any], json.loads(path.read_text()))
     if (
         approval["job_id"] != job.id
         or approval["source_sha256"] != source_sha256
@@ -72,7 +73,8 @@ def continuation_approval(
     return approval
 
 
-def deferred_call(cache_directory, manifest, messages, allowed_ids: set[str]) -> bool:
+def deferred_call(cache_directory: Path, manifest: TrainingManifest,
+                  messages: tuple[Message, ...], allowed_ids: set[str]) -> bool:
     for config in manifest.configurations:
         marker = cache_directory / (
             cache_key(manifest, config.config_id, messages) + ".dispatch.json"
@@ -169,13 +171,14 @@ class FamilyCollection(RouterTrainingPipeline):
             }
         )
 
-    async def _collect_answers(self, user, job, manifest, order, messages):
+    async def _collect_answers(self, user: Principal, job: TrainingJob, manifest: TrainingManifest,
+                               order: tuple[ModelConfiguration, ...], messages: tuple[Message, ...]) -> tuple[dict[str, CachedGeneration], TrainingJob]:
         self.dispatch_gate.interval = manifest.min_interval_seconds
         semaphore = asyncio.Semaphore(2)
-        answers = {}
+        answers: dict[str, CachedGeneration] = {}
         hits = 0
 
-        async def one(config):
+        async def one(config: ModelConfiguration) -> None:
             nonlocal hits
             async with semaphore:
                 if self.dispatch_gate.stopped:

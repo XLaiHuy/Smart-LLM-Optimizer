@@ -21,9 +21,9 @@ from app.contracts.errors import AppError
 from app.contracts.training import TrainingCorpus
 from app.main import create_app
 from app.memory.memory_manager import NoOpMemoryManager
+from app.routing.family_pilot import checkpoint_spend
 from app.routing.ml.graders import grade
 from app.routing.ml.pipeline import atomic_text
-from app.routing.family_pilot import checkpoint_spend
 from app.routing.task_groups import TaskGroupPolicy, content_hash
 from app.storage.models import User
 from sqlalchemy import select

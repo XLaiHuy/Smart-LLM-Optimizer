@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from app.core.execution import ExecutionJournal
     from app.core.metering import MeteredCalls
     from app.documents.service import DocumentService
+    from app.routing.task_groups import TaskGroupPolicy
 from app.contracts.dtos import (
     CallRecord,
     ChatRequest,
@@ -82,8 +84,8 @@ class Orchestrator:
         self.registry = registry
         self.model_health = ModelHealth()
         self.memory_token_budget = memory_token_budget
-        self.journal = None
-        self.group_policy = None
+        self.journal: ExecutionJournal | None = None
+        self.group_policy: TaskGroupPolicy | None = None
 
     @staticmethod
     def _replace_current_user_message(

@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from inspect import iscoroutinefunction
 
 from .compressor import CompressionResult, compress_rule_based
-from .prompt_analyzer import PromptAnalysis, analyze_prompt
+from .preservation import validate_preservation
+from .prompt_analyzer import PromptAnalyzer, analyze_prompt
 
 
 class CompressionStrategy(StrEnum):
@@ -17,7 +19,7 @@ class CompressionStrategy(StrEnum):
 class StrategyDecision:
     strategy: CompressionStrategy
     reason: str
-    analysis: PromptAnalysis
+    analysis: PromptAnalyzer
 
 
 class AdaptiveStrategySelector:
@@ -38,8 +40,13 @@ class AdaptiveStrategySelector:
         if decision.strategy != CompressionStrategy.LLM or llm_compressor is None:
             return compress_rule_based(prompt, self.rule_threshold)
         try:
-            result = llm_compressor.compress(prompt)  # type: ignore[attr-defined]
-            if result.preservation == "preserved" and result.compressed:
+            method = getattr(llm_compressor, "compress", None)
+            if not callable(method) or iscoroutinefunction(method):
+                return compress_rule_based(prompt, self.rule_threshold)
+            result = method(prompt)
+            if isinstance(result, CompressionResult) and result.compressed and validate_preservation(
+                prompt, result.compressed, decision.analysis.protected_spans
+            ) == "preserved":
                 return result
         except (AttributeError, TypeError, ValueError):
             pass

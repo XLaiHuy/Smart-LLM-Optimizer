@@ -77,11 +77,11 @@ def test_entity_survival_without_semantic_evidence_is_unknown() -> None:
     )
 
 
-def test_identifier_spacing_is_not_equivalent():
+def test_identifier_spacing_is_not_equivalent() -> None:
     assert check("Mã BLUE-851.", "Mã BLUE - 851.") == "violation"
 
 
-def test_semantic_rejection_even_when_entities_survive():
+def test_semantic_rejection_even_when_entities_survive() -> None:
     original = "Explain artificial intelligence in detail."
     spans = analyze_prompt(original).protected_spans
     for score in (None, float("nan"), 0.8):

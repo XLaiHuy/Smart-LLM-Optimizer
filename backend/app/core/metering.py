@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 from decimal import Decimal
 from time import perf_counter
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
 
 import numpy as np
@@ -33,6 +33,9 @@ from app.storage.models import Attempt, PriceSnapshot, UsageRecord
 from app.storage.repositories import now, uid
 
 Stage = Literal["provider", "query_embedding", "indexing", "document_map", "document_reduce"]
+
+if TYPE_CHECKING:
+    from app.core.execution import ExecutionJournal
 
 
 def input_bound(
@@ -76,7 +79,7 @@ def aggregate(calls: tuple[CallRecord, ...]) -> tuple[Usage, CostEstimate]:
 
 
 class MeteredCalls:
-    journal = None
+    journal: "ExecutionJournal | None" = None
 
     def __init__(
         self,

@@ -6,10 +6,15 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    SMARTLLM_ROOT=/app
 
 COPY backend/pyproject.toml backend/requirements.lock ./
-RUN pip install --no-cache-dir --default-timeout=180 --retries=10 -r requirements.lock
+RUN pip install --no-cache-dir --default-timeout=180 --retries=10 --require-hashes -r requirements.lock
+COPY backend/requirements-router-serving.lock backend/requirements-validation.lock ./
+RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-router-serving.lock \
+    && pip install --no-cache-dir --no-deps --require-hashes -r requirements-validation.lock \
+    && pip check
 
 COPY backend/app ./app
 COPY backend/alembic.ini ./

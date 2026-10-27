@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.contracts.dtos import (
     ChatResponse,
@@ -512,7 +513,9 @@ class SqlTraceStore:
             from app.analytics.epoch import current_epoch, product_attempts
 
             epoch = await current_epoch(db)
-            filters = (Attempt.owner_user_id == principal.id, Attempt.research_run_id.is_(None))
+            filters: tuple[ColumnElement[bool], ...] = (
+                Attempt.owner_user_id == principal.id, Attempt.research_run_id.is_(None)
+            )
             if epoch:
                 filters += (*product_attempts(), Attempt.created_at >= epoch.started_at)
             rows = list(

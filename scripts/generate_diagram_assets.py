@@ -8,12 +8,13 @@ Strictly aligned with Smart LLM Optimizer source code:
 - Layout: Generous margins, calculated non-overlapping bounding boxes, clear annotations.
 """
 from pathlib import Path
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import patches
 
 ASSETS_DIR = Path(r"D:\Documents\OU-TongHop-Project\SmartLLMPlatform\docs\assets")
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
@@ -61,7 +62,7 @@ def generate_architecture_diagram():
 
     # Arrow L1 <-> L2
     ax.annotate('', xy=(0.5, 0.675), xytext=(0.5, 0.645),
-                arrowprops=dict(arrowstyle="<->", color='#0070F3', lw=1.8), zorder=5)
+                arrowprops={'arrowstyle': "<->", 'color': '#0070F3', 'lw': 1.8}, zorder=5)
     ax.text(0.52, 0.655, "HTTPS REST & SSE Stream (/api/v1/chat)", fontsize=7.5, color='#0070F3', fontweight='bold', va='center')
 
     # Layer 2: Core (Middle)
@@ -94,7 +95,7 @@ def generate_architecture_diagram():
 
     # Arrow L2 <-> L3
     ax.annotate('', xy=(0.5, 0.350), xytext=(0.5, 0.320),
-                arrowprops=dict(arrowstyle="<->", color='#087F8C', lw=1.8), zorder=5)
+                arrowprops={'arrowstyle': "<->", 'color': '#087F8C', 'lw': 1.8}, zorder=5)
     ax.text(0.52, 0.332, "Ports & Adapters (In-Process / SQLite / HTTP)", fontsize=7.5, color='#087F8C', fontweight='bold', va='center')
 
     # Layer 3: Persistence & Model Universe (Bottom)
@@ -166,7 +167,7 @@ def generate_attention_radar():
     values_120b = [0.96, 0.95, 0.97, 0.96, 0.98, 0.98]
     values_120b += values_120b[:1]
 
-    fig, ax = plt.subplots(figsize=(7.8, 6.2), subplot_kw=dict(polar=True), dpi=300)
+    fig, ax = plt.subplots(figsize=(7.8, 6.2), subplot_kw={'polar': True}, dpi=300)
     fig.patch.set_facecolor('#F8FAFC')
     ax.set_facecolor('#FFFFFF')
 
@@ -282,11 +283,11 @@ def generate_pipeline_flowchart():
         x1 = steps[i][2] + steps[i][3]
         x2 = steps[i+1][2]
         ax.annotate('', xy=(x2, 0.72), xytext=(x1, 0.72),
-                    arrowprops=dict(arrowstyle="->", color='#0A2540', lw=1.6), zorder=4)
+                    arrowprops={'arrowstyle': "->", 'color': '#0A2540', 'lw': 1.6}, zorder=4)
 
     # Arrow Down from Step 5 to Row 2
     ax.annotate('', xy=(0.89, 0.46), xytext=(0.89, 0.57),
-                arrowprops=dict(arrowstyle="->", color='#0A2540', lw=1.6), zorder=4)
+                arrowprops={'arrowstyle': "->", 'color': '#0A2540', 'lw': 1.6}, zorder=4)
 
     # Row 2: Model Dispatch & Execution (Right)
     box_exec = patches.FancyBboxPatch((0.56, 0.10), 0.41, 0.35, boxstyle="round,pad=0.015",
@@ -318,7 +319,7 @@ def generate_pipeline_flowchart():
 
     # Arrow from Execution to Failover loop
     ax.annotate('', xy=(0.50, 0.275), xytext=(0.555, 0.275),
-                arrowprops=dict(arrowstyle="->", color='#DC2626', lw=2.0, linestyle='--'), zorder=5)
+                arrowprops={'arrowstyle': "->", 'color': '#DC2626', 'lw': 2.0, 'linestyle': '--'}, zorder=5)
     ax.text(0.528, 0.31, "Cắt cụt\ntoken?", fontsize=7.2, fontweight='bold', color='#DC2626', ha='center', zorder=5)
 
     out_file = ASSETS_DIR / "fig_pipeline_mechanism.png"
@@ -352,12 +353,12 @@ def generate_ablation_chart():
     latencies = [420, 385, 390, 195, 370, 165, 170, 150] # ms
 
     # Bar 1: Cost
-    rects1 = ax1.bar(x - width/2, costs, width, label='Chi Phí ($ / 1K requests)',
+    ax1.bar(x - width/2, costs, width, label='Chi Phí ($ / 1K requests)',
                      color='#0070F3', edgecolor='#0A2540', alpha=0.88, zorder=3)
 
     # Bar 2: Latency on twin axis
     ax2 = ax1.twinx()
-    rects2 = ax2.bar(x + width/2, latencies, width, label='Độ Trễ Phản Hồi P50 (ms)',
+    ax2.bar(x + width/2, latencies, width, label='Độ Trễ Phản Hồi P50 (ms)',
                      color='#10B981', edgecolor='#0A2540', alpha=0.88, zorder=3)
 
     ax1.set_ylabel('Chi Phí API USD / 1K requests', fontsize=9.0, fontweight='bold', color='#0070F3')
@@ -370,14 +371,14 @@ def generate_ablation_chart():
 
     # Annotations on C8 placed safely without overlapping
     ax1.annotate('Tiết kiệm 81.0%\nChi phí!', xy=(7 - width/2, 0.351), xytext=(5.6, 1.45),
-                 arrowprops=dict(facecolor='#0070F3', shrink=0.08, width=1.5, headwidth=6),
+                 arrowprops={'facecolor': '#0070F3', 'shrink': 0.08, 'width': 1.5, 'headwidth': 6},
                  fontsize=8.0, fontweight='bold', color='#0070F3',
-                 bbox=dict(boxstyle="round,pad=0.3", fc="#EFF6FF", ec="#0070F3", lw=1))
+                 bbox={'boxstyle': "round,pad=0.3", 'fc': "#EFF6FF", 'ec': "#0070F3", 'lw': 1})
 
     ax2.annotate('Cắt giảm 64.3%\nĐộ trễ P50!', xy=(7 + width/2, 150), xytext=(7.05, 320),
-                 arrowprops=dict(facecolor='#10B981', shrink=0.08, width=1.5, headwidth=6),
+                 arrowprops={'facecolor': '#10B981', 'shrink': 0.08, 'width': 1.5, 'headwidth': 6},
                  fontsize=8.0, fontweight='bold', color='#10B981',
-                 bbox=dict(boxstyle="round,pad=0.3", fc="#ECFDF5", ec="#10B981", lw=1))
+                 bbox={'boxstyle': "round,pad=0.3", 'fc': "#ECFDF5", 'ec': "#10B981", 'lw': 1})
 
     plt.title('KẾT QUẢ ĐỐI CHỨNG ABLATION STUDY TRÊN 8 CẤU HÌNH (2^3 = 8)\nMinh Chứng Hiệu Ứng Cộng Hưởng Giữa 3 Phân Hệ (Tân + Khoa + Huy)',
               fontsize=10.5, fontweight='bold', color='#0A2540', pad=14)

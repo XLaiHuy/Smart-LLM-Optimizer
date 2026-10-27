@@ -17,15 +17,16 @@ Outputs:
 """
 
 import asyncio
-import hashlib
 import io
 import json
 import os
 import sys
 import time
 from decimal import Decimal
-from typing import Any
+from pathlib import Path
 from uuid import uuid4
+
+import httpx
 
 # Force UTF-8 on Windows
 if sys.platform == "win32":
@@ -40,14 +41,8 @@ from app.config import Settings
 from app.contracts.dtos import (
     ChatRequest,
     Constraints,
-    ExecutionRequest,
-    Message,
-    ModelConfiguration,
     Principal,
-    ProviderItem,
-    ProviderOptions,
     ProviderResult,
-    RouteDecision,
     Usage,
 )
 from app.contracts.errors import AppError
@@ -70,7 +65,7 @@ async def main():
 
     # 1. Verify Catalog & Registry
     configs = container.registry.configurations
-    print(f"\n[1/5] KIỂM TRA DANH MỤC MÔ HÌNH (CATALOG & TIERS)")
+    print("\n[1/5] KIỂM TRA DANH MỤC MÔ HÌNH (CATALOG & TIERS)")
     print(f"Tổng số mô hình đã nạp vào Registry: {len(configs)}")
     for c in configs:
         print(f"  • [{c.config_id}] model_id={c.model_id} (source={c.execution_source}, available={c.available})")
@@ -80,8 +75,8 @@ async def main():
     BASE_OUTPUT_RATE = Decimal("0.00000060")
 
     results = []
-    total_optimized_cost = Decimal("0")
-    total_baseline_cost = Decimal("0")
+    total_optimized_cost = Decimal(0)
+    total_baseline_cost = Decimal(0)
     total_input_tokens = 0
     total_output_tokens = 0
 
@@ -213,7 +208,7 @@ async def main():
         response_text = ""
         actual_in_tokens = 0
         actual_out_tokens = 0
-        call_cost = Decimal("0")
+        call_cost = Decimal(0)
         error_msg = None
 
         try:
@@ -225,7 +220,7 @@ async def main():
                     if isinstance(data_payload, str):
                         try:
                             data_payload = json.loads(data_payload)
-                        except Exception:
+                        except json.JSONDecodeError:
                             data_payload = {}
                     if ev_type == "trace":
                         route_decision = {
@@ -253,7 +248,7 @@ async def main():
                 actual_out_tokens = resp.usage.output_tokens or 0
                 call_cost = Decimal(str(resp.cost.serving_usd or "0"))
 
-        except Exception as exc:
+        except (AppError, httpx.HTTPError, ValueError, KeyError, TypeError, TimeoutError) as exc:
             import traceback
             error_msg = str(exc)
             traceback.print_exc()
@@ -327,7 +322,7 @@ async def main():
             print(f"    └── LỖI: {error_msg}")
 
     # 4. Verify Failover Simulation (Case 11: Incomplete Token Resilience)
-    print(f"\n[4/5] KIỂM TRA CHUYÊN SÂU: CƠ CHẾ TỰ ĐỘNG CHUYỂN TIẾP DỰ PHÒNG (FAILOVER)")
+    print("\n[4/5] KIỂM TRA CHUYÊN SÂU: CƠ CHẾ TỰ ĐỘNG CHUYỂN TIẾP DỰ PHÒNG (FAILOVER)")
     print("Mô phỏng trường hợp Provider đầu tiên trả về status='incomplete' (bị ngắt token)...")
 
     class TruncatedCandidateProvider:
@@ -395,27 +390,27 @@ async def main():
         (savings_usd / total_baseline_cost * 100) if total_baseline_cost > 0 else Decimal(0)
     )
 
-    print(f"\n1. CHỈ SỐ KỸ THUẬT & ĐỘ CHÍNH XÁC:")
+    print("\n1. CHỈ SỐ KỸ THUẬT & ĐỘ CHÍNH XÁC:")
     print(f"  • Tổng số ca kiểm thử: {total_tests}")
     print(f"  • Số ca hoàn thành thành công: {successful_tests}/{total_tests} ({successful_tests/total_tests*100:.1f}%)")
     print(f"  • Độ chính xác định tuyến theo tầng (Tier Match): {tier_matches}/{total_tests} ({tier_matches/total_tests*100:.1f}%)")
-    print(f"  • Phân bổ mô hình được chọn:")
+    print("  • Phân bổ mô hình được chọn:")
     print(f"    - Fast / Free Tier (8B):       {tier_counts['fast']}/{successful_tests} ({tier_counts['fast']/successful_tests*100:.1f}%)")
     print(f"    - Coding Tier (Qwen Coder):    {tier_counts['code']}/{successful_tests} ({tier_counts['code']/successful_tests*100:.1f}%)")
     print(f"    - Reasoning Tier (Llama 70B):  {tier_counts['reasoning']}/{successful_tests} ({tier_counts['reasoning']/successful_tests*100:.1f}%)")
 
-    print(f"\n2. HIỆU QUẢ TIẾT KIỆM CHI PHÍ (COST SAVINGS):")
+    print("\n2. HIỆU QUẢ TIẾT KIỆM CHI PHÍ (COST SAVINGS):")
     print(f"  • Tổng Tokens xử lý:  {total_input_tokens + total_output_tokens:,} tokens (In: {total_input_tokens:,}, Out: {total_output_tokens:,})")
     print(f"  • Chi phí thực tế (Smart ML Router): ${total_optimized_cost:.6f} USD")
     print(f"  • Chi phí nếu gọi 100% Frontier 70B:   ${total_baseline_cost:.6f} USD")
     print(f"  • SỐ TIỀN TIẾT KIỆM ĐƯỢC:             ${savings_usd:.6f} USD")
     print(f"  • TỶ LỆ TIẾT KIỆM CHI PHÍ:            {savings_pct:.2f}% GIẢM ĐƯỢC SO VỚI BASELINE")
 
-    print(f"\n3. KIỂM TOÁN TÍNH NĂNG NÂNG CAO (OPTIMIZER FUNCTIONS):")
-    print(f"  • Luồng SSE Streaming: Hoạt động trơn tru (Trace, Token delta, Done event đầy đủ).")
-    print(f"  • Bộ nhớ Hội thoại (Memory & Facts): Ghi nhận thành công danh tính và đề tài qua 3 lượt chat.")
-    print(f"  • Tự động Failover: Tự động leo thang lên mô hình lớn khi model nhỏ gặp OUTPUT_INCOMPLETE.")
-    print(f"  • Sổ cái ngân sách (Ledger SQLite WAL): Trừ và tất toán chi phí khớp từng giao dịch.")
+    print("\n3. KIỂM TOÁN TÍNH NĂNG NÂNG CAO (OPTIMIZER FUNCTIONS):")
+    print("  • Luồng SSE Streaming: Hoạt động trơn tru (Trace, Token delta, Done event đầy đủ).")
+    print("  • Bộ nhớ Hội thoại (Memory & Facts): Ghi nhận thành công danh tính và đề tài qua 3 lượt chat.")
+    print("  • Tự động Failover: Tự động leo thang lên mô hình lớn khi model nhỏ gặp OUTPUT_INCOMPLETE.")
+    print("  • Sổ cái ngân sách (Ledger SQLite WAL): Trừ và tất toán chi phí khớp từng giao dịch.")
 
     # Save detailed JSON report
     report_path = os.path.join(os.path.dirname(__file__), "..", "data", "system_audit_report.json")
@@ -435,8 +430,7 @@ async def main():
         },
         "cases": results,
     }
-    with open(report_path, "w", encoding="utf-8") as fp:
-        json.dump(report_payload, fp, indent=2, ensure_ascii=False)
+    await asyncio.to_thread(Path(report_path).write_text, json.dumps(report_payload, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\n[5/5] ĐÃ LƯU BÁO CÁO DỮ LIỆU ĐẦY ĐỦ TẠI: {report_path}")
     print("=" * 80)
 

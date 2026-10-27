@@ -9,14 +9,14 @@ services:
     environment:
       - SMARTLLM_ROOT=/app
       - DATABASE_PATH=/app/runtime-db/smartllm.db
-      - PROVIDER_MODE=live
+      - PROVIDER_MODE=${PROVIDER_MODE:-live}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MODEL_CATALOG_PATH=/app/config/models.json
-      - APP_ENV=development
-      - ALLOWED_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","https://smartoptimizer.vercel.app"]
-      - COOKIE_SECURE=true
+      - APP_ENV=${APP_ENV:-development}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
       - AUTO_ROUTING_STRATEGY=${AUTO_ROUTING_STRATEGY:-ml_multi_model}
       - ML_ROUTER_ARTIFACT_PATH=${ML_ROUTER_ARTIFACT_PATH:-config/router_multitask_vietnamese_model.json}
       - ML_ROUTER_LIVE_APPROVED=${ML_ROUTER_LIVE_APPROVED:-false}
@@ -29,7 +29,7 @@ services:
       - MKL_NUM_THREADS=2
       - MEMORY_RETRIEVAL_ENABLED=true
       - HYBRID_CONTEXT_ENABLED=true
-      - ADAPTIVE_PROMPT_ENABLED=${ADAPTIVE_PROMPT_ENABLED}
+      - ADAPTIVE_PROMPT_ENABLED=${ADAPTIVE_PROMPT_ENABLED:-false}
       - RESEARCH_LIVE_ENABLED=${RESEARCH_LIVE_ENABLED:-false}
       - ROUTER_TRAINING_MANIFEST_PATH=/app/data/router-training/manifest.json
       - ROUTER_TRAINING_DIRECTORY=/app/data/router-training
@@ -53,8 +53,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         BACKEND_URL: http://backend:8000
     container_name: smartllm-frontend

@@ -25,12 +25,11 @@ def backup(source, target):
     if target.exists():
         raise ValueError('Backup path already exists')
     target.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(source.as_uri() + '?mode=ro', uri=True, timeout=30) as src:
-        with sqlite3.connect(target) as dest:
-            src.backup(dest)
-            if dest.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
-                raise ValueError('Backup integrity failed')
-            manifest = {'created_at': datetime.now(UTC).isoformat(), 'source': str(source), 'backup': str(target), 'integrity': 'ok', 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'protected_tables': fingerprint(dest), 'revision': dest.execute('SELECT version_num FROM alembic_version').fetchone()[0]}
+    with sqlite3.connect(source.as_uri() + '?mode=ro', uri=True, timeout=30) as src, sqlite3.connect(target) as dest:
+        src.backup(dest)
+        if dest.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+            raise ValueError('Backup integrity failed')
+        manifest = {'created_at': datetime.now(UTC).isoformat(), 'source': str(source), 'backup': str(target), 'integrity': 'ok', 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'protected_tables': fingerprint(dest), 'revision': dest.execute('SELECT version_num FROM alembic_version').fetchone()[0]}
     target.with_suffix('.manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(json.dumps(manifest))
 

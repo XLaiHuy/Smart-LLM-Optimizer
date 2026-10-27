@@ -31,7 +31,7 @@ def fit_dev(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str]) 
     candidates = [p.config_id for p in artifact.predictors]
     current = {p.config_id: p.threshold for p in artifact.predictors}
     train = [r for r in rows if r["split"] == "train"]
-    groups = {}
+    groups: dict[str, str] = {}
     for r in rows:
         if r["group_id"] in groups and groups[r["group_id"]] != r["split"]:
             raise ValueError("Source group crosses DEV splits")
@@ -79,7 +79,8 @@ def fit_dev(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str]) 
         # Bound-cost order must be supplied by actual serving pricing; measured
         # per-response cost must not influence a decision before generation.
         scored.append((row, scores, observations, order))
-    profiles, reports = {}, {}
+    profiles: dict[str, Any] = {}
+    reports: dict[str, Any] = {}
     for family in families:
         calibration = [x for x in scored if x[0].domain == family and x[0].split == "calibration"]
         threshold = [x for x in scored if x[0].domain == family and x[0].split == "threshold"]
@@ -149,7 +150,8 @@ def fit_dev(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str]) 
         if not rates:
             raise ValueError("Reviewed cost rates required")
 
-        def choose(x, values, calibrated, rates=rates, platt=platt):
+        def choose(x: Any, values: dict[str, float], calibrated: bool,
+                   rates: Any = rates, platt: Any = platt) -> str:
             row, scores, _, _ = x
             bound = sum(len(m.content.encode()) + 64 for m in row.messages) + 128
 
@@ -165,8 +167,8 @@ def fit_dev(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str]) 
             for c in ordered:
                 score = probability(scores[c], platt[c]) if calibrated else scores[c]
                 if costs[c] <= costs[reference] and score >= values[c]:
-                    return c
-            return reference
+                    return str(c)
+            return str(reference)
 
         prior = [choose(x, current, False) for x in assigned]
         for values in itertools.product(*(grids[c] for c in configs)):

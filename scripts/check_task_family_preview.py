@@ -7,11 +7,9 @@ from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-
 from app.routing.ml.multi_training import MultiSample
 from app.routing.ml.service import MLRouterService
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 p = Path("/app/data/router-task-family-v1-20261027")
 candidate = p / "threshold-preview-450/candidate.json"
@@ -39,17 +37,17 @@ cfg = preview["classifier"]
 vectorizer = TfidfVectorizer(vocabulary=cfg["vocabulary"], ngram_range=(1, 2))
 vectorizer.idf_ = np.asarray(cfg["idf"])
 reports = {
-    f: dict(
-        groups=0,
-        recognized_groups=0,
-        prior_correct=0,
-        candidate_correct=0,
-        regressions=0,
-        gains=0,
-        prior_usd=Decimal(0),
-        candidate_usd=Decimal(0),
-        distribution=Counter(),
-    )
+    f: {
+        "groups": 0,
+        "recognized_groups": 0,
+        "prior_correct": 0,
+        "candidate_correct": 0,
+        "regressions": 0,
+        "gains": 0,
+        "prior_usd": Decimal(0),
+        "candidate_usd": Decimal(0),
+        "distribution": Counter(),
+    }
     for f in preview["reports"]
 }
 for raw_row in json.loads(raw):
@@ -123,13 +121,13 @@ for report in reports.values():
     )
     report["prior_usd"] = str(report["prior_usd"])
     report["candidate_usd"] = str(report["candidate_usd"])
-result = dict(
-    candidate_sha256=hashlib.sha256(candidate.read_bytes()).hexdigest(),
-    reports=reports,
-    thresholds_retuned=False,
-    holdout_used=False,
-    serving_activation=False,
-    scope="unused DEV calibration split; not formal HOLDOUT or serving pilot",
-)
+result = {
+    "candidate_sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
+    "reports": reports,
+    "thresholds_retuned": False,
+    "holdout_used": False,
+    "serving_activation": False,
+    "scope": "unused DEV calibration split; not formal HOLDOUT or serving pilot",
+}
 output.write_text(json.dumps(result, ensure_ascii=False, indent=2))
 print(json.dumps(result), flush=True)

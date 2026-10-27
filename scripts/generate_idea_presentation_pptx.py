@@ -8,13 +8,13 @@ Strictly aligned with Smart LLM Optimizer source code:
 - Authors: Phan Cao Huy (2351010075), Trần Đăng Khoa (2354050055), Nguyễn Quốc Minh Tân (2351010191)
 - Layout: 50/50 Visual Split (High-Res Diagrams on Left, Concise Punchy Points on Right)
 """
-import sys
 from pathlib import Path
+
 from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN
+from pptx.util import Inches, Pt
 
 OUTPUT_PATH = Path(r"D:\Documents\OU-TongHop-Project\SmartLLMPlatform\docs\SmartLLM_Proposal_Presentation.pptx")
 ASSETS_DIR = Path(r"D:\Documents\OU-TongHop-Project\SmartLLMPlatform\docs\assets")
@@ -659,27 +659,27 @@ add_footer(s11, 11)
 
 math_cards = [
     ("1. Attention Multi-Label Pooling",
-     "Trích xuất ma trận chú ý giữa truy vấn và 6 vector năng lực cốt lõi:\n"
+     ("Trích xuất ma trận chú ý giữa truy vấn và 6 vector năng lực cốt lõi:\n"
      "• Attention = Softmax(Q * K^T / sqrt(d)) * V\n"
      "• Xác suất dự đoán: p_c = sigma(w_c^T * h_query + b_c)\n"
-     "• Thực thi vector hóa 100% bằng NumPy CPU (<0.2ms)."),
+     "• Thực thi vector hóa 100% bằng NumPy CPU (<0.2ms).")),
 
     ("2. Cân Chỉnh Độ Trôi Xác Suất (ECE & Isotonic)",
-     "Phân hoạch xác suất thành M=10 bins để đo Expected Calibration Error:\n"
+     ("Phân hoạch xác suất thành M=10 bins để đo Expected Calibration Error:\n"
      "• ECE = Sum_{m=1}^M (|B_m| / N) * |acc(B_m) - conf(B_m)|\n"
      "• Tối ưu hồi quy Isotonic phi tham số đơn điệu:\n"
-     "  min Sum (y_i - m_i)^2 -> Giảm ECE từ 0.184 xuống 0.038."),
+     "  min Sum (y_i - m_i)^2 -> Giảm ECE từ 0.184 xuống 0.038.")),
 
     ("3. Tối Ưu Đa Mục Tiêu Pareto & Lagrange",
-     "Sàng lọc các điểm không bị chi phối trên không gian 3 chiều:\n"
+     ("Sàng lọc các điểm không bị chi phối trên không gian 3 chiều:\n"
      "• F* = { c in C | không tồn tại c' sao cho c' áp đảo c }\n"
      "• Hàm vô hướng hóa Lagrange điều khiển ngân sách động:\n"
-     "  U(c; lambda) = lambda_qual * Q(c) - lambda_cost * (C/C_ref) - lambda_lat * (L/L_ref)."),
+     "  U(c; lambda) = lambda_qual * Q(c) - lambda_cost * (C/C_ref) - lambda_lat * (L/L_ref).")),
 
     ("4. Kiểm Định Bất Biến Bảo Toàn Thực Thể",
-     "Đo lường tỷ lệ giữ lại các thực thể sống còn sau quá trình nén:\n"
+     ("Đo lường tỷ lệ giữ lại các thực thể sống còn sau quá trình nén:\n"
      "• R_preserve = |E_orig giao E_compressed| / |E_orig|\n"
-     "• Invariant Guardrail: Chấp nhận khi và chỉ khi R >= 0.95 và không đổi chiều phủ định. Ngược lại khôi phục Prompt gốc.")
+     "• Invariant Guardrail: Chấp nhận khi và chỉ khi R >= 0.95 và không đổi chiều phủ định. Ngược lại khôi phục Prompt gốc."))
 ]
 
 for i, (title, content) in enumerate(math_cards):

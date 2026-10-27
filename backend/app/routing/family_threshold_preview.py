@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyp
 from app.routing.ml.multi_training import MultiSample
 
 
-def explore(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str], rates) -> dict:
+def explore(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str], rates: dict[str, tuple[Decimal, Decimal]]) -> dict[str, Any]:
     if not rows or any(r["split"] not in ("train", "calibration", "threshold") for r in rows):
         raise ValueError("Partial DEV only; HOLDOUT is prohibited")
     if len({r["group_id"] for r in rows}) != len(rows):
@@ -64,7 +64,7 @@ def explore(rows: list[dict[str, Any]], engine: Any, originals: dict[str, str], 
             )
         )
     reports = {}
-    examples = []
+    examples: list[dict[str, Any]] = []
     for family in families:
         subset = [x for x in prepared if x["row"].domain == family]
         if len(subset) < 10:

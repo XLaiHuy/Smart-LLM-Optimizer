@@ -10,21 +10,27 @@ Strictly aligned with Smart LLM Optimizer source code:
 - Typography: Segoe UI (Clean UTF-8 Vietnamese diacritics, NO raw unrendered LaTeX math markup)
 - Visuals: 5 High-Resolution (300 DPI) Diagrams with clean academic figure captions.
 """
-import os
-import sys
 from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm, mm
+from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (
-    BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer,
-    PageBreak, Table, TableStyle, KeepTogether, HRFlowable, Image
-)
 from reportlab.pdfgen import canvas
+from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
+    HRFlowable,
+    Image,
+    PageBreak,
+    PageTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 OUTPUT_PATH = Path(r"D:\Documents\OU-TongHop-Project\SmartLLMPlatform\docs\SmartLLM_Project_Proposal.pdf")
 ASSETS_DIR = Path(r"D:\Documents\OU-TongHop-Project\SmartLLMPlatform\docs\assets")
