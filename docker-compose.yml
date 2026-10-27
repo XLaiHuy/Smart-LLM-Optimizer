@@ -14,6 +14,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MODEL_CATALOG_PATH=/app/config/models.json
       - APP_ENV=development
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","https://smartoptimizer.vercel.app"]
+      - COOKIE_SECURE=true
       - AUTO_ROUTING_STRATEGY=${AUTO_ROUTING_STRATEGY:-ml_multi_model}
       - ML_ROUTER_ARTIFACT_PATH=${ML_ROUTER_ARTIFACT_PATH:-config/router_multitask_vietnamese_model.json}
       - ML_ROUTER_LIVE_APPROVED=${ML_ROUTER_LIVE_APPROVED:-false}
