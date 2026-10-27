@@ -28,9 +28,12 @@ import {
   ApiError,
   allFlags,
   requestFlags,
+  CHAT_DEADLINE_MS,
   type ChatRequest,
+  type ChatResponse,
   type Flags,
 } from "@/lib/api";
+import { isTransportUncertain, recoverChat } from "@/lib/chat-recovery";
 import { parseChatPreferences } from "@/lib/workspace-preferences";
 import { DocumentsPanel } from "./documents-panel";
 import { MessageMetrics } from "./message-metrics";
@@ -38,66 +41,8 @@ import { ProcessingProgress } from "./processing-progress";
 import { FormattedMessage } from "./formatted-message";
 import { ErrorNotice, Spinner } from "./ui";
 
-export function getCleanModelName(configId: string, modelId?: string): string {
-  if (!configId) return modelId || "";
-  const map: Record<string, string> = {
-    "groq-llama-3.3-70b-versatile": "Llama 3.3 70B (Groq)",
-    "groq-qwen-2.5-coder-32b": "Qwen 2.5 Coder 32B (Groq)",
-    "groq-llama-3.1-8b-instant": "Llama 3.1 8B (Groq)",
-    "groq-gpt-oss-120b": "GPT OSS 120B (Groq)",
-    "groq-qwen-3.8-27b": "Qwen 3.8 27B (Groq)",
-    "groq-gpt-oss-20b": "GPT OSS 20B (Groq)",
-    "openai/gpt-oss-120b": "GPT OSS 120B (Groq)",
-    "qwen/qwen3.8-27b": "Qwen 3.8 27B (Groq)",
-    "openai/gpt-oss-20b": "GPT OSS 20B (Groq)",
-    "openrouter-gemini-2.0-flash-exp-free": "Gemini 2.0 Flash (Free)",
-    "openrouter-deepseek-r1-free": "DeepSeek R1 (Free)",
-    "openrouter-meta-llama-3.3-70b-instruct-free": "Llama 3.3 70B (Free)",
-    "openrouter-llama-3.3-70b-instruct-free": "Llama 3.3 70B (Free)",
-    "meta-llama/llama-3.3-70b-instruct:free": "Llama 3.3 70B (Free)",
-    "openrouter-qwen-2.5-coder-32b-instruct-free": "Qwen 2.5 Coder 32B (Free)",
-    "qwen/qwen-2.5-coder-32b-instruct:free": "Qwen 2.5 Coder 32B (Free)",
-    "openrouter/free": "OpenRouter (Free Tier)",
-    "openrouter-free-v1": "OpenRouter (Free Tier)",
-    "openrouter-lfm-2.5-2.6b-free": "LFM 2.5 2.6B (OpenRouter Free)",
-    "openrouter-north-mini-code-free": "North Mini Code (OpenRouter Free)",
-    "openrouter-nemotron-3-nano-reasoning-free": "Nemotron 3 Nano Reasoning (OpenRouter Free)",
-    "openai-gpt-6-luna": "GPT-6 Luna (OpenAI)",
-    "openai-gpt-5.6-terra": "GPT-5.6 Terra (OpenAI)",
-    "openai-gpt-6.1-sol": "GPT-6.1 Sol (OpenAI)",
-    "openai-gpt-6-astra": "GPT-6 Astra (OpenAI)",
-    "mock-baseline": "Mock Baseline (Default)",
-    "mock-coder-32b": "Mock Coding 32B (Demo)",
-    "mock-reasoning-70b": "Mock Reasoning 70B (Demo)",
-    "mock-small": "Mock Fast (Small)",
-    "mock-quality": "Mock Frontier (Quality)",
-    "gpt-6-luna": "GPT-6 Luna (OpenAI)",
-    "gpt-5.6-terra": "GPT-5.6 Terra (OpenAI)",
-    "gpt-6.1-sol": "GPT-6.1 Sol (OpenAI)",
-  };
-  if (map[configId]) return map[configId];
-  if (modelId && map[modelId]) return map[modelId];
-  const lower = configId.toLowerCase();
-  if (lower.includes("luna")) return "GPT-6 Luna (OpenAI)";
-  if (lower.includes("terra")) return "GPT-5.6 Terra (OpenAI)";
-  if (lower.includes("sol")) return "GPT-6.1 Sol (OpenAI)";
-  if (lower.includes("120b")) return "GPT OSS 120B (Groq)";
-  if (lower.includes("3.8-27b")) return "Qwen 3.8 27B (Groq)";
-  if (lower.includes("20b")) return "GPT OSS 20B (Groq)";
-  if (lower.includes("llama-3.3-70b") && lower.includes("groq"))
-    return "Llama 3.3 70B (Groq)";
-  if (lower.includes("llama-3.3-70b-versatile")) return "Llama 3.3 70B (Groq)";
-  if (lower.includes("qwen-2.5-coder-32b")) return "Qwen 2.5 Coder 32B (Groq)";
-  if (
-    lower.includes("llama-3.1-8b-instant") ||
-    (lower.includes("llama-3.1-8b") && lower.includes("groq"))
-  )
-    return "Llama 3.1 8B (Groq)";
-  if (lower.includes("gemini-2.0-flash")) return "Gemini 2.0 Flash (Free)";
-  if (lower.includes("deepseek-r1")) return "DeepSeek R1 (Free)";
-  if (lower.includes("llama-3.3-70b")) return "Llama 3.3 70B (Free)";
-  return modelId || configId;
-}
+import { getCleanModelName } from "@/lib/model-name";
+export { getCleanModelName } from "@/lib/model-name";
 
 export interface ShowcasePreset {
   id: string;
@@ -170,6 +115,12 @@ export function QuickShowcaseBar({
 
       {!collapsed && (
         <div className="quick-showcase-presets">
+          <p
+            className="muted"
+            style={{ flexBasis: "100%", gridColumn: "1 / -1" }}
+          >
+            {t("memorySetupHint")}
+          </p>
           {SHOWCASE_PRESETS.map((preset) => {
             const promptText = t(preset.promptKey);
             return (
@@ -297,6 +248,7 @@ export function ChatPanel({
   const [error, setError] = useState<unknown>();
   const [retrying, setRetrying] = useState(false);
   const pending = useRef<ChatRequest | null>(null);
+  const sending = useRef(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
@@ -309,6 +261,20 @@ export function ChatPanel({
       if (saved) {
         setMode(saved.mode);
         setCandidateOverride(saved.candidate);
+      }
+      try {
+        const defaults = JSON.parse(
+          window.localStorage.getItem(`smart-llm:flags:${userId}`) || "null",
+        );
+        if (
+          defaults &&
+          Object.keys(allFlags).every(
+            (key) => typeof defaults[key] === "boolean",
+          )
+        )
+          setFlags(defaults);
+      } catch {
+        /* A broken local preference never blocks chat. */
       }
       setPreferencesLoaded(true);
     }, 0);
@@ -338,12 +304,62 @@ export function ChatPanel({
   const resumedRequest = detail.data?.active_client_request_id;
   const processing = busy || !!resumedRequest;
   const currentFlight =
-    flight && busy
+    flight && (busy || retrying)
       ? flight
       : resumedRequest && selected
         ? { session: selected, request: resumedRequest }
         : null;
   const lastContent = messages[messages.length - 1]?.content;
+  const acceptAnswer = useCallback(
+    async (answer: ChatResponse) => {
+      pending.current = null;
+      setError(undefined);
+      setRetrying(false);
+      setPendingPrompt(null);
+      setDraft("");
+      await client.invalidateQueries({ queryKey: ["session", userId] });
+      await client.invalidateQueries({ queryKey: ["sessions", userId] });
+      await client.invalidateQueries({ queryKey: ["overview", userId] });
+      client.setQueryData(["trace", userId, answer.request_id], answer);
+      client.setQueryData(["trace", answer.request_id], answer);
+    },
+    [client, userId],
+  );
+
+  useEffect(() => {
+    const attempt = pending.current;
+    if (!retrying || !attempt) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const stopAt = Date.now() + CHAT_DEADLINE_MS + 20000;
+    const poll = async () => {
+      try {
+        const recovered = await recoverChat(attempt);
+        if (cancelled || pending.current !== attempt) return;
+        if (recovered.status === "succeeded") {
+          await acceptAnswer(recovered.response);
+          return;
+        }
+        if (recovered.status === "failed") {
+          pending.current = null;
+          setRetrying(false);
+          setPendingPrompt(null);
+          setError(recovered.error);
+          await client.invalidateQueries({ queryKey: ["session", userId] });
+          return;
+        }
+      } catch {
+        /* Keep the same request; a failed status read never authorizes POST. */
+      }
+      if (!cancelled && pending.current === attempt && Date.now() < stopAt)
+        timer = setTimeout(poll, 1000);
+    };
+    timer = setTimeout(poll, 750);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [retrying, acceptAnswer, client, userId]);
 
   // Stable anchor to bottom without ancestor container jitter
   useEffect(() => {
@@ -366,100 +382,43 @@ export function ChatPanel({
     return () => window.clearTimeout(timer);
   }, [selected]);
 
-  async function resendSessionPrompt(
+  async function submitPrompt(
     text: string,
     overrideMode?: "baseline" | "optimized",
   ) {
-    if (documentBusy || processing || !text.trim()) return;
-    const effectiveMode = overrideMode || mode;
-    if (overrideMode && overrideMode !== mode) {
-      setMode(overrideMode);
-    }
-    setDocumentsOpen(false);
-    setBusy(true);
-    onBusy(true);
-    setError(undefined);
-    nearBottom.current = true;
-    setPendingPrompt(text);
-    setTimeout(() => {
-      end.current?.scrollIntoView({ behavior: "smooth" });
-    }, 40);
-    try {
-      const sessionId = selected || (await createSession(text));
-      const req: ChatRequest = {
-        session_id: sessionId,
-        client_request_id: crypto.randomUUID(),
-        message: text,
-        document_ids: sources.session === selected ? sources.ids : [],
-        constraints: { deadline_ms: 60000 },
-        mode: effectiveMode,
-        flags: requestFlags(effectiveMode, flags),
-        ...(effectiveMode === "optimized"
-          ? {
-              // The backend may expose catalog rows with a mock/planned
-              // execution_source even while PROVIDER_MODE=live. Optimized
-              // chat must use the live policy in that mode.
-              policy_id: "quality-guarded-v3",
-            }
-          : selectedCandidate
-            ? { policy_id: `fixed_candidate:${selectedCandidate}` }
-            : {}),
-      };
-      setFlight({
-        session: sessionId,
-        request: req.client_request_id,
-      });
-      const answer = unwrap(await api.POST("/v1/chat", { body: req }));
-      setRetrying(false);
-      setPendingPrompt(null);
-      setDraft("");
-      await client.invalidateQueries({ queryKey: ["session", userId] });
-      await client.invalidateQueries({ queryKey: ["sessions", userId] });
-      await client.invalidateQueries({ queryKey: ["overview", userId] });
-      client.setQueryData(["trace", answer.request_id], answer);
-    } catch (reason) {
-      setError(reason);
-      setPendingPrompt(null);
-    } finally {
-      setBusy(false);
-      onBusy(false);
-    }
-  }
-
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (documentBusy || processing || (!draft.trim() && !pending.current))
+    if (
+      sending.current ||
+      documentBusy ||
+      processing ||
+      (!text.trim() && !pending.current)
+    )
       return;
-    const currentText = draft.trim();
+    sending.current = true;
+    const effectiveMode = overrideMode || mode;
+    if (overrideMode) setMode(overrideMode);
     setDocumentsOpen(false);
     setBusy(true);
     onBusy(true);
     setError(undefined);
     nearBottom.current = true;
-    if (currentText) {
-      setPendingPrompt(currentText);
-      setDraft("");
-    }
-    setTimeout(() => {
-      end.current?.scrollIntoView({ behavior: "smooth" });
-    }, 40);
+    setPendingPrompt(pending.current?.message || text);
     try {
       if (!pending.current) {
-        const sessionId = selected || (await createSession(currentText));
+        const sessionId = selected || (await createSession(text));
         pending.current = {
           session_id: sessionId,
           client_request_id: crypto.randomUUID(),
-          message: currentText,
+          message: text.trim(),
           document_ids: sources.session === selected ? sources.ids : [],
-          constraints: { deadline_ms: 60000 },
-          mode,
-          flags: requestFlags(mode, flags),
-          ...(mode === "optimized"
+          constraints: { deadline_ms: CHAT_DEADLINE_MS },
+          mode: effectiveMode,
+          flags: requestFlags(effectiveMode, flags),
+          ...(effectiveMode === "optimized"
             ? {
                 policy_id:
-                  source === "live"
-                    ? "quality-guarded-v3"
-                    : "foundation-mock-v3",
+                  source === "mock"
+                    ? "foundation-mock-v3"
+                    : "quality-guarded-v3",
               }
             : selectedCandidate
               ? { policy_id: `fixed_candidate:${selectedCandidate}` }
@@ -473,27 +432,42 @@ export function ChatPanel({
       const answer = unwrap(
         await api.POST("/v1/chat", { body: pending.current }),
       );
-      pending.current = null;
-      setRetrying(false);
-      setPendingPrompt(null);
-      await client.invalidateQueries({ queryKey: ["session", userId] });
-      await client.invalidateQueries({ queryKey: ["sessions", userId] });
-      await client.invalidateQueries({ queryKey: ["overview", userId] });
-      client.setQueryData(["trace", answer.request_id], answer);
+      await acceptAnswer(answer);
     } catch (reason) {
-      setError(reason);
+      setError(
+        isTransportUncertain(reason)
+          ? new ApiError("TRANSPORT_UNCERTAIN", 502)
+          : reason,
+      );
       const uncertain =
+        isTransportUncertain(reason) ||
         !(reason instanceof ApiError) ||
-        ["REQUEST_IN_PROGRESS", "SESSION_BUSY"].includes(reason.code);
+        [
+          "REQUEST_IN_PROGRESS",
+          "SESSION_BUSY",
+          "IDEMPOTENCY_CONFLICT",
+        ].includes(reason.code);
+      setDraft(pending.current?.message || text);
       if (!uncertain) {
         pending.current = null;
         setPendingPrompt(null);
       }
       setRetrying(uncertain && pending.current !== null);
     } finally {
+      sending.current = false;
       setBusy(false);
       onBusy(pending.current !== null);
     }
+  }
+  async function resendSessionPrompt(
+    text: string,
+    overrideMode?: "baseline" | "optimized",
+  ) {
+    await submitPrompt(text, overrideMode);
+  }
+  async function send(event: FormEvent) {
+    event.preventDefault();
+    await submitPrompt(draft);
   }
   const locked = processing || retrying || documentBusy;
   useEffect(() => {
@@ -540,7 +514,9 @@ export function ChatPanel({
                 </span>
                 <Switch.Root
                   className="switch"
-                  checked={mode === "baseline" && key === "router" ? false : flags[key]}
+                  checked={
+                    mode === "baseline" && key === "router" ? false : flags[key]
+                  }
                   disabled={locked || (mode === "baseline" && key === "router")}
                   onCheckedChange={(checked) =>
                     setFlags({ ...flags, [key]: checked })

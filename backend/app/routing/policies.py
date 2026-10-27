@@ -1,6 +1,7 @@
 import hashlib
 import random
 from decimal import Decimal
+from pathlib import Path
 
 from app.contracts.dtos import (
     CandidateExclusion,
@@ -45,9 +46,20 @@ class RoutingRejected(AppError):
 
 
 class PolicyRouter:
-    def __init__(self, ml: MLRouterService | None = None, drift: RoutingDrift | None = None):
+    def __init__(
+        self,
+        ml: MLRouterService | None = None,
+        drift: RoutingDrift | None = None,
+        review_path: Path | None = None,
+        require_review: bool = False,
+        admission_input_rates: dict[str, Decimal] | None = None,
+        research_acceptance_path: Path | None = None,
+    ):
         self.ml = ml or MLRouterService()
         self.drift = drift
+        self.review_path, self.require_review = review_path, require_review
+        self.admission_input_rates = dict(admission_input_rates or {})
+        self.research_acceptance_path = research_acceptance_path
 
     def select(
         self,
@@ -68,7 +80,11 @@ class PolicyRouter:
             rate = rates.get(model.config_id)
             upper = (
                 (
-                    Decimal(bound) * rate.input_per_million
+                    Decimal(bound)
+                    * max(
+                        rate.input_per_million,
+                        self.admission_input_rates.get(model.config_id, Decimal(0)),
+                    )
                     + Decimal(model.max_output_tokens) * rate.output_per_million
                 )
                 / Decimal(1000000)
@@ -108,10 +124,11 @@ class PolicyRouter:
             raise RoutingRejected("DEADLINE_EXCEEDED", tuple(excluded), tuple(estimates))
         reference = next((m for m in feasible if m.config_id == registry.mock_config_id), None)
         if policy.strategy == "ml_multi_model":
-            from app.routing.ml.multi import configuration_hash
+            from app.routing.ml.multi import configuration_hash, feature_view
 
             engine = self.ml.multi
             artifact2 = engine.artifact
+            accepted_research = False
             why = self.ml.status if artifact2 is None else None
             if artifact2 is None and self.ml.artifact:
                 why = "ML_ARTIFACT_FORMAT_MISMATCH_FALLBACK"
@@ -120,11 +137,33 @@ class PolicyRouter:
                 and not policy.sandbox
                 and (not self.ml.live_approved or artifact2.purpose != "qualified_dev")
                 and not (
-                    artifact2.purpose == "research_candidate"
-                    and self.ml.allow_research_candidate
+                    artifact2.purpose == "research_candidate" and self.ml.allow_research_candidate
                 )
             ):
                 why = "ML_NOT_QUALIFIED_FALLBACK"
+            if artifact2 and not why:
+                from app.routing.ml.qualification import review_failure, synthetic_artifact
+
+                if not policy.sandbox and synthetic_artifact(artifact2):
+                    why = "ML_SYNTHETIC_EVIDENCE_FALLBACK"
+                elif not policy.sandbox and self.require_review:
+                    if (
+                        artifact2.purpose == "research_candidate"
+                        and self.ml.allow_research_candidate
+                    ):
+                        from app.routing.ml.qualification import research_acceptance_failure
+
+                        why = research_acceptance_failure(engine, self.research_acceptance_path)
+                        accepted_research = why is None
+                    else:
+                        why = review_failure(engine, self.review_path)
+                    if why is None and not accepted_research:
+                        from app.routing.ml.qualification import reviewed_scope_failure
+
+                        assert self.review_path is not None
+                        why = reviewed_scope_failure(prepared, self.review_path)
+                        if profile.has_rag_context:
+                            why = "ML_UNREVIEWED_SCOPE_FALLBACK"
             if artifact2 and not why:
                 identities = {
                     m.config_id: configuration_hash(m)
@@ -159,6 +198,10 @@ class PolicyRouter:
                         "reason_code": why,
                         "fallback_used": True,
                         "ml_artifact_hash": self.ml.hash,
+                        "ml_loaded": artifact2 is not None,
+                        "ml_executed": False,
+                        "attention_loaded": engine.semantic is not None,
+                        "attention_executed": False,
                     }
                 )
             assert artifact2
@@ -212,6 +255,10 @@ class PolicyRouter:
                             "fallback_used": True,
                             "ml_artifact_hash": self.ml.hash,
                             "stages": tuple(stages),
+                            "ml_loaded": True,
+                            "ml_executed": True,
+                            "attention_loaded": engine.semantic is not None,
+                            "attention_executed": None if engine.semantic else False,
                         }
                     )
                 shift = (
@@ -266,6 +313,10 @@ class PolicyRouter:
                 raise RoutingRejected(code, tuple(excluded), tuple(estimates))
             fallback2 = selected2.config_id == registry.mock_config_id
             reason2 = "ROUTE_ML_MULTI_REFERENCE" if fallback2 else "ROUTE_ML_MULTI_CANDIDATE"
+            if accepted_research:
+                reason2 = (
+                    "ROUTE_ML_RESEARCH_REFERENCE" if fallback2 else "ROUTE_ML_RESEARCH_CANDIDATE"
+                )
             return RouteDecision(
                 config_id=selected2.config_id,
                 model_id=selected2.model_id,
@@ -274,12 +325,27 @@ class PolicyRouter:
                 reason_code=reason2,
                 fallback_used=fallback2,
                 use_original_context=fallback2,
-                rules_matched=profile.rules_matched,
+                rules_matched=(
+                    (*profile.rules_matched, "operator_accepted_research")
+                    if accepted_research
+                    else profile.rules_matched
+                ),
                 exclusions=tuple(excluded),
                 estimates=tuple(estimates),
                 stages=tuple(stages),
                 ml_artifact_hash=self.ml.hash,
                 ml_model_version=artifact2.model_version,
+                ml_loaded=True,
+                ml_executed=any(s.score is not None for s in stages),
+                attention_loaded=engine.semantic is not None,
+                attention_executed=engine.semantic is not None
+                and any(s.score is not None for s in stages),
+                attention_features=tuple(
+                    float(v) for v in engine.semantic.features(feature_view(prepared))
+                )
+                if engine.semantic and any(s.score is not None for s in stages)
+                else None,
+                attention_backend=engine.semantic.backend if engine.semantic else None,
                 policy_hash=hashlib.sha256(
                     (policy.model_dump_json() + (self.ml.hash or "")).encode()
                 ).hexdigest(),
@@ -293,12 +359,10 @@ class PolicyRouter:
                 artifact
                 and not policy.sandbox
                 and (not self.ml.live_approved or artifact.purpose != "qualified_dev")
-                and not (
-                    artifact.purpose == "research_candidate"
-                    and self.ml.allow_research_candidate
-                )
             ):
                 why = "ML_NOT_QUALIFIED_FALLBACK"
+            if artifact and not policy.sandbox and self.require_review and not why:
+                why = "ML_ATTENTION_REQUIRED_FALLBACK"
             if artifact and not why:
                 identities = {m.config_id: m.model_id for m in registry.configurations}
                 if (

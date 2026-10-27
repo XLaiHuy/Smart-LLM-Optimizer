@@ -1,0 +1,33 @@
+{
+  "passed": false,
+  "artifact_hash": "5d7e83ef8127183ea3d3c3a4650d72c0e71699a66df8e871bdb167d1e39308fc",
+  "dataset_hash": "481acee37a9c8cc92412c70ce85d59d86dd2f7386a3013a208c9f9f3c340ccb1",
+  "source_report_sha256": "8a9427fc96daec48469daeb3bbd3e41e4581fcc12970e26d20bb707e9296c246",
+  "source_report_path": "output/project-audit/router-openrouter-full-v2-qualification-20261027.json",
+  "issues": [
+    "E2E_ARTIFACT_HASH_MISMATCH",
+    "E2E_CRITICAL_REGRESSION",
+    "E2E_LATENCY_GUARD_FAILED",
+    "INSUFFICIENT_OR_FAILED_DOMAIN_EVIDENCE:math_reasoning",
+    "INSUFFICIENT_OR_FAILED_DOMAIN_EVIDENCE:vietnamese_mcq",
+    "MEASURED_E2E_PILOT_REQUIRED",
+    "ML_WITHOUT_ATTENTION_DOMINATES"
+  ],
+  "domains": {
+    "math_reasoning": {
+      "independent_groups": 100,
+      "regressions": 1,
+      "regression_upper_95": 0.046559811453538914
+    },
+    "vietnamese_mcq": {
+      "independent_groups": 100,
+      "regressions": 3,
+      "regression_upper_95": 0.07571079374983006
+    }
+  },
+  "test_cases": 200,
+  "reference_correct": 180,
+  "attention_correct": 177,
+  "gross_regressions": 4,
+  "note": "Unmodified failed scientific qualification; operator chooses development trial despite this result"
+}

@@ -131,6 +131,7 @@ async def usage_export(
             "p95_ms",
             "timing_samples",
             "reconciled_calls",
+            "reporting_epoch",
         ]
     )
     for dimension, rows in (
@@ -156,6 +157,7 @@ async def usage_export(
                     row.p95_ms,
                     row.timing_samples,
                     row.reconciled_calls,
+                    report.reporting_epoch,
                 ]
             )
     return Response(

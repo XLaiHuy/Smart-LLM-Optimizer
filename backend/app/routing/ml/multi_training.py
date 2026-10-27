@@ -538,7 +538,18 @@ def train_multi(
         else "intent-recent-rag-numeric-v2",
         attention=attention,
         model_version=dataset.version,
-        purpose=dataset.purpose,
+        purpose="software_test"
+        if (
+            dataset.purpose == "software_test"
+            or "synthetic" in dataset.grader_version.lower()
+            or any(
+                o.label_source == "synthetic_verified"
+                for r in dataset.samples
+                for o in r.observations
+            )
+            or any(c.execution_source != "live" for c in dataset.configurations)
+        )
+        else "research_candidate",
         trained_at=datetime.now(UTC).isoformat(),
         dataset_hash=hashlib.sha256(dataset.model_dump_json().encode()).hexdigest(),
         provenance=dataset.provenance,

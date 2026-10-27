@@ -56,10 +56,24 @@ def frozen_hash(value: str) -> str:
 
 
 def interleave(samples: tuple[RawTrainingSample, ...]) -> tuple[RawTrainingSample, ...]:
-    queues = {
-        s: deque(sorted((r for r in samples if r.split == s), key=lambda r: r.task_id))
-        for s in ("train", "calibration", "threshold", "holdout")
-    }
+    def balanced(split: str) -> deque[RawTrainingSample]:
+        domains = {
+            domain: deque(
+                sorted(
+                    (r for r in samples if r.split == split and r.domain == domain),
+                    key=lambda r: r.task_id,
+                )
+            )
+            for domain in sorted({r.domain for r in samples if r.split == split})
+        }
+        rows: deque[RawTrainingSample] = deque()
+        while any(domains.values()):
+            for queue in domains.values():
+                if queue:
+                    rows.append(queue.popleft())
+        return rows
+
+    queues = {s: balanced(s) for s in ("train", "calibration", "threshold", "holdout")}
     pattern = (
         "train",
         "train",
@@ -93,6 +107,8 @@ def interleave(samples: tuple[RawTrainingSample, ...]) -> tuple[RawTrainingSampl
 async def prepare_samples(manifest: TrainingManifest) -> TrainingCorpus:
     buckets: dict[str, deque[RawTrainingSample]] = {}
     for index, source in enumerate(manifest.sources or (manifest.source,)):
+        if manifest.split_protocol == "frozen_canonical" and source.adapter != "canonical":
+            raise AppError("SOURCE_SPLIT_LEAKAGE", 409, "Frozen splits require a canonical corpus")
         if (
             not source.license_reviewed
             or not source.allow_training
@@ -143,6 +159,8 @@ async def prepare_samples(manifest: TrainingManifest) -> TrainingCorpus:
                     update={"task_id": f"source-{index}:" + row.task_id, "grading": spec}
                 )
             )
+        if manifest.split_protocol == "frozen_canonical":
+            validate_corpus(TrainingCorpus(samples=tuple(rows)))
         buckets[str(index)] = deque(sorted(rows, key=lambda r: frozen_hash(r.task_id)))
     selected: list[RawTrainingSample] = []
     seen: set[str] = set()
@@ -160,7 +178,11 @@ async def prepare_samples(manifest: TrainingManifest) -> TrainingCorpus:
                 seen.add(key)
                 groups.add(row.group_id)
                 # One original unit per family in pilot; variants are introduced later.
-                selected.append(row.model_copy(update={"split": group_split(row.group_id)}))
+                selected.append(
+                    row
+                    if manifest.split_protocol == "frozen_canonical"
+                    else row.model_copy(update={"split": group_split(row.group_id)})
+                )
                 if len(selected) >= public_limit:
                     break
     if any(
@@ -593,13 +615,16 @@ async def run_pilot(
                 continue
             assert sample.grading
             try:
-                answers = []
-                for config in manifest.configurations:
+                answers_by_config = {}
+                offset = int(frozen_hash(sample.task_id)[:8], 16) % len(manifest.configurations)
+                order = manifest.configurations[offset:] + manifest.configurations[:offset]
+                for config in order:
                     answer, job = await pipeline._generation(
                         user, job, manifest, config.config_id, sample.messages
                     )
-                    answers.append(answer)
+                    answers_by_config[config.config_id] = answer
                     await pipeline.save(job)
+                answers = [answers_by_config[c.config_id] for c in manifest.configurations]
                 if sample.grading.kind == "open":
                     grades, job = await judge_open(pipeline, user, job, manifest, sample, answers)
                     if (
@@ -732,7 +757,11 @@ async def run_pilot(
     }
     job = job.model_copy(update={"ready_for_training": ready, "pilot_report": coverage})
     await pipeline.save(job)
-    if not ready or job.active_phase == "collect":
+    if (
+        not ready
+        or job.active_phase == "collect"
+        or (job.active_phase == "full" and coverage["partial_collection"])
+    ):
         atomic_text(directory / "report.json", json.dumps(coverage, indent=2))
         return job.model_copy(update={"status": "succeeded", "stage": "complete"})
     if pending_reviews:
@@ -823,7 +852,9 @@ async def run_pilot(
         )
     )
     eligible = bool(
-        attention_report["guardrails_with_routing_overhead"]
+        not coverage["partial_collection"]
+        and job.unknown_cost_calls == 0
+        and attention_report["guardrails_with_routing_overhead"]
         and not pending_reviews
         and not baseline_dominates
     )
@@ -831,6 +862,7 @@ async def run_pilot(
         {
             "conclusion": "PASS_OBSERVED" if eligible else "INSUFFICIENT_EVIDENCE",
             "import_eligible": eligible,
+            "unresolved_provider_calls": job.unknown_cost_calls,
             "baseline": baseline_report,
             "attention": attention_report,
             "baseline_dominates_attention": baseline_dominates,

@@ -26,6 +26,9 @@ class LLMCompressor:
         else:
             status = "applied" if candidate != prompt else "skipped"
             reason = "llm_rewrite" if candidate != prompt else "no_change"
+        stats = token_stats(prompt, candidate)
         return CompressionResult(
-            prompt, candidate, status, reason, verdict, token_stats(prompt, candidate), analysis
+            original=prompt, compressed=candidate, original_tokens=stats.before,
+            compressed_tokens=stats.after, savings=stats.savings, ratio=stats.ratio,
+            status=status, reason=reason,
         )

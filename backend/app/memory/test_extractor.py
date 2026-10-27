@@ -1,3 +1,5 @@
+import pytest
+
 from app.memory.extractor import extract_explicit_facts
 
 
@@ -15,6 +17,30 @@ def test_extracts_only_explicit_facts() -> None:
 
 def test_ambiguous_text_is_not_saved() -> None:
     assert extract_explicit_facts("We discussed the deadline.", "m1") == ()
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Nhắc lại tên tôi, ngành học, trường, đề tài nghiên cứu và hạn chót mới nhất.",
+        "Tên tôi, ngành học, trường, đề tài và hạn chót mới nhất là gì?",
+        "Tên tôi là gì?",
+        "Hạn chót là gì?",
+        "What is my deadline?",
+        "Bạn nhớ tôi học tại đâu?",
+    ],
+)
+def test_recall_queries_do_not_become_explicit_facts(question: str) -> None:
+    assert extract_explicit_facts(question, "q") == ()
+
+
+def test_nested_deadline_correction_keeps_only_new_value() -> None:
+    facts = extract_explicit_facts(
+        "Tôi cập nhật hạn chót: hạn chót là 25/11/2026, thay cho 18/11/2026. Chỉ xác nhận ngắn.",
+        "m2",
+    )
+    assert len(facts) == 1 and facts[0].key == "deadline"
+    assert facts[0].value.startswith("25/11/2026")
 
 
 def test_extracts_explicit_vietnamese_facts() -> None:

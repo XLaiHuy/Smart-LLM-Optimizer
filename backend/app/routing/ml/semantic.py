@@ -24,6 +24,23 @@ class SemanticRuntime:
         self.numpy_weights = {k: np.asarray(v, dtype=np.float32) for k, v in state.weights.items()}
         self.modules: dict[str, Any] = {}
 
+    def similarity(self, original: str, candidate: str) -> float | None:
+        """Paragraph-level guard, using local states; never score truncated text.
+
+        Cosine is a rejection heuristic, not proof of logical equivalence.
+        Protected/task paragraphs must still be retained verbatim by the caller.
+        """
+        vectors = []
+        for text in (original, candidate):
+            if len(self.encoder.full_tokenizer.encode(text).ids) > self.encoder.spec.max_tokens:
+                return None
+            states, mask, _ = self.encoder.encode(text)
+            vectors.append(states[mask].mean(axis=0))
+        denominator = float(np.linalg.norm(vectors[0]) * np.linalg.norm(vectors[1]))
+        if denominator <= 0:
+            return None
+        return float(np.dot(vectors[0], vectors[1]) / denominator)
+
     def features(self, text: str) -> np.ndarray:
         import hashlib
 

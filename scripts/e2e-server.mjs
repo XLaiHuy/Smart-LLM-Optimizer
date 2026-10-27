@@ -6,6 +6,9 @@ import {temporary} from "./temp.mjs";
 
 const owned = temporary("smartllm-e2e-");
 const env = {...process.env, APP_ENV: "test", DATABASE_PATH: resolve(owned.directory, "e2e.db"),
+  ADAPTIVE_PROMPT_ENABLED: "false", HYBRID_CONTEXT_ENABLED: "false", MEMORY_RETRIEVAL_ENABLED: "false",
+  HF_HUB_OFFLINE: "1", TRANSFORMERS_OFFLINE: "1",
+  OPENAI_API_KEY: "", GROQ_API_KEY: "", OPENROUTER_API_KEY: "", HUGGINGFACE_API_KEY: "",
   ALLOWED_ORIGINS: '["http://localhost:3001"]', PROVIDER_MODE: "mock", COOKIE_SECURE: "false",
   RESEARCH_LIVE_ENABLED: "false", ML_ROUTER_LIVE_APPROVED: "false", TOOLS_LIVE_APPROVED: "false", ML_ROUTER_ARTIFACT_PATH: resolve(owned.directory, "no-live-artifact.json"),
   BENCHMARK_IMPACT_APPROVED: "false", NEXT_DIST_DIR: ".next-e2e",

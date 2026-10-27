@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -69,9 +69,14 @@ class ChatRequest(DTO):
     flags: FeatureFlags | None = None
     constraints: Constraints = Field(default_factory=Constraints)
     document_ids: tuple[str, ...] = Field(default=(), max_length=5)
+    response_schema: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def validate_mode(self) -> "ChatRequest":
+        if self.response_schema is not None:
+            from app.core.validation import validate_schema
+
+            validate_schema(self.response_schema)
         if not self.message.strip():
             raise ValueError("Message must not be blank")
         if self.mode == "baseline":
@@ -306,6 +311,12 @@ class RemainingBudget(DTO):
 
 
 class RouteDecision(DTO):
+    task_family: str | None = None
+    task_confidence: float | None = None
+    classifier_source: str | None = None
+    group_policy_version: str | None = None
+    group_profile_applied: bool = False
+    group_thresholds: dict[str, float] = Field(default_factory=dict)
     model_id: str
     config_id: str
     effort: str = "none"
@@ -324,6 +335,14 @@ class RouteDecision(DTO):
     ml_artifact_hash: str | None = None
     ml_model_version: str | None = None
     stages: tuple[RoutingStage, ...] = ()
+    ml_loaded: bool | None = None
+    ml_executed: bool | None = None
+    attention_loaded: bool | None = None
+    attention_executed: bool | None = None
+    attention_features: tuple[float, ...] | None = None
+    attention_backend: str | None = None
+    initial_config_id: str | None = None
+    initial_model_id: str | None = None
 
 
 class CandidateExclusion(DTO):
@@ -387,6 +406,12 @@ class ProviderResult(DTO):
 
 
 class CallRecord(DTO):
+    config_id: str | None = None
+    provider_host: str | None = None
+    error_code: str | None = None
+    upstream_status: int | None = None
+    retry_after_seconds: float | None = None
+    dispatch_state: Literal["not_dispatched", "rejected", "completed", "unknown"] = "unknown"
     provider_response_id: str | None = None
     native_usage_json: str | None = None
     call_id: str
@@ -429,7 +454,16 @@ class Citation(DTO):
     excerpt: str
 
 
+class AnswerValidation(DTO):
+    status: Literal["pass", "fail", "unknown"]
+    reason: str
+    version: str = "answer-validator-v1"
+    call_id: str | None = None
+    config_id: str | None = None
+
+
 class ChatResponse(DTO):
+    validation_results: tuple[AnswerValidation, ...] = ()
     request_id: str
     session_id: str
     session_revision: int
@@ -485,6 +519,7 @@ class Overview(DTO):
 
 
 class ErrorDetail(DTO):
+    retry_after_seconds: float | None = None
     code: str
     message: str
     request_id: str | None = None
@@ -557,6 +592,7 @@ class MetricBucket(DTO):
 
 
 class Analytics(DTO):
+    reporting_epoch: str | None = None
     scope: str
     execution_source: Literal["mock", "live"]
     timezone: str = "Asia/Ho_Chi_Minh"

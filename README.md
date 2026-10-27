@@ -23,21 +23,23 @@
 
 ---
 
+Trạng thái router/provider và các giới hạn kiểm định hiện tại: [báo cáo triển khai](docs/ROUTER_FIX_VERIFICATION.md), [quy trình bật ML + Attention](docs/ROUTER_ACTIVATION.md). Load được model hoặc có hình 3D không chứng minh ML đã chạy hay chất lượng live đã đạt yêu cầu.
+
 ## 🌟 3 Điểm Đột Phá Cốt Lõi (Core Breakthroughs)
 
-1. ⚡ **ML Router Siêu Tốc & Hiệu Chỉnh Độ Trôi (<0.2ms CPU)**:
-   - Mô hình phân loại đa nhãn **6-Query Attention Pooling** thuần vector hóa NumPy trên CPU (Toán học, Lập luận logic, Mã nguồn, Trích xuất, Sáng tạo, Đa ngữ/Hành chính Việt Nam).
-   - Tích hợp kỹ thuật cân chỉnh xác suất hậu nghiệm **Platt Scaling** và **Isotonic Regression**, triệt tiêu hiện tượng "tự tin thái quá" của AI, kéo sai số cân chỉnh **ECE < 0.04**.
+1. ⚡ **ML Router và Attention trên CPU, có cổng kiểm định**:
+   - **6-Query Attention Pooling** tạo sáu đặc trưng học được cho router. Sáu giá trị này chưa được chứng nhận là sáu năng lực Toán/Code/Lập luận/Trích xuất/Sáng tạo/Đa ngữ riêng biệt.
+   - Có hiệu chỉnh xác suất; chất lượng, calibration và thời gian phải đọc theo đúng artifact và dataset. Đợt OpenAI ngày 27/10 đo overhead Attention khoảng 23 ms p50; không suy ra toàn bộ luồng đạt <0,2 ms hoặc ECE <0,04.
    - Mặt biên **Dynamic 3D Pareto Frontier** (Chi phí × Độ trễ × Chất lượng) cho phép tương tác trực quan thời gian thực theo ngân sách tài chính của người dùng.
 
 2. 🧩 **Bộ Ba Phân Hệ Tối Ưu Tương Hỗ (Tân – Khoa – Huy)**:
    - **Tân (Nén ngữ cảnh thích ứng)**: Nén prompt loại bỏ redundancy, bảo vệ tuyệt đối các thực thể nhạy cảm (số học, điều luật, tên biến code, công thức) với tỷ lệ bảo toàn thực thể ngữ nghĩa $\ge 95\%$.
    - **Khoa (Bộ nhớ hội thoại phân tầng)**: Trích xuất sự kiện cốt lõi (fact extraction), triệt tiêu mâu thuẫn đa lượt (multi-turn contradiction resolution), giảm 28.8% token thừa mà vẫn duy trì mạch đàm thoại thông minh.
-   - **Huy (Định tuyến phân tầng & Kiến trúc Lục giác)**: Tách biệt tầng định tuyến ý định câu hỏi (`current_turn`) và tầng ngữ cảnh, đảm bảo câu hỏi đơn giản luôn về Tier 1 tiết kiệm tối đa chi phí.
+   - **Huy (Định tuyến phân tầng & Kiến trúc Lục giác)**: Tách biệt tầng định tuyến ý định câu hỏi (`current_turn`) và tầng ngữ cảnh, chỉ chọn model tiết kiệm khi cấu hình và bằng chứng đạt điều kiện; thiếu bằng chứng thì dùng baseline có ghi lý do.
 
-3. 💰 **Tiết Kiệm Chi Phí Đột Phá (72% – 81% Thương Mại, 100% Free-Tier)**:
-   - Cơ chế điều phối tự động kho mô hình miễn phí hiệu năng cao: **Groq** (Llama 3.3 70B, Qwen 2.5 Coder 32B siêu tốc >300 tokens/s), **Hugging Face Serverless Inference**, và **OpenRouter Free Tier**.
-   - Cơ chế **Cascaded Incomplete Failover**: Tự động phát hiện token cắt dở (`finish_reason == 'length'`) để tiếp nối tiền tố (Prefix Chaining) sang tier cao hơn, loại bỏ lãng phí token đã tính toán.
+3. 💰 **Nhiều provider, có kiểm soát hạn mức và ngân sách**:
+   - Groq, OpenRouter và OpenAI dùng catalog đã xác minh; miễn phí phụ thuộc tài khoản, model và quota thực tế. Trần chi của key không phải số dư credits.
+   - Có giới hạn nhịp gọi và dự phòng có ngân sách. Lần gọi mất kết nối giữ trạng thái chi phí chưa rõ; không tự gửi lại hoặc chuyển sang lần gọi trả phí khác. Không coi output bị cắt là dữ liệu huấn luyện hoàn chỉnh.
 
 ---
 

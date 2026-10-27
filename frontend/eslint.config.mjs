@@ -10,8 +10,7 @@ export default defineConfig([
   hooks.configs.flat.recommended,
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   globalIgnores([
-    ".next/**",
-    ".next-e2e/**",
+    ".next*/**",
     "src/lib/generated/**",
     "playwright-report/**",
     "test-results/**",

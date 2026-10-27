@@ -1,5 +1,2 @@
-import { Workspace } from "@/components/workspace";
-
-export default function ResearchPage() {
-  return <Workspace research />;
-}
+import { redirect } from "next/navigation";
+export default function RemovedPage() { redirect("/"); }

@@ -516,7 +516,14 @@ class ResearchService:
     async def _execute(self, run_id: str, snapshot: ExperimentSnapshot) -> None:
         # Pending runs use their frozen data-only artifact, never a newly trained file.
         router = PolicyRouter(
-            MLRouterService(snapshot.ml_artifact_json, live_approved=self.ml_live_approved)
+            MLRouterService(snapshot.ml_artifact_json, live_approved=self.ml_live_approved),
+            admission_input_rates=(
+                self.live.metering.catalog.admission_input_rates()
+                if self.live
+                and self.live.metering.catalog
+                and snapshot.request.execution_source == "live"
+                else None
+            ),
         )
         position, simulated_spend = 0, Decimal(0)
         request = snapshot.request

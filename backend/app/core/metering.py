@@ -2,7 +2,8 @@ import asyncio
 import hashlib
 from decimal import Decimal
 from time import perf_counter
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+from urllib.parse import urlsplit
 
 import numpy as np
 from sqlalchemy import select
@@ -14,6 +15,7 @@ from app.contracts.dtos import (
     ExecutionRequest,
     Message,
     MeteringContext,
+    Principal,
     ProviderItem,
     ProviderOptions,
     ProviderResult,
@@ -24,12 +26,16 @@ from app.contracts.errors import AppError
 from app.contracts.protocols import LLMProvider
 from app.providers.catalog import Catalog, price, upper_cost
 from app.providers.live import OpenAIProvider
+from app.providers.openai_compatible import OpenAICompatibleProvider
 from app.storage.database import Database
 from app.storage.ledger import SqlBudgetLedger
-from app.storage.models import PriceSnapshot, UsageRecord
+from app.storage.models import Attempt, PriceSnapshot, UsageRecord
 from app.storage.repositories import now, uid
 
 Stage = Literal["provider", "query_embedding", "indexing", "document_map", "document_reduce"]
+
+if TYPE_CHECKING:
+    from app.core.execution import ExecutionJournal
 
 
 def input_bound(
@@ -73,13 +79,15 @@ def aggregate(calls: tuple[CallRecord, ...]) -> tuple[Usage, CostEstimate]:
 
 
 class MeteredCalls:
+    journal: "ExecutionJournal | None" = None
+
     def __init__(
         self,
         db: Database,
         settings: Settings,
         ledger: SqlBudgetLedger,
         catalog: Catalog | None,
-        live: OpenAIProvider | None,
+        live: OpenAIProvider | OpenAICompatibleProvider | None,
     ):
         self.db, self.settings, self.ledger, self.catalog, self.live = (
             db,
@@ -118,7 +126,7 @@ class MeteredCalls:
                 content = self.catalog.model_dump_json()
                 if stored is None:
                     db.add(PriceSnapshot(id=self.catalog.version, catalog_json=content))
-                elif stored.catalog_json != content:
+                elif Catalog.model_validate_json(stored.catalog_json).model_dump_json() != content:
                     raise AppError(
                         "VALIDATION_ERROR", 422, "Catalog changed without version change"
                     )
@@ -146,10 +154,36 @@ class MeteredCalls:
             )
         if reservation:
             await self.ledger.mark_dispatched(reservation)
+        if self.journal:
+            await self.journal.record(
+                context.operation_id,
+                "reserve",
+                "succeeded" if reservation else "skipped",
+                call_id=call_id,
+                model_id=model,
+                reserved_usd=str(upper),
+                billable=bool(reservation),
+            )
         return call_id, reservation
 
     async def _finish(self, call: CallRecord, reservation: str | None) -> None:
         await self.ledger.finish_call(call, reservation)
+        if self.journal:
+            async with self.db.sessions() as db:
+                usage = await db.get(UsageRecord, call.call_id)
+                operation = usage.operation_id if usage else None
+            if operation:
+                await self.journal.record(
+                    operation,
+                    "settlement",
+                    "unknown" if call.cost.status == "unknown" else "succeeded",
+                    call_id=call.call_id,
+                    model_id=call.model_id,
+                    config_id=call.config_id,
+                    dispatch_state=call.dispatch_state,
+                    cost=call.cost.model_dump(mode="json"),
+                    duration_ms=call.duration_ms,
+                )
 
     async def generate(
         self,
@@ -161,6 +195,7 @@ class MeteredCalls:
     ) -> ProviderResult:
         bound = input_bound(messages, opts.tools, opts.continuation_items)
         upper = Decimal(0)
+        provider_host = None
         if self.catalog:
             entry = self.catalog.entry(opts.config_id)
             if entry.kind != "generation" or opts.model_id != entry.model_id:
@@ -181,18 +216,27 @@ class MeteredCalls:
                     "Conservative input bound exceeds configured context window",
                 )
             upper = upper_cost(entry, bound)
+            actual_url = (
+                provider.identity(opts.config_id).split("|", 1)[0]
+                if hasattr(provider, "identity")
+                else entry.base_url
+            )
+            provider_host = urlsplit(actual_url or "https://api.openai.com").hostname
         call_id, reservation = await self._start(execution, stage, opts.model_id, upper)
         started = perf_counter()
         try:
             result = await provider.generate(messages, opts.model_copy(update={"call_id": call_id}))
         except BaseException as exc:
-            is_rate_limit = isinstance(exc, AppError) and (
-                exc.code in ("RATE_LIMITED", "QUOTA_EXCEEDED") or exc.status_code == 429
+            known_rejection = isinstance(exc, AppError) and exc.dispatch_state in (
+                "not_dispatched",
+                "rejected",
             )
             cost = CostEstimate(
                 scope="call",
-                status="not_billable" if is_rate_limit else ("unknown" if self.catalog else "not_billable"),
-                serving_usd=Decimal(0) if is_rate_limit else None,
+                status="not_billable"
+                if known_rejection
+                else ("unknown" if self.catalog else "not_billable"),
+                serving_usd=Decimal(0) if known_rejection else None,
             )
             await asyncio.shield(
                 self._finish(
@@ -200,6 +244,17 @@ class MeteredCalls:
                         call_id=call_id,
                         stage=stage,
                         model_id=opts.model_id,
+                        config_id=opts.config_id,
+                        provider_host=provider_host,
+                        error_code=exc.code if isinstance(exc, AppError) else "CALL_INTERRUPTED",
+                        upstream_status=exc.upstream_status if isinstance(exc, AppError) else None,
+                        retry_after_seconds=exc.retry_after_seconds
+                        if isinstance(exc, AppError)
+                        else None,
+                        dispatch_state=exc.dispatch_state
+                        if isinstance(exc, AppError)
+                        and exc.dispatch_state in ("not_dispatched", "rejected")
+                        else "unknown",
                         usage=Usage(scope="call", usage_source="unknown"),
                         cost=cost,
                         duration_ms=(perf_counter() - started) * 1000,
@@ -214,6 +269,9 @@ class MeteredCalls:
                     call_id=call_id,
                     stage=stage,
                     model_id=opts.model_id,
+                    config_id=opts.config_id,
+                    provider_host=provider_host,
+                    dispatch_state="completed",
                     usage=result.usage,
                     provider_response_id=result.provider_response_id,
                     native_usage_json=result.native_usage_json,
@@ -240,18 +298,18 @@ class MeteredCalls:
         call_id, reservation = await self._start(execution, stage, model, upper)
         started = perf_counter()
         try:
-            if (
-                self.live
-                and entry
-                and self.catalog
-                and entry.model_id != "mock-hash-embedding-v1"
-            ):
+            if self.live and entry and self.catalog and entry.model_id != "mock-hash-embedding-v1":
                 live_client = (
                     self.live.get_client(entry)
                     if hasattr(self.live, "get_client")
                     else self.live.client
                 )
+                quota = getattr(self.live, "quota", None)
+                effective_entry = entry.model_copy(update={"base_url": str(live_client.base_url)})
+                ticket = await quota.acquire(effective_entry, bound) if quota else None
                 result = await live_client.embeddings.create(model=model, input=texts)
+                if quota and ticket:
+                    await quota.reconcile(effective_entry, ticket, result.usage.prompt_tokens)
                 vectors = [item.embedding for item in result.data]
                 usage = Usage(
                     scope="call",
@@ -320,3 +378,12 @@ class MeteredCalls:
                 .order_by(UsageRecord.created_at)
             )
             return tuple(CallRecord.model_validate_json(r.record_json) for r in rows)
+
+    async def owned_records(
+        self, principal: Principal, operation_id: str
+    ) -> tuple[CallRecord, ...]:
+        async with self.db.sessions() as db:
+            attempt = await db.get(Attempt, operation_id)
+            if attempt is None or attempt.owner_user_id != principal.id:
+                raise AppError("NOT_FOUND", 404, "Request not found")
+        return await self.records(operation_id)

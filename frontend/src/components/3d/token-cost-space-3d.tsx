@@ -37,7 +37,7 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     totalTokens: 1700,
     costUsd: 0.00035,
     latencyMs: 140,
-    model: "groq-llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-120b",
     optimized: true,
   },
   {
@@ -49,7 +49,7 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     totalTokens: 3250,
     costUsd: 0.00042,
     latencyMs: 165,
-    model: "groq-qwen-2.5-coder-32b",
+    model: "openai/gpt-oss-120b",
     optimized: true,
   },
   {
@@ -60,8 +60,8 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     outputTokens: 600,
     totalTokens: 4400,
     costUsd: 0.00028,
-    latencyMs: 180,
-    model: "gemini-flash-1.5",
+    latencyMs: 120,
+    model: "gpt-6-luna",
     optimized: true,
   },
   {
@@ -71,9 +71,9 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     inputTokens: 450,
     outputTokens: 180,
     totalTokens: 630,
-    costUsd: 0.0,
-    latencyMs: 95,
-    model: "openrouter-free",
+    costUsd: 0.00004,
+    latencyMs: 75,
+    model: "openai/gpt-oss-20b",
     optimized: true,
   },
   {
@@ -85,19 +85,19 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     totalTokens: 2670,
     costUsd: 0.00038,
     latencyMs: 150,
-    model: "groq-llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-120b",
     optimized: true,
   },
   {
     id: "sess_06",
-    sessionTitle: "Xử lý ảnh & OpenCV Python",
+    sessionTitle: "Dịch thuật học thuật song ngữ",
     timestamp: "14:15",
     inputTokens: 1600,
     outputTokens: 550,
     totalTokens: 2150,
-    costUsd: 0.00031,
-    latencyMs: 135,
-    model: "groq-qwen-2.5-coder-32b",
+    costUsd: 0.00018,
+    latencyMs: 110,
+    model: "gpt-6-luna",
     optimized: true,
   },
   {
@@ -107,9 +107,9 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     inputTokens: 520,
     outputTokens: 210,
     totalTokens: 730,
-    costUsd: 0.0,
-    latencyMs: 90,
-    model: "openrouter-free",
+    costUsd: 0.00005,
+    latencyMs: 70,
+    model: "openai/gpt-oss-20b",
     optimized: true,
   },
   {
@@ -119,9 +119,9 @@ export const DEMO_SESSION_METRICS: SessionUsageMetric[] = [
     inputTokens: 3100,
     outputTokens: 480,
     totalTokens: 3580,
-    costUsd: 0.00025,
-    latencyMs: 160,
-    model: "gemini-flash-1.5",
+    costUsd: 0.00009,
+    latencyMs: 85,
+    model: "openai/gpt-oss-20b",
     optimized: true,
   },
 ];
@@ -264,13 +264,13 @@ export function TokenCostSpace3D({
 
       peakPoints.push(new THREE.Vector3(nx, ny, nz));
 
-      // Bar color based on cost efficiency
+      // Bar color based on 3-model tier and cost efficiency
       const color =
-        metric.costUsd === 0
-          ? 0x10b981 // Emerald (Free tier)
-          : metric.costUsd < 0.0003
-            ? 0x0284c7 // Sky Blue
-            : 0x6366f1; // Indigo
+        metric.model.includes("20b")
+          ? 0x0284c7 // Sky Blue (GPT-OSS 20B)
+          : metric.model.includes("luna")
+            ? 0x6366f1 // Indigo (GPT-6 Luna)
+            : 0x059669; // Emerald (GPT-OSS 120B)
 
       // Voxel Bar Column
       const barGeo = new THREE.BoxGeometry(0.12, ny, 0.12);

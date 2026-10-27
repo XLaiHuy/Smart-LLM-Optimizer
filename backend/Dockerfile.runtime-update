@@ -1,0 +1,12 @@
+# Local update using the project's already installed, explicitly tagged image.
+# Clean installations continue to use Dockerfile and requirements.lock.
+ARG BASE_IMAGE=smartllmplatform-backend:pre-operator-20261027
+FROM ${BASE_IMAGE}
+USER root
+WORKDIR /app
+ENV SMARTLLM_ROOT=/app
+COPY requirements-router-serving.lock ./
+RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-router-serving.lock && pip check
+COPY . .
+RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-validation.lock && pip check
+RUN chmod +x /app/docker-entrypoint.sh

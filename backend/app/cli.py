@@ -30,6 +30,50 @@ cli.add_typer(research_cli, name="research")
 cli.add_typer(router_cli, name="router")
 
 
+@cli.command("start-reporting-epoch")
+def start_reporting_epoch(
+    reason: str = "Three-model chat reporting", key: str = "three-model-chat-v1"
+) -> None:
+    """Idempotent reporting watermark. Does not change financial balances."""
+
+    async def run() -> None:
+        from app.storage.models import AnalyticsEpoch
+        from app.storage.repositories import now
+
+        db = Database(Settings())
+        try:
+            async with db.write() as session:
+                existing = await session.get(AnalyticsEpoch, key)
+                if existing is None:
+                    existing = AnalyticsEpoch(id=key, started_at=now(), reason=reason)
+                    session.add(existing)
+                typer.echo(existing.started_at)
+        finally:
+            await db.close()
+
+    asyncio.run(run())
+
+
+@cli.command("mark-audit-user")
+def mark_audit_user(user_id: str) -> None:
+    """Explicit IDs only; never infer account purpose from its username."""
+
+    async def run() -> None:
+        from app.storage.models import User
+
+        db = Database(Settings())
+        try:
+            async with db.write() as session:
+                user = await session.get(User, user_id)
+                if user is None:
+                    raise ValueError("User not found")
+                user.account_purpose = "internal_audit"
+        finally:
+            await db.close()
+
+    asyncio.run(run())
+
+
 def migrate(path: Path) -> None:
     config = Config(str(ROOT / "backend/alembic.ini"))
     config.attributes["database_path"] = path
@@ -143,7 +187,6 @@ def eval_fixture_pair(
         raise typer.Exit(1) from exc
 
 
-
 @evaluation.command("four-suite")
 def eval_four_suite(
     manifest: Annotated[
@@ -239,29 +282,39 @@ def test_accounts() -> None:
 
 @cli.command("verify-catalog")
 def verify_catalog() -> None:
-    """Read-only provider model access check; never submits generation/embedding."""
-    from openai import AsyncOpenAI
-
+    """Read-only access check using each entry's own endpoint/credential."""
     from app.providers.catalog import Catalog
+    from app.providers.openai_compatible import OpenAICompatibleProvider
 
     settings = Settings()
     catalog = Catalog.load(settings.model_catalog_path)
-    if not settings.openai_api_key.get_secret_value():
-        raise typer.BadParameter("Set OPENAI_API_KEY on the server first")
+    provider = OpenAICompatibleProvider("", catalog, settings)
 
     async def verify() -> None:
-        async with AsyncOpenAI(
-            api_key=settings.openai_api_key.get_secret_value(), max_retries=0
-        ) as connection:
+        available = {}
+        failed = False
+        try:
             for model in catalog.models:
+                if model.model_id == "mock-hash-embedding-v1":
+                    typer.echo(f"LOCAL ONLY: {model.config_id}; no provider access claim")
+                    continue
                 try:
-                    await connection.models.retrieve(model.model_id)
+                    client = provider.get_client(model)
+                    if client not in available:
+                        listing = await client.models.list()
+                        available[client] = {entry.id for entry in listing.data}
+                    if model.model_id not in available[client]:
+                        raise ValueError("Model is not listed for this credential")
                     typer.echo(
-                        f"ACCESS OK: {model.config_id}; manually record verified_access and reviewed prices in a new catalog version"
+                        f"ACCESS OK: {model.config_id}; pricing/quality review remains separate"
                     )
                 except Exception:
+                    failed = True
                     typer.echo(f"ACCESS NOT VERIFIED: {model.config_id}", err=True)
-                    raise typer.Exit(1) from None
+        finally:
+            await provider.close()
+        if failed:
+            raise typer.Exit(1)
 
     asyncio.run(verify())
 

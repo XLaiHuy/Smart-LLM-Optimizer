@@ -4,9 +4,10 @@ from time import perf_counter
 from typing import Literal, cast
 from uuid import uuid4
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.contracts.dtos import (
     ChatResponse,
@@ -236,6 +237,7 @@ class SqlSessionStore:
                     status="running",
                     dispatched=False,
                     execution_source=req.execution_source,
+                    traffic_class=req.namespace,
                     created_at=now(),
                 )
             )
@@ -409,27 +411,36 @@ class SqlMemoryStore:
     ) -> tuple[SessionSnapshot, ...]:
         """Load derived memories from the owner's other sessions only."""
         async with self.db.sessions() as db:
-            sessions = tuple(
-                await db.scalars(
-                    select(Conversation).where(
-                        Conversation.owner_user_id == execution_principal,
-                        Conversation.id != exclude_session_id,
+            latest = (
+                select(
+                    MemoryRevision.id.label("memory_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=MemoryRevision.session_id,
+                        order_by=MemoryRevision.revision.desc(),
                     )
+                    .label("position"),
                 )
+                .join(Conversation, Conversation.id == MemoryRevision.session_id)
+                .where(
+                    Conversation.owner_user_id == execution_principal,
+                    Conversation.id != exclude_session_id,
+                    MemoryRevision.revision <= Conversation.revision,
+                )
+                .subquery()
+            )
+            # One statement and one consistent read snapshot, rather than a
+            # query per conversation. Filter owner and committed revision before
+            # ranking so future/foreign memory cannot enter the result.
+            records = await db.execute(
+                select(Conversation, MemoryRevision)
+                .join(MemoryRevision, MemoryRevision.session_id == Conversation.id)
+                .join(latest, latest.c.memory_id == MemoryRevision.id)
+                .where(latest.c.position == 1)
+                .order_by(Conversation.updated_at.desc(), Conversation.id)
             )
             snapshots: list[SessionSnapshot] = []
-            for session in sessions:
-                revision = await db.scalar(
-                    select(MemoryRevision)
-                    .where(
-                        MemoryRevision.session_id == session.id,
-                        MemoryRevision.revision <= session.revision,
-                    )
-                    .order_by(MemoryRevision.revision.desc())
-                    .limit(1)
-                )
-                if revision is None:
-                    continue
+            for session, revision in records:
                 derived = DerivedMemory.model_validate_json(revision.snapshot_json)
                 snapshots.append(
                     SessionSnapshot(
@@ -499,6 +510,14 @@ class SqlTraceStore:
 
     async def overview(self, principal: Principal) -> Overview:
         async with self.db.sessions() as db:
+            from app.analytics.epoch import current_epoch, product_attempts
+
+            epoch = await current_epoch(db)
+            filters: tuple[ColumnElement[bool], ...] = (
+                Attempt.owner_user_id == principal.id, Attempt.research_run_id.is_(None)
+            )
+            if epoch:
+                filters += (*product_attempts(), Attempt.created_at >= epoch.started_at)
             rows = list(
                 await db.scalars(
                     select(Attempt)
@@ -512,7 +531,7 @@ class SqlTraceStore:
                             Attempt.execution_source,
                         )
                     )
-                    .where(Attempt.owner_user_id == principal.id, Attempt.research_run_id.is_(None))
+                    .where(*filters)
                     .order_by(Attempt.created_at.desc())
                 )
             )

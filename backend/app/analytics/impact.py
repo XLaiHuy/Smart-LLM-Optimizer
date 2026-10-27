@@ -111,6 +111,19 @@ async def benchmark_impact(
             UsageRecord.created_at >= lower,
             UsageRecord.created_at < upper,
         )
+        from app.analytics.epoch import current_epoch, product_attempts
+        from app.storage.models import Attempt
+
+        epoch = await current_epoch(connection)
+        if epoch:
+            query = query.where(
+                UsageRecord.operation_id.in_(
+                    select(Attempt.id).where(
+                        *product_attempts(),
+                        Attempt.created_at >= epoch.started_at,
+                    )
+                )
+            )
         if user_id:
             query = query.where(UsageRecord.owner_user_id == user_id)
         records = list(await connection.scalars(query))

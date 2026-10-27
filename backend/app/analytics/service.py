@@ -38,10 +38,10 @@ def bucket(key: str, records: list[UsageRecord]) -> MetricBucket:
         key=key,
         calls=len(calls),
         input_tokens=sum(c.usage.input_tokens for c in calls if c.usage.input_tokens is not None)
-        if any(c.usage.input_tokens is not None for c in calls)
+        if calls and all(c.usage.input_tokens is not None for c in calls)
         else None,
         output_tokens=sum(c.usage.output_tokens for c in calls if c.usage.output_tokens is not None)
-        if any(c.usage.output_tokens is not None for c in calls)
+        if calls and all(c.usage.output_tokens is not None for c in calls)
         else None,
         # A total is meaningful only when every recorded call has a known
         # serving cost. Do not present partial or mock usage as $0.
@@ -128,6 +128,9 @@ class AnalyticsService:
             datetime.combine(end + timedelta(days=1), time.min, ZONE).astimezone(UTC).isoformat()
         )
         async with self.db.sessions() as db:
+            from app.analytics.epoch import current_epoch, product_attempts
+
+            epoch = await current_epoch(db)
             query = select(UsageRecord).where(
                 UsageRecord.created_at >= lower,
                 UsageRecord.created_at < upper,
@@ -153,6 +156,14 @@ class AnalyticsService:
             if not project:
                 query = query.where(UsageRecord.owner_user_id == target_id)
                 attempts_query = attempts_query.where(Attempt.owner_user_id == target_id)
+            if epoch:
+                product_ids = select(Attempt.id).where(
+                    *product_attempts(), Attempt.created_at >= epoch.started_at
+                )
+                query = query.where(UsageRecord.operation_id.in_(product_ids))
+                attempts_query = attempts_query.where(
+                    *product_attempts(), Attempt.created_at >= epoch.started_at
+                )
             if session_id:
                 session = await db.get(Conversation, session_id)
                 if session is None or (not project and session.owner_user_id != target_id):
@@ -205,6 +216,7 @@ class AnalyticsService:
         for row in records:
             series[series_key(datetime.fromisoformat(row.created_at), granularity)].append(row)
         return Analytics(
+            reporting_epoch=epoch.started_at if epoch else None,
             granularity=granularity,
             timeseries=tuple(bucket(k, v) for k, v in series.items()),
             scope="project" if project else "selected_user" if user_id else "current_user",

@@ -100,7 +100,7 @@ export function Login({
           </span>
         </Link>
         <nav aria-label={l("navigation")}>
-          <Link href="/research-guide">{l("research")}</Link>
+          <a href="#models">{l("research")}</a>
           <LanguageSwitch />
           <button className="button" onClick={() => setOpen(true)}>
             {t("login")}
@@ -120,10 +120,10 @@ export function Login({
               {l("start")}
               <ArrowRight size={18} />
             </button>
-            <Link className="button" href="/research-guide">
+            <a className="button" href="#models">
               <FileText size={17} />
               {l("research")}
-            </Link>
+            </a>
           </div>
           <p className="landing-caption">
             {info.data

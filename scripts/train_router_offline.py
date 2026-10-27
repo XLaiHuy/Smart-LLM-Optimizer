@@ -6,11 +6,14 @@ DEV dataset has been prepared and reviewed locally.
 """
 
 from __future__ import annotations
+
 import argparse
 import hashlib
 import json
 import sys
 from pathlib import Path
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True, help="Labeled router-dataset-v2 JSON")

@@ -43,6 +43,8 @@ class AuthService:
         password: str,
         role: Literal["user", "admin"] = "user",
         quota: Decimal | None = None,
+        *,
+        account_purpose: Literal["standard", "internal_audit"] = "standard",
     ) -> Principal:
         if not username.strip() or len(username) > 64 or len(password) < 8 or len(password) > 256:
             raise AppError("VALIDATION_ERROR", 422, "Username and password (8–256 chars) required")
@@ -59,6 +61,7 @@ class AuthService:
                 password_hash=hashed,
                 role=role,
                 quota_usd=str(actual_quota),
+                account_purpose=account_purpose,
             )
             db.add(user)
             return principal_of(user)

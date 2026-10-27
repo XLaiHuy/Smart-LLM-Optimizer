@@ -6,6 +6,25 @@ class Base(DeclarativeBase):
     pass
 
 
+class AnalyticsEpoch(Base):
+    __tablename__ = "analytics_epochs"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    started_at: Mapped[str] = mapped_column(String(40))
+    reason: Mapped[str] = mapped_column(Text)
+
+
+class ExecutionEvent(Base):
+    __tablename__ = "execution_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(
+        ForeignKey("request_attempts.id", ondelete="CASCADE"), index=True
+    )
+    stage: Mapped[str] = mapped_column(String(48))
+    status: Mapped[str] = mapped_column(String(24))
+    at: Mapped[str] = mapped_column(String(40))
+    details_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
 class User(Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -13,6 +32,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(String(16), default="user")
     quota_usd: Mapped[str] = mapped_column(String(64))
+    account_purpose: Mapped[str] = mapped_column(
+        String(24), default="standard", server_default="standard"
+    )
 
 
 class AuthSession(Base):
@@ -75,6 +97,7 @@ class Attempt(Base):
     client_request_id: Mapped[str] = mapped_column(String(128))
     payload_hash: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(20))
+    traffic_class: Mapped[str] = mapped_column(String(24), default="chat", server_default="chat")
     dispatched: Mapped[bool] = mapped_column(default=False)
     execution_source: Mapped[str] = mapped_column(String(16), default="mock")
     created_at: Mapped[str] = mapped_column(String(40))
@@ -239,6 +262,12 @@ class RouterOutcome(Base):
     dislike: Mapped[bool] = mapped_column(Boolean)
     retry: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[str] = mapped_column(String(40))
+
+
+class ProviderQuotaBucket(Base):
+    __tablename__ = "provider_quota_buckets"
+    scope_key: Mapped[str] = mapped_column(String(256), primary_key=True)
+    state_json: Mapped[str] = mapped_column(Text)
 
 
 class ProcessingEvent(Base):

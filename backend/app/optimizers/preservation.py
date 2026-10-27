@@ -1,3 +1,5 @@
+import math
+import re
 from collections import Counter
 from typing import Literal
 
@@ -20,6 +22,8 @@ def validate_preservation(
     compressed: str,
     protected_spans: tuple[ProtectedSpan, ...],
     strategy: CompressionStrategy = "llmlingua2",
+    *,
+    semantic_similarity: float | None = None,
 ) -> PreservationStatus:
     if not compressed.strip():
         return "violation"
@@ -33,13 +37,19 @@ def validate_preservation(
         if normalize_whitespace(original) == compressed:
             return "preserved"
         return "unknown"
-    # LLMLingua is the semantic compressor selected by the adaptive path.
-    # Its output is accepted only after the hard constraints above pass.  The
-    # previous implementation returned ``unknown`` for every non-identical
-    # LLMLingua result, which made the adaptive path permanently fall back to
-    # the original prompt even when all protected spans were preserved.
+    # Entity survival alone cannot establish semantic preservation. The real
+    # compressor additionally checks each mutable paragraph with a local encoder
+    # and keeps task/protected paragraphs verbatim. Missing evidence fails closed.
     if strategy == "llmlingua2":
-        return "preserved"
+        # Keeping the word "not/không" alone does not preserve its bound.
+        pattern = r"\b(?:không\s+(?:ít|nhiều|nhỏ|lớn|thấp|cao)\s+hơn|(?:at\s+least|at\s+most|no\s+(?:less|more)\s+than))\b"
+        if Counter(re.findall(pattern, original, re.IGNORECASE)) != Counter(
+            re.findall(pattern, compressed, re.IGNORECASE)
+        ):
+            return "unknown"
+        if semantic_similarity is None or not math.isfinite(semantic_similarity):
+            return "unknown"
+        return "preserved" if 0.85 <= semantic_similarity <= 1.000001 else "unknown"
     return "unknown"
 
 

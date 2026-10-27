@@ -63,7 +63,7 @@ def validate_attention(state: AttentionState) -> None:
         raise ValueError("Invalid attention OOF provenance")
 
 
-_WEIGHTS_CACHE: dict[int, dict[str, np.ndarray]] = {}
+_WEIGHTS_CACHE: dict[int, tuple[object, dict[str, np.ndarray]]] = {}
 
 
 def numpy_features(
@@ -77,12 +77,16 @@ def numpy_features(
         w = weights
     else:
         cache_key = id(state.weights)
-        w = _WEIGHTS_CACHE.get(cache_key)
-        if w is None:
+        cached = _WEIGHTS_CACHE.get(cache_key)
+        if cached is None or cached[0] is not state.weights:
             w = {key: np.asarray(value, dtype=np.float32) for key, value in state.weights.items()}
-            _WEIGHTS_CACHE[cache_key] = w
+            # Retain the source object while its ID is cached. Otherwise Python
+            # can reuse an old object's ID for a different loaded artifact.
+            _WEIGHTS_CACHE[cache_key] = (state.weights, w)
             if len(_WEIGHTS_CACHE) > 32:
                 _WEIGHTS_CACHE.pop(next(iter(_WEIGHTS_CACHE)))
+        else:
+            w = cached[1]
     x = states @ w["projection"]
     h, d = state.heads, state.width // state.heads
     q = (w["queries"] @ w["q"]).reshape(6, h, d).transpose(1, 0, 2)

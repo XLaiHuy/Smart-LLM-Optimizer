@@ -26,7 +26,8 @@ _PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(
             r"\b(?:deadline|hạn chót|hạn cuối|han chot|han cuoi)"
             r"(?:\s+(?:nộp(?:\s+báo cáo)?|báo cáo|nop(?:\s+bao cao)?|bao cao))?"
-            r"\s*(?:is|là|la)?\s*([^.!?\n]{1,80})",
+            # A recall question is not a fact: require a declarative link.
+            r"\s*(?:(?:is|là|la)\s+|:\s*)([^.!?\n]{1,80})",
             re.I,
         ),
     ),
@@ -71,7 +72,14 @@ def extract_explicit_facts(content: str, source_message_id: str) -> tuple[Fact, 
         match = pattern.search(content)
         if match is None:
             continue
+        # Do not persist interrogative values such as 'Tên tôi là gì?'.
+        if content[match.end() :].lstrip().startswith("?"):
+            continue
         value = " ".join(match.group(1).strip().split())
+        # A correction can repeat its label: 'hạn chót: hạn chót là 25/11'.
+        nested = pattern.search(value)
+        if nested is not None:
+            value = " ".join(nested.group(1).strip().split())
         if value:
             facts.append(Fact(key=key, value=value, source_message_ids=(source_message_id,)))
     return tuple(facts)

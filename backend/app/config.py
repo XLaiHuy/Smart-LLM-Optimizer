@@ -1,11 +1,12 @@
+import os
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(os.environ.get("SMARTLLM_ROOT", str(Path(__file__).resolve().parents[2]))).resolve()
 
 
 class Settings(BaseSettings):
@@ -15,11 +16,27 @@ class Settings(BaseSettings):
     database_path: Path = ROOT / "data/smartllm.db"
     provider_mode: Literal["mock", "live"] = "mock"
     research_live_enabled: bool = False
+    task_routing_bundle_path: Path = ROOT / "config/task_routing_profiles.json"
     auto_routing_strategy: Literal["rule_guarded", "ml_router", "ml_multi_model"] = "rule_guarded"
     ml_router_artifact_path: Path = ROOT / "config/router_model.json"
     ml_router_live_approved: bool = False
+    ml_router_qualification_path: Path = ROOT / "config/router_live_qualified.review.json"
+    provider_quota_enabled: bool = True
+    provider_quota_account: str = "default-organization"
+    groq_quota_rpm: int = Field(default=24, gt=0)
+    groq_quota_rpd: int = Field(default=800, gt=0)
+    groq_quota_tpm: int = Field(default=6400, gt=0)
+    groq_quota_tpd: int = Field(default=160000, gt=0)
+    openrouter_free_rpm: int = Field(default=16, gt=0)
+    openrouter_free_rpd: int = Field(default=40, gt=0)
+    # Conservative application pacing for paid profiles; observed provider
+    # headers can impose tighter limits. These are not advertised account quotas.
+    openrouter_paid_rpm: int = Field(default=16, gt=0)
+    openai_quota_rpm: int = Field(default=24, gt=0)
+    provider_max_failovers: int = Field(default=2, ge=0, le=2)
     # Development-only opt-in for testing research_candidate artifacts.
     ml_router_allow_research_candidate: bool = False
+    ml_router_research_acceptance_path: Path = ROOT / "config/router_research_acceptance.json"
     router_training_manifest_path: Path = ROOT / "data/router-training/manifest.json"
     router_training_directory: Path = ROOT / "data/router-training"
     tools_live_approved: bool = False
@@ -63,6 +80,8 @@ class Settings(BaseSettings):
         "model_catalog_path",
         "upload_directory",
         "ml_router_artifact_path",
+        "ml_router_qualification_path",
+        "ml_router_research_acceptance_path",
         "benchmark_impact_path",
         "router_training_manifest_path",
         "router_training_directory",
@@ -74,3 +93,22 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return f"sqlite+aiosqlite:///{self.database_path.as_posix()}"
+
+    @model_validator(mode="after")
+    def prevent_split_live_storage(self) -> "Settings":
+        if (
+            os.name == "nt"
+            and self.app_env != "test"
+            and self.provider_mode == "live"
+            and self.database_path == ROOT / "data/smartllm.db"
+            and (ROOT / "data/docker-native-storage.json").exists()
+        ):
+            raise ValueError(
+                "Live storage is owned by the Docker native volume. Run live CLI/jobs "
+                "inside the backend container; the Windows database is a preserved snapshot."
+            )
+        return self
+
+    @property
+    def research_chat_enabled(self) -> bool:
+        return self.app_env == "development" and self.ml_router_allow_research_candidate

@@ -149,6 +149,7 @@ class TrainingManifest(DTO):
     pilot: bool = False
     sources: tuple[TrainingSource, ...] = ()
     synthesize: bool = False
+    split_protocol: Literal["source_hash", "frozen_canonical"] = "source_hash"
     domain_loss_weight: float = Field(default=0, ge=0, le=1, allow_inf_nan=False)
     docker_image: str | None = None
 
