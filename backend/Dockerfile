@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Install dependencies from lockfile
 COPY pyproject.toml requirements.lock ./
-RUN pip install --no-cache-dir -r requirements.lock
+RUN pip install --no-cache-dir --default-timeout=180 --retries=10 -r requirements.lock
 
 # Copy application source code and configuration
 COPY . .
