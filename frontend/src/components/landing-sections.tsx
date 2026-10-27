@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Check, FileText, Scale, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
