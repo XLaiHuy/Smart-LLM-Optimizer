@@ -1,4 +1,5 @@
 import logging
+import math
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from starlette.exceptions import HTTPException
 
 from app.api.extended import router as extended_router
@@ -20,13 +21,25 @@ from app.contracts.errors import AppError
 
 
 def error_response(
-    code: str, status: int, message: str, request_id: str | None = None
+    code: str,
+    status: int,
+    message: str,
+    request_id: str | None = None,
+    retry_after_seconds: float | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status,
         content=ErrorEnvelope(
-            error=ErrorDetail(code=code, message=message, request_id=request_id)
+            error=ErrorDetail(
+                code=code,
+                message=message,
+                request_id=request_id,
+                retry_after_seconds=retry_after_seconds,
+            )
         ).model_dump(mode="json"),
+        headers={"Retry-After": str(max(1, math.ceil(retry_after_seconds)))}
+        if retry_after_seconds is not None
+        else None,
     )
 
 
@@ -40,6 +53,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             async with services.db.sessions() as session:
                 await session.execute(text("SELECT version_num FROM alembic_version"))
+                integrity = await session.execute(text("PRAGMA quick_check"))
+                if integrity.scalars().all() != ["ok"]:
+                    raise RuntimeError(
+                        "Database integrity check failed; restore a verified snapshot"
+                    )
             await services.sessions.recover_interrupted()
         except OperationalError as exc:
             await services.db.close()
@@ -56,7 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await services.research.close()
             await services.documents.close()
             if services.live:
-                await services.live.client.close()
+                await services.live.close()
             await services.db.close()
 
     app = FastAPI(
@@ -78,11 +96,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(AppError)
     async def app_error(request: Request, exc: AppError) -> JSONResponse:
-        return error_response(exc.code, exc.status, exc.message, exc.request_id)
+        return error_response(
+            exc.code, exc.status, exc.message, exc.request_id, exc.retry_after_seconds
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return error_response("VALIDATION_ERROR", 422, "Invalid request fields or policy/flags")
+
+    @app.exception_handler(SQLAlchemyError)
+    async def storage_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+        # A failed error-persistence transaction must still return the API envelope.
+        # Never release reservations or infer that a provider call was free here.
+        logging.getLogger(__name__).error("Storage request failed: %s", type(exc).__name__)
+        return error_response("DEPENDENCY_UNAVAILABLE", 503, "Storage is unavailable")
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException) -> JSONResponse:

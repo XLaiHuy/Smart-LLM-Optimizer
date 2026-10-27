@@ -3,7 +3,7 @@ import {resolve} from "node:path";
 import {root} from "./python.mjs";
 
 // Frontend readiness alone cannot establish that its API proxy target is ready.
-const deadline = Date.now() + 60000;
+const deadline = Date.now() + 120000;
 let ready = false;
 while (Date.now() < deadline) {
   try {

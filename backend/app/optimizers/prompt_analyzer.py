@@ -35,6 +35,11 @@ _VIETNAMESE_NEGATION_PATTERN = re.compile(
 )
 
 _JSON_KEY_PATTERN = re.compile(r'"[^"]+"\s*:')
+_IDENTIFIER_PATTERN = re.compile(
+    r"\b[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)+\b|"
+    r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|"
+    r'"[^"\n]+"|“[^”\n]+”|`[^`\n]+`'
+)
 
 _UTF8_VIETNAMESE_NEGATION_PATTERN = re.compile(
     r"\b(?:kh\u00f4ng|ch\u01b0a|ch\u1eb3ng|khong|chua|chang)\b",
@@ -48,7 +53,7 @@ _NEGATION_PATTERN = re.compile(
 )
 
 _NUMBER_PATTERN = re.compile(
-    r"(?<!\w)\d+(?:[.,]\d+)*(?:\s*(?:%|kg|km|USD|VND))?(?!\w)",
+    r"(?<!\w)[+−–-]?\s*\d+(?:[.,]\d+)*(?:\s*(?:%|kg|km|USD|VND))?(?!\w)",
     re.IGNORECASE,
 )
 
@@ -86,8 +91,11 @@ def analyze_prompt(
         "negation",
     ) + extract_spans(prompt, _UTF8_VIETNAMESE_NEGATION_PATTERN, "negation")
     number_matches = extract_spans(prompt, _NUMBER_PATTERN, "number")
+    identifiers = extract_spans(prompt, _IDENTIFIER_PATTERN, "identifier")
 
-    all_spans = code_matches + url_matches + json_matches + negation_matches + number_matches
+    all_spans = (
+        code_matches + url_matches + json_matches + negation_matches + number_matches + identifiers
+    )
     unique_spans = {(span.kind, span.text, span.start, span.end): span for span in all_spans}
     protected_spans = tuple(
         sorted(unique_spans.values(), key=lambda span: (span.start, span.end, span.kind))

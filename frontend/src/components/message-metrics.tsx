@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BarChart2, Cpu, Info } from "lucide-react";
 import { api, unwrap } from "@/lib/api";
 import { formatCost, formatMetric, knownTokenTotal } from "@/lib/format";
-import { getCleanModelName } from "./chat-panel";
+import { getCleanModelName } from "@/lib/model-name";
 import { ProcessingProgress } from "./processing-progress";
 
 export function MessageMetrics({
@@ -18,6 +18,7 @@ export function MessageMetrics({
 }) {
   const t = useTranslations("MVP");
   const i = useTranslations("Insights");
+  const app = useTranslations("App");
   const anchor = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -62,6 +63,10 @@ export function MessageMetrics({
     data.usage.input_tokens,
     data.usage.output_tokens,
   );
+  const isResearch =
+    (data.route.reason_code || data.route.reason).startsWith(
+      "ROUTE_ML_RESEARCH_",
+    ) || data.route.rules_matched?.includes("operator_accepted_research");
 
   const isBaseline =
     data.effective_configuration?.policy_id?.startsWith("fixed_candidate:") ||
@@ -83,6 +88,11 @@ export function MessageMetrics({
         {data.execution_source === "mock" && (
           <span className="mock-badge">{i(data.execution_source)}</span>
         )}
+        {isResearch && (
+          <span className="mock-badge" title={app("researchRoutingHint")}>
+            {app("researchRouting")}
+          </span>
+        )}
         {isBaseline && (
           <span className="baseline-tag-pill" title={i("baselineHint")}>
             {i("baselineTag")}
@@ -100,7 +110,7 @@ export function MessageMetrics({
           title={i("tokenEstTooltip", { source: data.usage.usage_source })}
         >
           {totalTokens == null
-            ? `~${formatMetric(data.usage.input_tokens, locale) ?? "0"} tok (${i("estTokens")})`
+            ? t("unknown")
             : `~${formatMetric(totalTokens, locale)} tok (${i("estTokens")})`}
         </span>
         <span
@@ -109,7 +119,9 @@ export function MessageMetrics({
         >
           {data.cost.status === "not_billable"
             ? t("notBillable")
-            : `~${formatCost(data.cost.serving_usd, locale) ?? "$0.00"} (${i("estCost")})`}
+            : data.cost.serving_usd == null
+              ? t("unknown")
+              : `~${formatCost(data.cost.serving_usd, locale)} (${i("estCost")})`}
         </span>
         <Link
           href="/dashboard"
@@ -127,6 +139,7 @@ export function MessageMetrics({
           <button
             type="button"
             className="metrics-trace-btn"
+            aria-label={app("trace")}
             onClick={() => onTrace(requestId)}
             title={
               locale === "vi" ? "Xem chi tiết trace" : "View optimization trace"

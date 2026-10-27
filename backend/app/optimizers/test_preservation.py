@@ -67,11 +67,27 @@ def test_rule_based_preserved() -> None:
     )
 
 
-def test_llmlingua_accepts_compression_when_protected_spans_survive() -> None:
+def test_entity_survival_without_semantic_evidence_is_unknown() -> None:
     assert (
         check(
             "Explain artificial intelligence in detail.",
             "Explain artificial intelligence.",
         )
-        == "preserved"
+        == "unknown"
     )
+
+
+def test_identifier_spacing_is_not_equivalent():
+    assert check("Mã BLUE-851.", "Mã BLUE - 851.") == "violation"
+
+
+def test_semantic_rejection_even_when_entities_survive():
+    original = "Explain artificial intelligence in detail."
+    spans = analyze_prompt(original).protected_spans
+    for score in (None, float("nan"), 0.8):
+        assert (
+            validate_preservation(
+                original, "Explain intelligence.", spans, semantic_similarity=score
+            )
+            == "unknown"
+        )

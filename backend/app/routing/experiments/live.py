@@ -1,10 +1,9 @@
 """Disabled-by-default live pilot wiring. No network occurs at construction."""
 
 from dataclasses import dataclass
-from decimal import Decimal
 
 from app.config import Settings
-from app.contracts.dtos import CostSnapshot, RegistrySnapshot, RouteRate
+from app.contracts.dtos import CostSnapshot, RegistrySnapshot
 from app.contracts.protocols import LLMProvider, SessionStore
 from app.core.metering import MeteredCalls
 
@@ -28,19 +27,4 @@ class LiveResearchWiring:
     def costs(self) -> CostSnapshot:
         catalog = self.metering.catalog
         assert catalog
-        return CostSnapshot(
-            version=catalog.version,
-            rates=tuple(
-                RouteRate(
-                    config_id=m.config_id,
-                    input_per_million=max(
-                        m.input_per_million,
-                        m.cached_per_million or Decimal(0),
-                        m.cache_write_per_million or Decimal(0),
-                    ),
-                    output_per_million=m.output_per_million,
-                )
-                for m in catalog.models
-                if m.kind == "generation"
-            ),
-        )
+        return catalog.cost_snapshot()

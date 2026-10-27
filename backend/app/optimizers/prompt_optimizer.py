@@ -40,6 +40,7 @@ class AdaptivePromptOptimizer:
         llm_compressor: PromptCompressorPort | None = None,
         min_compress_tokens: int = 100,
         llm_threshold: int = 500,
+        compression_timeout_seconds: float = 2.0,
     ) -> None:
         if min_compress_tokens < 0:
             raise ValueError("min_compress_tokens must be non-negative")
@@ -48,6 +49,10 @@ class AdaptivePromptOptimizer:
         self.llm_compressor = llm_compressor
         self.min_compress_tokens = min_compress_tokens
         self.llm_threshold = llm_threshold
+        if compression_timeout_seconds <= 0:
+            raise ValueError("compression_timeout_seconds must be positive")
+        self.compression_timeout_seconds = compression_timeout_seconds
+        self._compression_slot = asyncio.Semaphore(1)
 
     async def optimize(
         self, req: ExecutionRequest, context: ContextResult, flags: FeatureFlags
@@ -83,8 +88,25 @@ class AdaptivePromptOptimizer:
         if self.llm_compressor is None:
             return self._result(original, "skipped", "llm_compressor_unavailable", "unknown")
 
+        if self._compression_slot.locked():
+            return self._result(original, "skipped", "llmlingua_busy", "unknown")
+        await self._compression_slot.acquire()
+        # Cancelling to_thread does not stop CPU/model loading. Retain the slot
+        # until its worker actually ends, so timeouts cannot spawn unbounded work.
+        worker = asyncio.create_task(asyncio.to_thread(self.llm_compressor.compress, original))
+
+        def completed(task: asyncio.Task[Mapping[str, object]]) -> None:
+            self._compression_slot.release()
+            if not task.cancelled():
+                task.exception()  # retrieve errors from workers that outlive a timeout
+
+        worker.add_done_callback(completed)
         try:
-            raw_result = await asyncio.to_thread(self.llm_compressor.compress, original)
+            raw_result = await asyncio.wait_for(
+                asyncio.shield(worker), timeout=self.compression_timeout_seconds
+            )
+        except TimeoutError:
+            return self._result(original, "skipped", "llmlingua_timeout", "unknown")
         except Exception:
             return self._result(original, "skipped", "llmlingua_error", "unknown")
         proposed = raw_result.get("compressed")

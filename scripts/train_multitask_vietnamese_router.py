@@ -32,11 +32,13 @@ def main() -> None:
     dev_path = ROOT / "data/research/router-live-dev-v1.json"
     holdout_path = ROOT / "data/research/router-live-holdout-v1.json"
     encoder_path = ROOT / "config/encoder.minilm-int8.json"
-    target_model_path = ROOT / "config/router_multitask_vietnamese_model.json"
-    target_model_path_v2 = ROOT / "config/router_model.json"
+    run_dir = ROOT / "output/router-software-tests" / time.strftime("%Y%m%d-%H%M%S")
+    run_dir.mkdir(parents=True, exist_ok=False)
+    target_model_path = run_dir / "router_multitask_vietnamese_model.json"
+    target_model_path_v2 = run_dir / "router_model.json"
 
     print("======================================================================")
-    print("  VIETNAMESE MULTI-TASK ROUTER TRAINING PIPELINE (LIVE CATALOG V2)   ")
+    print("  VIETNAMESE ROUTER SOFTWARE TEST ONLY (SYNTHETIC LABELS)   ")
     print("======================================================================")
 
     if not dev_path.exists() or not holdout_path.exists():
@@ -73,9 +75,7 @@ def main() -> None:
         f"  Total:         {train_count + calib_count + thresh_count + holdout_count:5d} samples"
     )
 
-    spec = EncoderSpec.model_validate_json(
-        encoder_path.read_text(encoding="utf-8")
-    )
+    spec = EncoderSpec.model_validate_json(encoder_path.read_text(encoding="utf-8"))
 
     print(
         "\n[Step 1/3] Training Hybrid Multi-Task Model (ML Head + CPU Attention Head)..."
@@ -95,11 +95,13 @@ def main() -> None:
     v4_artifact = v4_artifact.model_copy(
         update={
             "model_version": "vietnamese-multitask-v4.2-live",
-            "purpose": "qualified_dev",
+            "purpose": "software_test",
         }
     )
 
-    print(f"\n[Step 2/3] Saving model artifacts to:\n  - {target_model_path}\n  - {target_model_path_v2}...")
+    print(
+        f"\n[Step 2/3] Saving model artifacts to:\n  - {target_model_path}\n  - {target_model_path_v2}..."
+    )
     artifact_json = v4_artifact.model_dump_json(indent=2)
     target_model_path.write_text(artifact_json, encoding="utf-8")
     target_model_path_v2.write_text(artifact_json, encoding="utf-8")
@@ -130,7 +132,9 @@ def main() -> None:
     print(f"Cost Savings:                {savings_pct:+.2f}%")
     print(f"Median Latency P50 Ratio:    {p50_ratio:.4f}x")
 
-    assert pass_rate >= 0.97, f"Holdout Pass Rate {pass_rate * 100:.2f}% is below 97.0% threshold"
+    assert pass_rate >= 0.97, (
+        f"Holdout Pass Rate {pass_rate * 100:.2f}% is below 97.0% threshold"
+    )
 
     print("\nModel Dispatch Distribution:")
     for k, v in rep.items():
@@ -162,9 +166,7 @@ def main() -> None:
     )
     print(f"\nReport saved to: {summary_path}")
     print("======================================================================")
-    print(
-        f"Training & Holdout Evaluation Complete! V4 Model: {target_model_path}"
-    )
+    print(f"Training & Holdout Evaluation Complete! V4 Model: {target_model_path}")
     print("======================================================================")
 
 

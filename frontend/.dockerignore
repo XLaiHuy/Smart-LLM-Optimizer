@@ -1,6 +1,5 @@
 node_modules
-.next
-.next-e2e
+.next*
 tests
 playwright-report
 test-results

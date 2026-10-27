@@ -100,6 +100,11 @@ def cache_key(manifest: TrainingManifest, config_id: str, messages: tuple[Messag
                 "prices": manifest.costs.model_dump(mode="json"),
                 "rubric": RUBRIC,
                 **({"pilot": "gold-pilot-v1"} if manifest.pilot else {}),
+                **(
+                    {"family_grading_corpus": manifest.source.sha256}
+                    if manifest.version == "task-family-v1-20261027"
+                    else {}
+                ),
             },
             sort_keys=True,
         )
@@ -142,7 +147,9 @@ class RouterTrainingPipeline:
             and manifest.access_verified
             and not manifest.software_test
             and all(c.execution_source == "live" for c in manifest.configurations)
-            and all(c.endpoint in {"chat_completions", "responses"} for c in manifest.configurations)
+            and all(
+                c.endpoint in {"chat_completions", "responses"} for c in manifest.configurations
+            )
         )
 
     def info(self, user: Principal) -> TrainingInfo:
@@ -534,6 +541,8 @@ class RouterTrainingPipeline:
                                 price_catalog_version=manifest.costs.version,
                             ),
                             "duration_ms": duration_ms,
+                            "config_id": config_id,
+                            "dispatch_state": "completed",
                             "native_usage_json": json.dumps(
                                 {
                                     "provider_usage": json.loads(
@@ -580,14 +589,43 @@ class RouterTrainingPipeline:
                 )
             except BaseException as exc:
                 logger.warning(
-                    "Router dispatch failed: config_id=%s error_type=%s "
-                    "provider_status=%s",
+                    "Router dispatch failed: config_id=%s error_type=%s provider_status=%s",
                     config_id,
                     type(exc).__name__,
                     getattr(exc, "status_code", None),
                 )
                 if not settled:
+                    known_rejection = isinstance(exc, AppError) and exc.dispatch_state in (
+                        "not_dispatched",
+                        "rejected",
+                    )
+                    record = record.model_copy(
+                        update={
+                            "config_id": config_id,
+                            "error_code": exc.code
+                            if isinstance(exc, AppError)
+                            else "CALL_INTERRUPTED",
+                            "upstream_status": exc.upstream_status
+                            if isinstance(exc, AppError)
+                            else None,
+                            "retry_after_seconds": exc.retry_after_seconds
+                            if isinstance(exc, AppError)
+                            else None,
+                            "dispatch_state": exc.dispatch_state
+                            if isinstance(exc, AppError) and known_rejection
+                            else "unknown",
+                            "cost": CostEstimate(
+                                scope="call", status="not_billable", serving_usd=Decimal(0)
+                            )
+                            if known_rejection
+                            else record.cost,
+                        }
+                    )
                     await asyncio.shield(self.ledger.finish_call(record, reservation))
+                    if known_rejection:
+                        # A confirmed rejection (including quota admission) is
+                        # safe to resume; only uncertain dispatch keeps the fence.
+                        marker.unlink(missing_ok=True)
                 raise
             # Persist each completed generation before moving to the next call.
             atomic_text(path, result.model_dump_json())

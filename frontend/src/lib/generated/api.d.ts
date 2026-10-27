@@ -244,6 +244,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/traces/{request_id}/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trace Calls
+         * @description Owned call diagnostics also survive failed requests without saved content.
+         */
+        get: operations["trace_calls_v1_traces__request_id__calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/overview": {
         parameters: {
             query?: never;
@@ -253,6 +273,40 @@ export interface paths {
         };
         /** Overview */
         get: operations["overview_v1_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/requests/{request_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Execution */
+        get: operations["execution_v1_requests__request_id__execution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runtime-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Runtime Settings */
+        get: operations["runtime_settings_v1_runtime_settings_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -888,6 +942,8 @@ export interface components {
         };
         /** Analytics */
         Analytics: {
+            /** Reporting Epoch */
+            reporting_epoch?: string | null;
             /** Scope */
             scope: string;
             /**
@@ -945,6 +1001,25 @@ export interface components {
              * @default Content deletion retains minimal usage and accounting metadata.
              */
             retention_note: string;
+        };
+        /** AnswerValidation */
+        AnswerValidation: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "unknown";
+            /** Reason */
+            reason: string;
+            /**
+             * Version
+             * @default answer-validator-v1
+             */
+            version: string;
+            /** Call Id */
+            call_id?: string | null;
+            /** Config Id */
+            config_id?: string | null;
         };
         /** BenchmarkImpact */
         BenchmarkImpact: {
@@ -1017,6 +1092,22 @@ export interface components {
         };
         /** CallRecord */
         CallRecord: {
+            /** Config Id */
+            config_id?: string | null;
+            /** Provider Host */
+            provider_host?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Upstream Status */
+            upstream_status?: number | null;
+            /** Retry After Seconds */
+            retry_after_seconds?: number | null;
+            /**
+             * Dispatch State
+             * @default unknown
+             * @enum {string}
+             */
+            dispatch_state: "not_dispatched" | "rejected" | "completed" | "unknown";
             /** Provider Response Id */
             provider_response_id?: string | null;
             /** Native Usage Json */
@@ -1069,9 +1160,18 @@ export interface components {
              * @default []
              */
             document_ids: string[];
+            /** Response Schema */
+            response_schema?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ChatResponse */
         ChatResponse: {
+            /**
+             * Validation Results
+             * @default []
+             */
+            validation_results: components["schemas"]["AnswerValidation"][];
             /** Request Id */
             request_id: string;
             /** Session Id */
@@ -1238,6 +1338,8 @@ export interface components {
         };
         /** ErrorDetail */
         ErrorDetail: {
+            /** Retry After Seconds */
+            retry_after_seconds?: number | null;
             /** Code */
             code: string;
             /** Message */
@@ -1253,6 +1355,24 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             error: components["schemas"]["ErrorDetail"];
+        };
+        /** ExecutionStep */
+        ExecutionStep: {
+            /** Sequence */
+            sequence: number;
+            /** Stage */
+            stage: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "succeeded" | "skipped" | "failed" | "interrupted" | "unknown";
+            /** At */
+            at: string;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            };
         };
         /** FeatureFlags */
         FeatureFlags: {
@@ -1666,6 +1786,31 @@ export interface components {
             /** Evidence Reference */
             evidence_reference: string;
         };
+        /** RequestExecution */
+        RequestExecution: {
+            /** Request Id */
+            request_id: string;
+            /** Status */
+            status: string;
+            /** Error Code */
+            error_code?: string | null;
+            route?: components["schemas"]["RouteDecision"] | null;
+            /**
+             * Events
+             * @default []
+             */
+            events: components["schemas"]["ExecutionStep"][];
+            /**
+             * Calls
+             * @default []
+             */
+            calls: components["schemas"]["CallRecord"][];
+            /**
+             * Legacy
+             * @default false
+             */
+            legacy: boolean;
+        };
         /** RequestProgress */
         RequestProgress: {
             /** Request Id */
@@ -1905,6 +2050,23 @@ export interface components {
         };
         /** RouteDecision */
         RouteDecision: {
+            /** Task Family */
+            task_family?: string | null;
+            /** Task Confidence */
+            task_confidence?: number | null;
+            /** Classifier Source */
+            classifier_source?: string | null;
+            /** Group Policy Version */
+            group_policy_version?: string | null;
+            /**
+             * Group Profile Applied
+             * @default false
+             */
+            group_profile_applied: boolean;
+            /** Group Thresholds */
+            group_thresholds?: {
+                [key: string]: number;
+            };
             /** Model Id */
             model_id: string;
             /** Config Id */
@@ -1965,6 +2127,22 @@ export interface components {
              * @default []
              */
             stages: components["schemas"]["RoutingStage"][];
+            /** Ml Loaded */
+            ml_loaded?: boolean | null;
+            /** Ml Executed */
+            ml_executed?: boolean | null;
+            /** Attention Loaded */
+            attention_loaded?: boolean | null;
+            /** Attention Executed */
+            attention_executed?: boolean | null;
+            /** Attention Features */
+            attention_features?: number[] | null;
+            /** Attention Backend */
+            attention_backend?: string | null;
+            /** Initial Config Id */
+            initial_config_id?: string | null;
+            /** Initial Model Id */
+            initial_model_id?: string | null;
         };
         /** RouteEstimate */
         RouteEstimate: {
@@ -2013,6 +2191,38 @@ export interface components {
              * @default []
              */
             uncommitted_calls: components["schemas"]["UncommittedCall"][];
+        };
+        /** RuntimeModel */
+        RuntimeModel: {
+            /** Model Id */
+            model_id: string;
+            /** Config Id */
+            config_id?: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "openrouter" | "openai";
+            /** Available */
+            available: boolean;
+        };
+        /** RuntimeSettings */
+        RuntimeSettings: {
+            /** Execution Source */
+            execution_source: string;
+            /** Models */
+            models: components["schemas"]["RuntimeModel"][];
+            /** Group Policy Status */
+            group_policy_status: string;
+            /** Reporting Epoch */
+            reporting_epoch?: string | null;
+            /**
+             * Internal Lab Ui
+             * @default false
+             */
+            internal_lab_ui: boolean;
         };
         /** SessionCreate */
         SessionCreate: {
@@ -4329,6 +4539,120 @@ export interface operations {
             };
         };
     };
+    trace_calls_v1_traces__request_id__calls_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: {
+                smartllm_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallRecord"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     overview_v1_overview_get: {
         parameters: {
             query?: never;
@@ -4347,6 +4671,232 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Overview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    execution_v1_requests__request_id__execution_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: {
+                smartllm_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestExecution"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    runtime_settings_v1_runtime_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                smartllm_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeSettings"];
                 };
             };
             /** @description Unauthorized */

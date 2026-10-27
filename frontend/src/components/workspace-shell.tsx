@@ -12,13 +12,13 @@ import {
   Plus,
   MessageSquare,
   LayoutDashboard,
-  Layers,
   PanelLeft,
   LogOut,
   Trash2,
   RefreshCw,
   History,
-  FlaskConical,
+  Layers,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -39,85 +39,70 @@ const OverviewPanel = dynamic(
     ),
   },
 );
-import { ChatPanel } from "./chat-panel";
-const OptimizerLab = dynamic(
-  () => import("./optimizer-lab").then((m) => m.OptimizerLab),
-  {
-    loading: () => (
-      <div className="metric-skeleton">
-        <Spinner />
-      </div>
-    ),
-  },
-);
 const PipelineFlow3D = dynamic(
   () => import("./3d/pipeline-flow-3d").then((m) => m.PipelineFlow3D),
   {
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center p-8">
         <Spinner />
       </div>
     ),
-    ssr: false,
   },
 );
+import { ChatPanel } from "./chat-panel";
+import { SettingsPanel } from "./settings-panel";
 
 export function AuthenticatedWorkspace({
   user,
   dashboard,
-  research = false,
+  settings = false,
   pipeline = false,
   onLogout,
 }: {
   user: User;
   dashboard: boolean;
-  research?: boolean;
+  settings?: boolean;
   pipeline?: boolean;
   onLogout: () => void;
 }) {
   const t = useTranslations("App");
-  const lab = useTranslations("Research");
   const client = useQueryClient();
   const router = useRouter();
-  const models = useQuery({
-    queryKey: ["models", user.id],
-    queryFn: async () => unwrap(await api.GET("/v1/models")),
-  });
-  const source = models.data?.[0]?.execution_source ?? "mock";
-  const queryParamSession = useSearchParams().get("session");
-  const [createdSession, setCreatedSession] = useState<string | null>(null);
-  const selected = queryParamSession ?? createdSession;
-  function setSelected(id: string | null) {
-    setCreatedSession(id);
-    router.replace(id ? `/?session=${encodeURIComponent(id)}` : "/");
-  }
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const params = useSearchParams();
+  const paramSession = params.get("session");
+  const [selected, setSelected] = useState<string | null>(paramSession);
   const [trace, setTrace] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<SessionInfo | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [operation, setOperation] = useState(false);
   const [error, setError] = useState<unknown>();
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [requestBusy, setRequestBusy] = useState(false);
   const sessions = useInfiniteQuery({
-    queryKey: ["sessions", user.id],
+    queryKey: ["sessions"],
     initialPageParam: 0,
-    queryFn: async ({ pageParam }) =>
+    getNextPageParam: (lastPage: SessionInfo[], allPages) =>
+      lastPage.length === 30 ? allPages.length * 30 : undefined,
+    queryFn: async ({ pageParam = 0 }) =>
       unwrap(
         await api.GET("/v1/sessions", {
-          params: { query: { offset: pageParam, limit: 50 } },
+          params: { query: { offset: pageParam, limit: 30 } },
         }),
       ),
-    getNextPageParam: (last, pages) =>
-      last.length === 50 ? pages.length * 50 : undefined,
   });
-  const sessionRows = sessions.data?.pages.flat() ?? [];
-  const mvp = useTranslations("MVP");
-  async function newSession(title?: string) {
+  const sourceQuery = useQuery({
+    queryKey: ["source-indicator"],
+    queryFn: async () => unwrap(await api.GET("/v1/usage")),
+    staleTime: 30000,
+  });
+  const source = sourceQuery.data?.execution_source ?? "mock";
+  const sessionRows = (sessions.data?.pages.flat() ?? []) as SessionInfo[];
+  async function newSession(title?: string): Promise<string> {
     const created = unwrap(
       await api.POST("/v1/sessions", {
         body: { title: title?.slice(0, 80) || t("newChat") },
       }),
     );
-    await client.invalidateQueries({ queryKey: ["sessions", user.id] });
+    await client.invalidateQueries({ queryKey: ["sessions"] });
     setSelected(created.id);
     setMobileOpen(false);
     return created.id;
@@ -140,16 +125,15 @@ export function AuthenticatedWorkspace({
     try {
       unwrap(
         await api.DELETE("/v1/sessions/{session_id}", {
-          params: { path: { session_id: deleting.id } },
+          params: { path: { session_id: deleting } },
         }),
       );
-      if (selected === deleting.id) setSelected(null);
+      await client.invalidateQueries({ queryKey: ["sessions"] });
+      if (selected === deleting) {
+        setSelected(null);
+        router.push("/");
+      }
       setDeleting(null);
-      setTrace(null);
-      client.removeQueries({ queryKey: ["session", user.id, deleting.id] });
-      client.removeQueries({ queryKey: ["trace"] });
-      await client.invalidateQueries({ queryKey: ["sessions", user.id] });
-      await client.invalidateQueries({ queryKey: ["overview", user.id] });
     } catch (e) {
       setError(e);
     } finally {
@@ -158,19 +142,19 @@ export function AuthenticatedWorkspace({
   }
   async function logout() {
     setOperation(true);
-    setError(undefined);
     try {
       unwrap(await api.POST("/v1/auth/logout"));
-      await client.cancelQueries();
       onLogout();
+      router.push("/");
     } catch (e) {
       setError(e);
+    } finally {
       setOperation(false);
     }
   }
   const navigation = (
     <>
-      <div className="brand">
+      <div className="brand-header">
         <Image
           src="/brand/ou-logo.jpg"
           alt="OU"
@@ -193,7 +177,7 @@ export function AuthenticatedWorkspace({
       <nav className="main-nav" aria-label={t("workspace")}>
         <Link
           href="/"
-          className={!dashboard && !research && !pipeline ? "active" : ""}
+          className={!dashboard && !settings && !pipeline ? "active" : ""}
         >
           <MessageSquare size={18} />
           {t("chat")}
@@ -202,25 +186,26 @@ export function AuthenticatedWorkspace({
           <Layers size={18} />
           {t("pipeline")}
         </Link>
-        {user.role === "admin" && (
-          <Link href="/research" className={research ? "active" : ""}>
-            <FlaskConical size={18} />
-            {lab("nav")}
-          </Link>
-        )}
+        <Link href="/settings" className={settings ? "active" : ""}>
+          <SettingsIcon size={18} />{t("settings")}
+        </Link>
         <Link href="/dashboard" className={dashboard ? "active" : ""}>
           <LayoutDashboard size={18} />
           {t("dashboard")}
         </Link>
       </nav>
-      <div className="history-heading">
+      <div className="history-header">
         <span>{t("history")}</span>
         <button
           className="icon-button"
-          aria-label={t("refreshHistory")}
           onClick={() => sessions.refetch()}
+          aria-label={t("refreshHistory")}
+          disabled={sessions.isFetching}
         >
-          <RefreshCw size={14} />
+          <RefreshCw
+            size={14}
+            className={sessions.isFetching ? "spin" : ""}
+          />
         </button>
       </div>
       <div className="history-list">
@@ -238,7 +223,7 @@ export function AuthenticatedWorkspace({
             className={`history-row ${selected === session.id ? "selected" : ""}`}
             key={session.id}
           >
-            {dashboard || pipeline ? (
+            {dashboard || settings || pipeline ? (
               <Link
                 className="history-select"
                 href={`/?session=${encodeURIComponent(session.id)}`}
@@ -261,13 +246,13 @@ export function AuthenticatedWorkspace({
               </button>
             )}
             <button
-              className="icon-button delete-button"
-              aria-label={`${t("delete")} ${session.title}`}
-              disabled={requestBusy || operation}
-              onClick={() => {
-                setError(undefined);
-                setDeleting(session);
+              className="icon-button history-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleting(session.id);
               }}
+              disabled={operation || requestBusy}
+              aria-label={t("deleteSession")}
             >
               <Trash2 size={14} />
             </button>
@@ -275,19 +260,15 @@ export function AuthenticatedWorkspace({
         ))}
         {sessions.hasNextPage && (
           <button
-            className="button small"
-            disabled={sessions.isFetchingNextPage || requestBusy}
-            onClick={() => void sessions.fetchNextPage()}
+            className="button secondary small load-more"
+            onClick={() => sessions.fetchNextPage()}
+            disabled={sessions.isFetchingNextPage}
           >
-            {sessions.isFetchingNextPage ? <Spinner /> : mvp("next")}
+            {sessions.isFetchingNextPage ? <Spinner /> : t("loadMore")}
           </button>
         )}
       </div>
-      <div className="sidebar-footer">
-        <div className="foundation-note">
-          <span className="environment-dot">{t("foundation")}</span>
-          <p>{t("school")}</p>
-        </div>
+      <div className="user-footer">
         <div className="user-row">
           <span className="avatar">
             {user.username.slice(0, 1).toUpperCase()}
@@ -332,26 +313,14 @@ export function AuthenticatedWorkspace({
             <span>{t("workspace")}</span>
             <span className="slash">/</span>
             <strong>
-              {pipeline
-                ? t("pipeline")
-                : research
-                  ? lab("nav")
-                  : dashboard
-                    ? t("dashboard")
-                    : t("chat")}
+              {pipeline ? t("pipeline") : settings ? t("settings") : dashboard ? t("dashboard") : t("chat")}
             </strong>
           </div>
           <div className="topbar-actions">
             <span className="mock-badge">
               <span />
               {t(
-                pipeline
-                  ? "pipeline"
-                  : research
-                    ? "researchArea"
-                    : source === "mock"
-                      ? "simulationMode"
-                      : "liveMode",
+                source === "mock" ? "simulationMode" : "liveMode",
               )}
             </span>
             <LanguageSwitch />
@@ -364,8 +333,8 @@ export function AuthenticatedWorkspace({
         )}
         {pipeline ? (
           <PipelineFlow3D />
-        ) : research ? (
-          <OptimizerLab user={user} />
+        ) : settings ? (
+          <SettingsPanel user={user} />
         ) : dashboard ? (
           <OverviewPanel user={user} onTrace={setTrace} />
         ) : (
@@ -378,7 +347,7 @@ export function AuthenticatedWorkspace({
           />
         )}
       </main>
-      <TraceInspector requestId={trace} onClose={() => setTrace(null)} />
+      <TraceInspector userId={user.id} requestId={trace} onClose={() => setTrace(null)} />
       <Dialog.Root
         open={!!deleting}
         onOpenChange={(open) => {
@@ -388,14 +357,16 @@ export function AuthenticatedWorkspace({
         <Dialog.Portal>
           <Dialog.Overlay className="overlay" />
           <Dialog.Content className="confirm-dialog">
-            <Trash2 size={24} />
             <Dialog.Title>{t("deleteTitle")}</Dialog.Title>
             <Dialog.Description>{t("deleteHint")}</Dialog.Description>
-            {error !== undefined && <ErrorNotice error={error} />}
             <div className="dialog-actions">
-              <Dialog.Close className="button" disabled={operation}>
+              <button
+                className="button secondary"
+                onClick={() => setDeleting(null)}
+                disabled={operation}
+              >
                 {t("cancel")}
-              </Dialog.Close>
+              </button>
               <button
                 className="button danger"
                 disabled={operation}

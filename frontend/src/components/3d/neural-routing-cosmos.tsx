@@ -44,52 +44,28 @@ export interface NeuralRoutingCosmos3DProps {
 
 const DEFAULT_MODELS: ModelNodeDef[] = [
   {
-    id: "groq/llama-3.3-70b",
-    name: "Groq Llama 3.3 70B",
-    provider: "groq",
-    isFree: true,
-    position: [2.5, 0.7, -0.6],
+    id: "openai/gpt-oss-20b",
+    name: "GPT-OSS 20B",
+    provider: "openrouter",
+    isFree: false,
+    position: [-2.4, 0.4, 0.8],
     color: 0x0284c7, // Sky Blue
   },
   {
-    id: "groq/qwen-2.5-coder-32b",
-    name: "Groq Qwen 2.5 Coder",
-    provider: "groq",
-    isFree: true,
-    position: [1.6, -1.4, 1.5],
+    id: "gpt-6-luna",
+    name: "GPT-6 Luna",
+    provider: "openai",
+    isFree: false,
+    position: [0.0, 2.2, 0.6],
     color: 0x6366f1, // Indigo
   },
   {
-    id: "huggingface/serverless",
-    name: "HF Serverless",
-    provider: "huggingface",
-    isFree: true,
-    position: [-1.5, 1.9, -0.8],
-    color: 0xf59e0b, // Amber
-  },
-  {
-    id: "openrouter/free",
-    name: "OpenRouter :free",
+    id: "openai/gpt-oss-120b",
+    name: "GPT-OSS 120B",
     provider: "openrouter",
-    isFree: true,
-    position: [-2.4, -0.8, 0.9],
-    color: 0x10b981, // Emerald
-  },
-  {
-    id: "openai/gpt-4o-mini",
-    name: "GPT-4o Mini",
-    provider: "openai",
     isFree: false,
-    position: [0.6, 2.3, 1.2],
-    color: 0x005696, // OU Blue
-  },
-  {
-    id: "foundation-reference",
-    name: "Baseline Reference",
-    provider: "baseline",
-    isFree: false,
-    position: [-0.8, -2.2, -1.2],
-    color: 0x64748b, // Slate
+    position: [2.4, -0.4, -0.7],
+    color: 0x059669, // Emerald Green
   },
 ];
 
@@ -194,6 +170,16 @@ function createTextSprite(
   return sprite;
 }
 
+function matchesModel(modelIdOrName: string | null | undefined, candidateId: string): boolean {
+  if (!modelIdOrName) return false;
+  const target = modelIdOrName.toLowerCase();
+  const cand = candidateId.toLowerCase();
+  if (cand.includes("20b") && target.includes("20b")) return true;
+  if (cand.includes("luna") && target.includes("luna")) return true;
+  if (cand.includes("120b") && target.includes("120b")) return true;
+  return target.includes(cand) || cand.includes(target);
+}
+
 export function NeuralRoutingCosmos3D({
   attention,
   dimensions,
@@ -239,7 +225,7 @@ export function NeuralRoutingCosmos3D({
   }, [attention, dimensions]);
 
   const targetModelId =
-    routedModel ?? routedModelId ?? (isRouting ? null : "groq/llama-3.3-70b");
+    routedModel ?? routedModelId ?? (isRouting ? null : "openai/gpt-oss-120b");
 
   useEffect(() => {
     const container = mountRef.current;
@@ -432,9 +418,7 @@ export function NeuralRoutingCosmos3D({
     modelsGroup.add(orbitRing);
 
     DEFAULT_MODELS.forEach((model) => {
-      const isTarget = targetModelId
-        ? model.id.includes(targetModelId) || targetModelId.includes(model.id)
-        : false;
+      const isTarget = matchesModel(targetModelId, model.id);
       const modelMat = new THREE.MeshStandardMaterial({
         color: isTarget ? 0x0284c7 : model.color,
         emissive: isTarget ? 0x0284c7 : 0x002f54,
@@ -484,11 +468,8 @@ export function NeuralRoutingCosmos3D({
 
     // Identify target model position
     const resolvedTarget =
-      DEFAULT_MODELS.find(
-        (m) =>
-          targetModelId &&
-          (m.id.includes(targetModelId) || targetModelId.includes(m.id)),
-      ) || DEFAULT_MODELS[0];
+      DEFAULT_MODELS.find((m) => matchesModel(targetModelId, m.id)) ||
+      DEFAULT_MODELS[0];
 
     const targetPos = new THREE.Vector3(...resolvedTarget.position);
     const startPos = new THREE.Vector3(0, 0, 0);

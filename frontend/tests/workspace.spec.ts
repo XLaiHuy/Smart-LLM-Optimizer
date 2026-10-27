@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 async function login(page: Page, user = "e2e-a") {
   await page.goto("/");
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await page.getByLabel("Tên đăng nhập", { exact: true }).fill(user);
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Mật khẩu", { exact: true })).toBeFocused();
@@ -14,48 +15,48 @@ async function login(page: Page, user = "e2e-a") {
   ).toBeVisible();
 }
 
-test("research admin fixture matrix, trace, export, mobile and access control", async ({
+test("settings, three models, architecture, legacy redirects and mobile", async ({
   page,
 }, testInfo) => {
   await login(page, "e2e-admin");
-  await page
-    .getByRole("link", { name: "Nghiên cứu router", exact: true })
-    .click();
   await expect(
-    page.getByRole("heading", { name: "Thử nghiệm Model Router" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Kiểm tra trước khi chạy" }).click();
-  await expect(page.locator(".research-preflight")).toContainText("120 trials");
+    page.getByRole("link", { name: "Thử nghiệm hiệu năng", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "Cài đặt", exact: true }).click();
+  await expect(page.locator(".settings-page h1")).toBeVisible();
+  await expect(
+    page
+      .locator(".settings-card")
+      .filter({ has: page.locator(".model-planet-cards") })
+      .first()
+      .locator(".planet-card"),
+  ).toHaveCount(3);
+  await page.getByRole("tab", { name: "Kiến trúc", exact: true }).click();
+  await expect(page.locator(".architecture-stages > li")).toHaveCount(7);
+  const demo = page.locator('.trace-scene[data-simulation="true"]');
+  await demo.scrollIntoViewIfNeeded();
+  await expect(demo).toHaveAttribute("data-animation-state", "running");
+  const firstStage = await demo.getAttribute("data-flow-stage");
+  await expect
+    .poll(() => demo.getAttribute("data-flow-stage"))
+    .not.toBe(firstStage);
   await page
-    .getByRole("button", { name: "Chạy thử nghiệm", exact: true })
+    .getByRole("button", { name: "Tạm dừng mô phỏng", exact: true })
     .click();
-  await expect(page.locator(".research-progress")).toContainText("Hoàn tất", {
-    timeout: 30000,
+  await expect(demo).toHaveAttribute("data-animation-state", "paused");
+  await page
+    .getByRole("button", { name: "Chạy mô phỏng", exact: true })
+    .click();
+  await expect(demo).toHaveAttribute("data-animation-state", "running");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(demo).toHaveAttribute("data-animation-state", "paused");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  await page.screenshot({
+    path: testInfo.outputPath("settings-desktop.png"),
+    fullPage: true,
   });
-  await expect(page.locator(".research-progress")).toContainText("120/120");
-  await expect(page.locator(".research-route")).toHaveCount(2);
-  await page.getByRole("button", { name: "EN", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Model Router experiments" }),
-  ).toBeVisible();
-  await expect(page.getByLabel("Random seed", { exact: true })).toHaveValue(
-    "42",
-  );
-  await page.getByRole("button", { name: "VI", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Xem trace", exact: true })
-    .first()
-    .click();
-  await expect(page.locator(".research-trace")).toContainText("policy_hash");
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("link", { name: "Xuất CSV" })).toHaveAttribute(
-    "href",
-    /format=csv/,
-  );
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator(".research-page").evaluate((element) => {
-    element.scrollTop = 0;
-  });
   await expect
     .poll(() =>
       page.evaluate(
@@ -64,26 +65,16 @@ test("research admin fixture matrix, trace, export, mobile and access control", 
     )
     .toBe(true);
   await page.screenshot({
-    path: testInfo.outputPath("research-mobile.png"),
+    path: testInfo.outputPath("settings-mobile.png"),
     fullPage: true,
   });
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.locator(".research-page").evaluate((element) => {
-    element.scrollTop = 0;
-  });
-  await page.screenshot({
-    path: testInfo.outputPath("research-desktop.png"),
-    fullPage: true,
-  });
-  await page.context().clearCookies();
-  await login(page);
-  await expect(
-    page.getByRole("link", { name: "Nghiên cứu router", exact: true }),
-  ).toHaveCount(0);
-  await page.goto("/research");
-  await expect(
-    page.getByRole("heading", { name: "Chỉ dành cho quản trị viên" }),
-  ).toBeVisible();
+  for (const path of ["/research", "/pipeline", "/research-guide"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole("textbox", { name: "Nhập tin nhắn" }),
+    ).toBeVisible();
+  }
 });
 
 test("owned chat, no-op flags, trace, locale preserves draft, resume, overview and logout", async ({
@@ -100,14 +91,16 @@ test("owned chat, no-op flags, trace, locale preserves draft, resume, overview a
   await expect(page.getByRole("textbox", { name: "Your message" })).toHaveValue(
     "Bản nháp tiếng Việt",
   );
-  await page.getByRole("button", { name: "Optimized", exact: true }).click();
+  await page.getByRole("button", { name: "Automatic", exact: true }).click();
   await page.getByRole("button", { name: "Request configuration" }).click();
   await page.getByRole("switch", { name: "Conversation memory" }).click();
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(
-    page.getByRole("button", { name: "View trace", exact: true }),
+    page.getByRole("button", { name: "Optimization & cost log", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "View trace", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Optimization & cost log", exact: true })
+    .click();
   const drawer = page.getByRole("dialog");
   await expect(
     drawer.getByText("Not implemented", { exact: true }),
@@ -126,11 +119,16 @@ test("owned chat, no-op flags, trace, locale preserves draft, resume, overview a
     "Bản nháp tiếng Việt",
   );
   await page.getByRole("link", { name: "Overview", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Activity & costs" }),
-  ).toBeVisible();
-  await expect(page.locator(".recent-activity tbody tr")).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Your usage" })).toBeVisible();
+  const conversationUsage = page
+    .locator("td.metric-key")
+    .filter({ hasText: /^Bản nháp tiếng Việt$/ });
+  await expect(conversationUsage).toHaveCount(1);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Welcome back." }),
   ).toBeVisible();
@@ -141,6 +139,7 @@ test("owned chat, no-op flags, trace, locale preserves draft, resume, overview a
 
 test("second user isolation and invalid credentials", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await page.getByLabel("Tên đăng nhập", { exact: true }).fill("e2e-b");
   await page.getByLabel("Mật khẩu", { exact: true }).fill("wrong");
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
@@ -185,7 +184,7 @@ test("mobile, network retry keeps request ID, auth expiry clears private UI", as
   );
   await page.getByRole("button", { name: "Thử lại", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Xem trace", exact: true }),
+    page.getByRole("button", { name: "Chi tiết Xử lý AI", exact: true }),
   ).toBeVisible();
   expect(new Set(ids).size).toBe(1);
   await expect
@@ -241,7 +240,9 @@ test("documents, citations, full-text jobs and analytics exports", async ({
     .fill("Học phí bao nhiêu?");
   await page.getByRole("button", { name: "Gửi tin nhắn", exact: true }).click();
   await expect(page.locator(".message.assistant")).toHaveCount(1);
-  await page.getByRole("button", { name: "Xem trace", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Chi tiết Xử lý AI", exact: true })
+    .click();
   const drawer = page.getByRole("dialog");
   await expect(
     drawer.getByRole("heading", { name: "Nguồn được dùng" }),
@@ -263,14 +264,15 @@ test("documents, citations, full-text jobs and analytics exports", async ({
   });
   await page.reload();
   await expect(page.locator(".message.assistant")).toHaveCount(2);
-  await page.getByRole("link", { name: "Tổng quan", exact: true }).click();
+  await page
+    .getByRole("link", { name: "Thống kê sử dụng", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Hoạt động & chi phí" }),
+    page.getByRole("heading", { name: "Mức sử dụng của bạn" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Xuất CSV" })).toHaveAttribute(
-    "href",
-    /format=csv/,
-  );
+  await expect(
+    page.getByRole("link", { name: "CSV", exact: true }),
+  ).toHaveAttribute("href", /format=csv/);
   await expect(page.locator(".chart-grid")).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("analytics.png"),
@@ -289,18 +291,18 @@ test("documents, citations, full-text jobs and analytics exports", async ({
 
 test("admin aggregated usage and audited quota update", async ({ page }) => {
   await login(page, "e2e-admin");
-  await page.getByRole("link", { name: "Tổng quan", exact: true }).click();
   await page
-    .getByRole("combobox", { name: "Toàn project", exact: true })
-    .selectOption("project");
+    .getByRole("link", { name: "Thống kê sử dụng", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Toàn dự án", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Tài khoản & quota" }),
+    page.getByRole("heading", { name: "Thống kê theo tài khoản" }),
   ).toBeVisible();
   const row = page
     .locator(".quota-row")
     .filter({ has: page.getByText("e2e-b", { exact: true }) });
   await row.getByLabel("Hạn mức USD").fill("4.50");
-  await row.getByLabel("Lý do thay đổi").fill("E2E quota adjustment");
+  await row.getByLabel("Lý do điều chỉnh").fill("E2E quota adjustment");
   await row.getByRole("button", { name: "Lưu quota", exact: true }).click();
   await expect(row.getByRole("status")).toContainText("Đã cập nhật quota.");
 });

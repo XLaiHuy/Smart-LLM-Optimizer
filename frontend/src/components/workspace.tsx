@@ -18,12 +18,12 @@ const AuthenticatedWorkspace = dynamic(
 
 export function Workspace({
   dashboard = false,
-  research = false,
+  settings = false,
   pipeline = false,
   initialSignedOut = false,
 }: {
   dashboard?: boolean;
-  research?: boolean;
+  settings?: boolean;
   pipeline?: boolean;
   initialSignedOut?: boolean;
 }) {
@@ -92,7 +92,7 @@ export function Workspace({
       key={`${me.data.id}-${epoch}`}
       user={me.data}
       dashboard={dashboard}
-      research={research}
+      settings={settings}
       pipeline={pipeline}
       onLogout={() => {
         client.clear();

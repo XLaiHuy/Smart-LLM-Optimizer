@@ -114,12 +114,12 @@ async def test_adversarial_sqlite_without_write_lock_proves_lock_vulnerability(t
 async def test_adversarial_cascading_429_fallback_and_ledger_refund(
     app: FastAPI, client: httpx.AsyncClient
 ) -> None:
-    """Stress test: 3 consecutive 429 rate limit exceptions across cascading providers.
+    """Stress test: stop after primary plus two failovers, even if a fourth model exists.
 
-    Groq -> OpenRouter -> HF -> Baseline.
+    Groq -> OpenRouter -> HF; do not call the fourth model.
     Verifies:
-    1. User turn receives HTTP 200 OK with the final fallback result.
-    2. RouteDecision confirms fallback_used=True and reason=PROVIDER_RATE_LIMITED_FALLBACK.
+    1. User turn receives the final 429 after the configured attempt cap.
+    2. No fourth model dispatch occurs after two failovers.
     3. Intermediate reservations for all failed 429 providers are refunded (settled at $0.00).
     4. No unreleased reservations or budget leaks remain.
     """
@@ -174,18 +174,14 @@ async def test_adversarial_cascading_429_fallback_and_ledger_refund(
             "session_id": sid,
             "client_request_id": f"cascade-turn-{uuid4()}",
             "message": "Kiểm tra cascading 429 qua 3 tầng provider.",
-            "mode": "baseline",
+            "mode": "optimized",
         }
         res = await client.post("/v1/chat", json=req)
-        assert res.status_code == 200, f"Expected 200 OK but got {res.status_code}: {res.text}"
-
-        data = res.json()
-        assert "Phản hồi thành công từ baseline" in data["response"]["content"]
-        assert data["route"]["fallback_used"] is True
-        assert data["route"]["reason"] == "PROVIDER_RATE_LIMITED_FALLBACK"
-
-        # Verify call sequence strictly traversed the priority cascade
-        assert call_sequence == ["groq-llama", "openrouter-mistral", "hf-llama", "baseline-mock"]
+        assert res.status_code == 429
+        data = res.json()["error"]
+        assert data["code"] == "RATE_LIMITED"
+        assert data["request_id"]
+        assert call_sequence == ["groq-llama", "openrouter-mistral", "hf-llama"]
 
         # Inspect database reservations: all rate-limited calls must be settled at $0.00 (refunded)
         async with c.db.sessions() as db_session:

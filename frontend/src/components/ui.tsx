@@ -2,7 +2,38 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, LoaderCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ApiError } from "@/lib/api";
+import { ApiError, api, unwrap } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+function ProviderDiagnostics({ requestId }: { requestId: string }) {
+  const t = useTranslations("Errors");
+  const [expanded, setExpanded] = useState(false);
+  const calls = useQuery({
+    queryKey: ["failed-provider-calls", requestId],
+    enabled: expanded,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/traces/{request_id}/calls", {
+          params: { path: { request_id: requestId } },
+        }),
+      ),
+  });
+  return (
+    <details onToggle={(event) => setExpanded(event.currentTarget.open)}>
+      <summary>{t("providerCalls")}</summary>
+      {calls.isLoading && <Spinner />}
+      {calls.isError && <p>{t("NETWORK_ERROR")}</p>}
+      {calls.data?.map((call) => (
+        <p key={call.call_id}>
+          {call.model_id} · {call.error_code || call.dispatch_state}
+          {call.retry_after_seconds != null &&
+            ` · ${t("retryAfter", { seconds: Math.ceil(call.retry_after_seconds) })}`}
+        </p>
+      ))}
+    </details>
+  );
+}
 
 export function Spinner() {
   return <LoaderCircle className="spin" size={18} aria-hidden="true" />;
@@ -13,6 +44,21 @@ export function ErrorNotice({ error }: { error: unknown }) {
   return (
     <div role="alert" className="error-notice">
       {t.has(code) ? t(code) : t("UNKNOWN")}
+      {error instanceof ApiError && error.retryAfterSeconds != null && (
+        <small>
+          {" "}
+          · {t("retryAfter", { seconds: Math.ceil(error.retryAfterSeconds) })}
+        </small>
+      )}
+      {error instanceof ApiError && error.requestId && (
+        <>
+          <small className="mono"> · Request ID: {error.requestId}</small>
+          <ProviderDiagnostics
+            key={error.requestId}
+            requestId={error.requestId}
+          />
+        </>
+      )}
     </div>
   );
 }

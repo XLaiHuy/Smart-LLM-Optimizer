@@ -6,9 +6,12 @@ from typing import Annotated, cast
 
 from fastapi import APIRouter, Cookie, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.composition import Container
 from app.contracts.dtos import (
+    CallRecord,
     ChatRequest,
     ChatResponse,
     LoginRequest,
@@ -23,8 +26,10 @@ from app.contracts.dtos import (
     ToolEvent,
 )
 from app.contracts.errors import AppError
+from app.contracts.execution import RequestExecution
 from app.contracts.feedback import FeedbackRequest, FeedbackResult
 from app.contracts.progress import RequestProgress
+from app.contracts.runtime import RuntimeModel, RuntimeSettings
 
 router = APIRouter(prefix="/v1")
 COOKIE_NAME = "smartllm_session"
@@ -46,12 +51,24 @@ async def principal(
 UserDep = Annotated[Principal, Depends(principal)]
 
 
+@router.get("/health/ready", include_in_schema=False)
+async def readiness(c: ContainerDep) -> dict[str, str]:
+    """A static platform response is insufficient to admit traffic."""
+    try:
+        async with c.db.sessions() as session:
+            for table in ("users", "request_attempts", "budget_reservations", "usage_records"):
+                await session.execute(text(f"SELECT id FROM {table} LIMIT 1"))
+    except SQLAlchemyError as exc:
+        raise AppError("DEPENDENCY_UNAVAILABLE", 503, "Storage is unavailable") from exc
+    return {"status": "ready"}
+
+
 @router.get("/platform-info")
 def platform_info(c: ContainerDep) -> PlatformInfo:
     allowlist = (
+        ("openai/gpt-oss-20b", "GPT-OSS 20B"),
+        ("openai/gpt-oss-120b", "GPT-OSS 120B"),
         ("gpt-6-luna", "GPT-6 Luna"),
-        ("gpt-5.6-luna", "GPT-5.6 Luna"),
-        ("gpt-5.6-terra", "GPT-5.6 Terra"),
     )
     configured = {m.model_id for m in c.registry.configurations if m.execution_source == "live"}
     return PlatformInfo(
@@ -189,10 +206,21 @@ async def chat_stream(
                 payload = json.dumps(event.get("data", {}), ensure_ascii=False)
                 yield f"event: {event_name}\ndata: {payload}\n\n"
         except AppError as exc:
-            err_data = json.dumps({"code": exc.code, "message": exc.message}, ensure_ascii=False)
+            err_data = json.dumps(
+                {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "request_id": exc.request_id,
+                    "retry_after_seconds": exc.retry_after_seconds,
+                },
+                ensure_ascii=False,
+            )
             yield f"event: error\ndata: {err_data}\n\n"
-        except Exception as exc:
-            err_data = json.dumps({"code": "INTERNAL_ERROR", "message": str(exc)}, ensure_ascii=False)
+        except Exception:
+            err_data = json.dumps(
+                {"code": "DEPENDENCY_UNAVAILABLE", "message": "Dependency unavailable"},
+                ensure_ascii=False,
+            )
             yield f"event: error\ndata: {err_data}\n\n"
 
     return StreamingResponse(
@@ -211,9 +239,52 @@ async def trace(request_id: str, c: ContainerDep, user: UserDep) -> ChatResponse
     return await c.traces.get_owned(user, request_id)
 
 
+@router.get("/traces/{request_id}/calls", response_model=tuple[CallRecord, ...])
+async def trace_calls(request_id: str, c: ContainerDep, user: UserDep) -> tuple[CallRecord, ...]:
+    """Owned call diagnostics also survive failed requests without saved content."""
+    return await c.metering.owned_records(user, request_id)
+
+
 @router.get("/overview", response_model=Overview)
 async def overview(c: ContainerDep, user: UserDep) -> Overview:
     return await c.traces.overview(user)
+
+
+@router.get("/requests/{request_id}/execution", response_model=RequestExecution)
+async def execution(request_id: str, c: ContainerDep, user: UserDep) -> RequestExecution:
+    evidence = await c.execution.read(user, request_id)
+    calls = await c.metering.owned_records(user, request_id)
+    return evidence.model_copy(update={"calls": calls})
+
+
+@router.get("/runtime-settings", response_model=RuntimeSettings)
+async def runtime_settings(c: ContainerDep, user: UserDep) -> RuntimeSettings:
+    from app.analytics.epoch import current_epoch
+
+    models = []
+    for model_id, label, provider in (
+        ("openai/gpt-oss-20b", "GPT-OSS 20B", "openrouter"),
+        ("openai/gpt-oss-120b", "GPT-OSS 120B", "openrouter"),
+        ("gpt-6-luna", "GPT-6 Luna", "openai"),
+    ):
+        config = next((m for m in c.registry.configurations if m.model_id == model_id), None)
+        models.append(
+            RuntimeModel(
+                model_id=model_id,
+                label=label,
+                provider=provider,
+                config_id=config.config_id if config else None,
+                available=bool(config and config.available and c.settings.provider_mode == "live"),
+            )
+        )
+    async with c.db.sessions() as session:
+        epoch = await current_epoch(session)
+    return RuntimeSettings(
+        execution_source=c.settings.provider_mode,
+        models=tuple(models),
+        group_policy_status=c.orchestrator.group_policy.status,
+        reporting_epoch=epoch.started_at if epoch else None,
+    )
 
 
 @router.post("/traces/{request_id}/feedback")

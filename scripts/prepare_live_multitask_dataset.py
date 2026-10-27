@@ -32,52 +32,210 @@ ROOT = Path(__file__).resolve().parents[1]
 AUGMENTED_QUERIES: list[dict[str, Any]] = [
     # 1. Dialogue & Basic QA & Simple Arithmetic -> groq-llama-3.1-8b-instant (20B fast)
     {"domain": "dialogue_chat", "prompt": "1+1 = mấy?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "1 + 1 bằng bao nhiêu?", "complexity": "easy"},
+    {
+        "domain": "dialogue_chat",
+        "prompt": "1 + 1 bằng bao nhiêu?",
+        "complexity": "easy",
+    },
     {"domain": "dialogue_chat", "prompt": "Bạn là ai?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Xin chào! Bạn có thể giúp gì cho tôi?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Chào bạn, hôm nay thời tiết thế nào?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Thủ đô của Việt Nam là gì?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Thủ đô của Pháp là thành phố nào?", "complexity": "easy"},
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Xin chào! Bạn có thể giúp gì cho tôi?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Chào bạn, hôm nay thời tiết thế nào?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Thủ đô của Việt Nam là gì?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Thủ đô của Pháp là thành phố nào?",
+        "complexity": "easy",
+    },
     {"domain": "dialogue_chat", "prompt": "12 nhân 15 bằng mấy?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Cảm ơn bạn nhé, câu trả lời rất hay!", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Tạm biệt bạn, hẹn gặp lại ngày mai.", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Mặt trời mọc ở hướng nào?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Năm 2026 có phải năm nhuận không?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Nước sôi ở bao nhiêu độ C ở áp suất tiêu chuẩn?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Một tuần có bao nhiêu ngày và bao nhiêu giờ?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Cho tôi 3 câu chúc ngày mới tràn đầy năng lượng.", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Đỉnh núi cao nhất thế giới là đỉnh nào?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Cho tôi công thức tính chu vi và diện tích hình tròn bán kính r.", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Giải thích ngắn gọn khái niệm tế bào quang điện trong 2 câu.", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Ai là tác giả của tác phẩm Truyện Kiều?", "complexity": "easy"},
-    {"domain": "dialogue_chat", "prompt": "Việt Nam có bao nhiêu tỉnh thành trực thuộc trung ương?", "complexity": "easy"},
-
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Cảm ơn bạn nhé, câu trả lời rất hay!",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Tạm biệt bạn, hẹn gặp lại ngày mai.",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Mặt trời mọc ở hướng nào?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Năm 2026 có phải năm nhuận không?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Nước sôi ở bao nhiêu độ C ở áp suất tiêu chuẩn?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Một tuần có bao nhiêu ngày và bao nhiêu giờ?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Cho tôi 3 câu chúc ngày mới tràn đầy năng lượng.",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Đỉnh núi cao nhất thế giới là đỉnh nào?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Cho tôi công thức tính chu vi và diện tích hình tròn bán kính r.",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Giải thích ngắn gọn khái niệm tế bào quang điện trong 2 câu.",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Ai là tác giả của tác phẩm Truyện Kiều?",
+        "complexity": "easy",
+    },
+    {
+        "domain": "dialogue_chat",
+        "prompt": "Việt Nam có bao nhiêu tỉnh thành trực thuộc trung ương?",
+        "complexity": "easy",
+    },
     # 2. Coding & Algorithms -> groq-qwen-2.5-coder-32b (Qwen 27B Coder)
-    {"domain": "coding_algorithms", "prompt": "Làm sao viết thuật toán Logistic Regression bằng Python từ đầu?", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Viết mã nguồn cài đặt thuật toán QuickSort trong Python và phân tích độ phức tạp thời gian O(n log n).", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Cài đặt thuật toán Binary Search trên mảng đã sắp xếp bằng C++ chuẩn Modern C++20.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Làm thế nào để implement cấu trúc dữ liệu LRU Cache trong Python dùng OrderedDict hoặc Doubly Linked List?", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Thiết kế một API endpoint FastAPI hỗ trợ Server-Sent Events (SSE) streaming và xử lý exception.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Viết truy vấn SQL phức tạp kết hợp Window Functions (ROW_NUMBER, DENSE_RANK) để tìm top 3 doanh thu mỗi vùng.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Giải thích cách hoạt động của Event Loop trong Node.js (Microtasks vs Macrotasks) kèm code ví dụ.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Cài đặt thuật toán Dijkstra tìm đường đi ngắn nhất đồ thị có trọng số dương bằng Priority Queue trong Java.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Viết hàm TypeScript debounce và throttle an toàn kiểu dữ liệu với generic types.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Tối ưu hóa bộ nhớ và chống rò rỉ VRAM khi load Three.js MeshPhysicalMaterial trong React 19.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Sửa lỗi race condition trong SQLite khi nhiều luồng cùng ghi đồng thời bằng SQLite WAL mode và retry queue.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Viết decorator Python đo lường thời gian thực thi hàm và log tham số đầu vào/đầu ra.", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Làm thế nào để implement thuật toán Gradient Descent với Momentum trong NumPy?", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Viết code regex chuẩn để validate email quốc tế RFC 5322 và giải thích các nhóm bắt (capturing groups).", "complexity": "coding"},
-    {"domain": "coding_algorithms", "prompt": "Thiết kế hệ thống Rate Limiter theo thuật toán Token Bucket bằng Redis trong hệ phân tán.", "complexity": "coding"},
-
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Làm sao viết thuật toán Logistic Regression bằng Python từ đầu?",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Viết mã nguồn cài đặt thuật toán QuickSort trong Python và phân tích độ phức tạp thời gian O(n log n).",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Cài đặt thuật toán Binary Search trên mảng đã sắp xếp bằng C++ chuẩn Modern C++20.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Làm thế nào để implement cấu trúc dữ liệu LRU Cache trong Python dùng OrderedDict hoặc Doubly Linked List?",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Thiết kế một API endpoint FastAPI hỗ trợ Server-Sent Events (SSE) streaming và xử lý exception.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Viết truy vấn SQL phức tạp kết hợp Window Functions (ROW_NUMBER, DENSE_RANK) để tìm top 3 doanh thu mỗi vùng.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Giải thích cách hoạt động của Event Loop trong Node.js (Microtasks vs Macrotasks) kèm code ví dụ.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Cài đặt thuật toán Dijkstra tìm đường đi ngắn nhất đồ thị có trọng số dương bằng Priority Queue trong Java.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Viết hàm TypeScript debounce và throttle an toàn kiểu dữ liệu với generic types.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Tối ưu hóa bộ nhớ và chống rò rỉ VRAM khi load Three.js MeshPhysicalMaterial trong React 19.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Sửa lỗi race condition trong SQLite khi nhiều luồng cùng ghi đồng thời bằng SQLite WAL mode và retry queue.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Viết decorator Python đo lường thời gian thực thi hàm và log tham số đầu vào/đầu ra.",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Làm thế nào để implement thuật toán Gradient Descent với Momentum trong NumPy?",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Viết code regex chuẩn để validate email quốc tế RFC 5322 và giải thích các nhóm bắt (capturing groups).",
+        "complexity": "coding",
+    },
+    {
+        "domain": "coding_algorithms",
+        "prompt": "Thiết kế hệ thống Rate Limiter theo thuật toán Token Bucket bằng Redis trong hệ phân tán.",
+        "complexity": "coding",
+    },
     # 3. Complex Math & Deep Reasoning -> groq-llama-3.3-70b-versatile (GPT OSS 120B Flagship)
-    {"domain": "math_reasoning", "prompt": "Tính tích phân bội hai của hàm f(x,y) = x^2 * exp(-y) trên miền giới hạn D và diễn giải chi tiết từng bước bằng LaTeX.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Chứng minh định lý Bất đẳng thức Cauchy-Schwarz trong không gian tiền Hilbert tổng quát.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Giải phương trình vi phân tuyến tính cấp 2 không thuần nhất y'' + 4y' + 4y = x * e^(-2x) với điều kiện ban đầu.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Phân tích ma trận hiệp phương tắc (SVD) và chứng minh mối quan hệ giữa các giá trị kỳ dị và trị riêng của ma trận A^T A.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Biện luận số nghiệm của hệ phương trình phi tuyến tính bằng ma trận Jacobi và phương pháp lặp Newton-Raphson đa chiều.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Chứng minh tính hội tụ của chuỗi Fourier cho hàm khả vi từng khúc theo định lý Dirichlet.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Phân tích sự khác biệt về mặt bản thể luận giữa thuyết nhị nguyên Descartes và thuyết duy vật chức năng trong triết học tâm trí.", "complexity": "hard"},
-    {"domain": "math_reasoning", "prompt": "Phân tích tác động kinh tế vĩ mô của chính sách thắt chặt tiền tệ định lượng (QT) đối với đường cong lợi suất trái phiếu chính phủ.", "complexity": "hard"},
+    {
+        "domain": "math_reasoning",
+        "prompt": "Tính tích phân bội hai của hàm f(x,y) = x^2 * exp(-y) trên miền giới hạn D và diễn giải chi tiết từng bước bằng LaTeX.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Chứng minh định lý Bất đẳng thức Cauchy-Schwarz trong không gian tiền Hilbert tổng quát.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Giải phương trình vi phân tuyến tính cấp 2 không thuần nhất y'' + 4y' + 4y = x * e^(-2x) với điều kiện ban đầu.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Phân tích ma trận hiệp phương tắc (SVD) và chứng minh mối quan hệ giữa các giá trị kỳ dị và trị riêng của ma trận A^T A.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Biện luận số nghiệm của hệ phương trình phi tuyến tính bằng ma trận Jacobi và phương pháp lặp Newton-Raphson đa chiều.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Chứng minh tính hội tụ của chuỗi Fourier cho hàm khả vi từng khúc theo định lý Dirichlet.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Phân tích sự khác biệt về mặt bản thể luận giữa thuyết nhị nguyên Descartes và thuyết duy vật chức năng trong triết học tâm trí.",
+        "complexity": "hard",
+    },
+    {
+        "domain": "math_reasoning",
+        "prompt": "Phân tích tác động kinh tế vĩ mô của chính sách thắt chặt tiền tệ định lượng (QT) đối với đường cong lợi suất trái phiếu chính phủ.",
+        "complexity": "hard",
+    },
 ]
 
 
@@ -160,9 +318,12 @@ def build_live_catalog_dataset() -> tuple[MultiDataset, MultiDataset, dict]:
     base_rows = [
         r
         for r in (*dev_golden, *holdout_golden)
-        if r.domain in ("coding_algorithms", "math_reasoning", "medical_bio", "dialogue_chat")
+        if r.domain
+        in ("coding_algorithms", "math_reasoning", "medical_bio", "dialogue_chat")
     ]
-    multitask_pairs, _ = build_multitask_dataset_rows(vmlu_limit=1047, viquad_limit=1000)
+    multitask_pairs, _ = build_multitask_dataset_rows(
+        vmlu_limit=1047, viquad_limit=1000
+    )
     multitask_rows = [sample for sample, _ in multitask_pairs]
     all_source_rows = [*multitask_rows, *base_rows]
 
@@ -259,6 +420,7 @@ def build_live_catalog_dataset() -> tuple[MultiDataset, MultiDataset, dict]:
     synthetic_path = ROOT / "data/research/synthetic_4k_multitask.json"
     if not synthetic_path.exists():
         from generate_4k_multitask_data import main as gen_main
+
         gen_main()
 
     synthetic_samples = json.loads(synthetic_path.read_text(encoding="utf-8"))
@@ -416,7 +578,9 @@ def build_live_catalog_dataset() -> tuple[MultiDataset, MultiDataset, dict]:
         keys.sort(key=lambda k: hashlib.sha256(k.encode()).hexdigest())
         if len(keys) < 3:
             for i, k in enumerate(keys):
-                allocation[k] = "train" if i == 0 else "calibration" if i == 1 else "threshold"
+                allocation[k] = (
+                    "train" if i == 0 else "calibration" if i == 1 else "threshold"
+                )
             continue
         train = min(len(keys) - 2, max(1, int(len(keys) * (7 / 9))))
         calibration = max(1, int(len(keys) * (1 / 9)))
@@ -431,14 +595,18 @@ def build_live_catalog_dataset() -> tuple[MultiDataset, MultiDataset, dict]:
 
     rows = tuple(
         r.model_copy(
-            update={"split": "holdout" if side == "holdout" else allocation.get(family, "train")}
+            update={
+                "split": "holdout"
+                if side == "holdout"
+                else allocation.get(family, "train")
+            }
         )
         for r, family, side in pending
     )
 
     metadata = {
         "format_version": "router-dataset-v2",
-        "purpose": "qualified_dev",
+        "purpose": "software_test",
         "provenance": "Authentic Vietnamese multi-task sources (VMLU, UIT-ViQuAD 2.0, Legal-QA, PhoQA) plus Augmented Domain Queries; calibrated on smartllm-live-catalog-v2",
         "grader_version": "synthetic-labels-v3-not-a-grader",
         "configurations": configurations,
@@ -451,7 +619,7 @@ def build_live_catalog_dataset() -> tuple[MultiDataset, MultiDataset, dict]:
         samples=tuple(r for r in rows if r.split != "holdout"),
         **metadata,
     )
-    holdout_metadata = {**metadata, "purpose": "qualified_holdout"}
+    holdout_metadata = {**metadata, "purpose": "software_test"}
     holdout_dataset = MultiDataset(
         version="router-live-catalog-holdout-v1",
         samples=tuple(r for r in rows if r.split == "holdout"),
@@ -459,7 +627,7 @@ def build_live_catalog_dataset() -> tuple[MultiDataset, MultiDataset, dict]:
     )
 
     audit = {
-        "purpose": "qualified_dev",
+        "purpose": "software_test",
         "samples": len(rows),
         "splits": dict(Counter(r.split for r in rows)),
         "domains": dict(Counter(r.domain for r in rows)),

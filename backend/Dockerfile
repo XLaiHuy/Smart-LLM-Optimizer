@@ -12,6 +12,13 @@ ENV PYTHONUNBUFFERED=1 \
 COPY pyproject.toml requirements.lock ./
 RUN pip install --no-cache-dir -r requirements.lock
 
+# CPU Attention serving needs the hashed ONNX runtime subset, without replacing
+# application Torch/tokenizers. pip check verifies the already installed dependencies.
+COPY requirements-router-serving.lock ./
+RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-router-serving.lock && pip check
+COPY requirements-validation.lock ./
+RUN pip install --no-cache-dir --no-deps --require-hashes -r requirements-validation.lock && pip check
+
 # Copy application source code and configuration
 COPY . .
 

@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import Field, HttpUrl, model_validator
 
-from app.contracts.dtos import DTO, CostEstimate, Usage
+from app.contracts.dtos import DTO, CostEstimate, CostSnapshot, RouteRate, Usage
 from app.contracts.errors import AppError
 
 
@@ -25,6 +25,8 @@ class ModelEntry(DTO):
     effective_at: str = Field(min_length=1)
     verified_access: bool = False
     pricing_verified: bool = False
+    fallback_approved: bool = False
+    fallback_priority: int = Field(default=100, ge=0)
     endpoint: Literal["responses", "embeddings", "chat_completions"] | None = None
     base_url: str | None = None
     api_key_env: str | None = None
@@ -82,6 +84,32 @@ class Catalog(DTO):
                 "NO_COMPATIBLE_MODEL", 422, "Model access not verified in configured catalog"
             )
         return entry
+
+    def cost_snapshot(self) -> CostSnapshot:
+        """Catalog identity uses published rates, not admission-bound substitutions."""
+        return CostSnapshot(
+            version=self.version,
+            rates=tuple(
+                RouteRate(
+                    config_id=m.config_id,
+                    input_per_million=m.input_per_million,
+                    output_per_million=m.output_per_million,
+                )
+                for m in self.models
+                if m.kind == "generation"
+            ),
+        )
+
+    def admission_input_rates(self) -> dict[str, Decimal]:
+        return {
+            m.config_id: max(
+                m.input_per_million,
+                m.cached_per_million or Decimal(0),
+                m.cache_write_per_million or Decimal(0),
+            )
+            for m in self.models
+            if m.kind == "generation"
+        }
 
 
 def price(

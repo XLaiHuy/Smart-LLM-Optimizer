@@ -7,7 +7,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_PATH=/app/data/smartllm.db
+      - SMARTLLM_ROOT=/app
+      - DATABASE_PATH=/app/runtime-db/smartllm.db
       - PROVIDER_MODE=live
       - GROQ_API_KEY=${GROQ_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -18,7 +19,12 @@ services:
       - ML_ROUTER_ARTIFACT_PATH=${ML_ROUTER_ARTIFACT_PATH:-config/router_multitask_vietnamese_model.json}
       - ML_ROUTER_LIVE_APPROVED=${ML_ROUTER_LIVE_APPROVED:-false}
       - ML_ROUTER_ALLOW_RESEARCH_CANDIDATE=${ML_ROUTER_ALLOW_RESEARCH_CANDIDATE:-false}
+      - ML_ROUTER_RESEARCH_ACCEPTANCE_PATH=${ML_ROUTER_RESEARCH_ACCEPTANCE_PATH:-config/router_research_acceptance.json}
       - LOG_LEVEL=INFO
+      # Persistent pinned model assets; preparation is a separate operator step.
+      - HF_HUB_CACHE=/app/data/huggingface/hub
+      - OMP_NUM_THREADS=2
+      - MKL_NUM_THREADS=2
       - MEMORY_RETRIEVAL_ENABLED=true
       - HYBRID_CONTEXT_ENABLED=true
       - ADAPTIVE_PROMPT_ENABLED=${ADAPTIVE_PROMPT_ENABLED}
@@ -26,15 +32,19 @@ services:
       - ROUTER_TRAINING_MANIFEST_PATH=/app/data/router-training/manifest.json
       - ROUTER_TRAINING_DIRECTORY=/app/data/router-training
     volumes:
+      # SQLite WAL and shared-memory locks must stay on the Linux filesystem.
+      # Do not open this database with Windows tools while the service runs.
+      - runtime-db:/app/runtime-db
       - ./data:/app/data
       - ./config:/app/config:ro
       - ./config:/config:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/platform-info')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health/ready')"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      # First CPU encoder/library load can exceed the old five-second grace period.
+      start_period: 180s
     networks:
       - smartllm-network
     restart: unless-stopped
@@ -61,3 +71,7 @@ services:
 networks:
   smartllm-network:
     driver: bridge
+
+volumes:
+  runtime-db:
+    name: smartllm-runtime-db

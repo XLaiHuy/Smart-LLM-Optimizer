@@ -1,6 +1,7 @@
 .venv/
 node_modules/
 .next/
+frontend/.next*/
 .env
 .env.*
 !.env.example
@@ -40,6 +41,10 @@ config/router_model.joblib
 
 .next-e2e/
 config/benchmark-impact.json
+# Private handoff archives and local training exports are never source code.
+handoff-private/
+smartllm_training_datasets.zip
+smartllm_router_datasets_compact.zip
 # Ignored test files (local pilot / unit / research tests)
 backend/tests/unit/
 backend/tests/integration/test_native_tools.py

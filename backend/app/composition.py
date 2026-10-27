@@ -18,6 +18,7 @@ from app.optimizers.prompt_optimizer import AdaptivePromptOptimizer, NoOpPromptO
 from app.providers.catalog import Catalog
 from app.providers.mock_provider import DeterministicMockProvider
 from app.providers.openai_compatible import OpenAICompatibleProvider
+from app.providers.quota import ProviderQuota
 from app.routing.experiments.live import LiveResearchWiring
 from app.routing.experiments.service import ResearchService
 from app.routing.features import ObservableTaskAnalyzer
@@ -66,13 +67,20 @@ class Container:
                 embedding = catalog.entry(catalog.embedding_config)
                 if baseline.kind != "generation" or embedding.kind != "embedding":
                     raise AppError("VALIDATION_ERROR", 422, "Catalog config kinds are invalid")
-                live = OpenAICompatibleProvider(server_key, catalog, settings=settings)
+                live = OpenAICompatibleProvider(
+                    server_key,
+                    catalog,
+                    settings=settings,
+                    quota=ProviderQuota(self.db, settings)
+                    if settings.provider_quota_enabled
+                    else None,
+                )
             gen_configs = [
                 ModelConfiguration(
                     config_id=m.config_id,
                     model_id=m.model_id,
                     execution_source="live" if live else "mock",
-                    endpoint=m.endpoint,
+                    endpoint=m.endpoint or "responses",
                     context_window=m.context_window,
                     available=m.verified_access and m.pricing_verified,
                     availability_reason="reviewed"
@@ -135,10 +143,7 @@ class Container:
         self.ml_router = MLRouterService.load(
             settings.ml_router_artifact_path,
             live_approved=settings.ml_router_live_approved,
-            allow_research_candidate=(
-                settings.app_env == "development"
-                and settings.ml_router_allow_research_candidate
-            ),
+            allow_research_candidate=settings.research_chat_enabled,
         )
         self.router_drift = RoutingDrift()
         self.router_feedback = RouterFeedbackService(self.db, self.router_drift)
@@ -174,9 +179,12 @@ class Container:
             # Import and load the model only when the feature is explicitly enabled.
             from app.optimizers.llmlingua_compressor import LLMLinguaCompressor
 
-            prompt_optimizer: PromptOptimizer = AdaptivePromptOptimizer(
-                llm_compressor=LLMLinguaCompressor(),
-            )
+            semantic = self.ml_router.multi.semantic
+            compressor = LLMLinguaCompressor(semantic.similarity if semantic else None)
+            if settings.app_env != "test":
+                # Local-only warmup before readiness, outside the first chat deadline.
+                compressor.warmup()
+            prompt_optimizer: PromptOptimizer = AdaptivePromptOptimizer(llm_compressor=compressor)
         else:
             prompt_optimizer = NoOpPromptOptimizer()
 
@@ -198,15 +206,44 @@ class Container:
                 else PassThroughContext()
             ),
             prompt_optimizer,
-            PolicyRouter(self.ml_router, self.router_drift) if live else FixedMockRouter(),
+            PolicyRouter(
+                self.ml_router,
+                self.router_drift,
+                review_path=settings.ml_router_qualification_path,
+                require_review=True,
+                admission_input_rates=catalog.admission_input_rates() if catalog else None,
+                research_acceptance_path=(
+                    settings.ml_router_research_acceptance_path
+                    if settings.research_chat_enabled
+                    else None
+                ),
+            )
+            if live
+            else FixedMockRouter(),
             self.registry,
             memory_token_budget=max(1, settings.context_token_budget // 3),
         )
         self.orchestrator.metering = self.metering
         self.orchestrator.outcomes = self.router_feedback
         self.orchestrator.documents = self.documents
+        if live:
+            from app.routing.model_health import ModelHealth
+
+            self.orchestrator.model_health = ModelHealth(
+                {
+                    c.config_id: live.identity(c.config_id)
+                    for c in self.registry.configurations
+                    if c.execution_source == "live" and live.available(c.config_id)
+                }
+            )
         self.progress = SqlProgressStore(self.db)
         self.orchestrator.progress = self.progress
+        from app.core.execution import ExecutionJournal
+        from app.routing.task_groups import TaskGroupPolicy
+        self.execution = ExecutionJournal(self.db)
+        self.orchestrator.journal = self.execution
+        self.metering.journal = self.execution
+        self.orchestrator.group_policy = TaskGroupPolicy(settings.task_routing_bundle_path, self.ml_router)
         self.tools = SqlToolStore(self.db)
         self.orchestrator.tools = ToolExecutor(self.tools)
 
