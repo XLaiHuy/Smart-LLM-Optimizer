@@ -4,15 +4,46 @@ import { useEffect, useState } from "react";
 import { api, unwrap, type User } from "@/lib/api";
 import { Login } from "./login";
 import { ErrorNotice, Spinner } from "./ui";
-import { AuthenticatedWorkspace } from "./workspace-shell";
+import dynamic from "next/dynamic";
+const AuthenticatedWorkspace = dynamic(
+  () => import("./workspace-shell").then((m) => m.AuthenticatedWorkspace),
+  {
+    loading: () => (
+      <main className="app-loading" role="status">
+        <Spinner />
+      </main>
+    ),
+  },
+);
 
-export function Workspace({ dashboard = false }: { dashboard?: boolean }) {
+export function Workspace({
+  dashboard = false,
+  settings = false,
+  pipeline = false,
+  initialSignedOut = false,
+}: {
+  dashboard?: boolean;
+  settings?: boolean;
+  pipeline?: boolean;
+  initialSignedOut?: boolean;
+}) {
   const client = useQueryClient();
   const [expired, setExpired] = useState(false);
   const [epoch, setEpoch] = useState(0);
   const me = useQuery<User | null>({
     queryKey: ["me"],
-    retry: false,
+    initialData: initialSignedOut ? null : undefined,
+    initialDataUpdatedAt: 0,
+    retry: (failureCount, error) => {
+      const status =
+        (error as { status?: number; response?: { status?: number } })
+          ?.status ??
+        (error as { status?: number; response?: { status?: number } })?.response
+          ?.status;
+      if (status === 401) return false;
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
     queryFn: async () => {
       const response = await api.GET("/v1/auth/me");
       return response.response.status === 401 ? null : unwrap(response);
@@ -48,6 +79,7 @@ export function Workspace({ dashboard = false }: { dashboard?: boolean }) {
   if (!me.data)
     return (
       <Login
+        key={expired ? "expired" : "signed-out"}
         expired={expired}
         onSuccess={(user) => {
           setExpired(false);
@@ -60,6 +92,8 @@ export function Workspace({ dashboard = false }: { dashboard?: boolean }) {
       key={`${me.data.id}-${epoch}`}
       user={me.data}
       dashboard={dashboard}
+      settings={settings}
+      pipeline={pipeline}
       onLogout={() => {
         client.clear();
         client.setQueryData(["me"], null);

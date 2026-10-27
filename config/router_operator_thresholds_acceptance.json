@@ -1,0 +1,18 @@
+{
+  "version": "router-research-acceptance-v1",
+  "artifact_hash": "0a9ca485fce8159ea3fbad539b25e11c26202f8d95d618267c08c96b71eebeef",
+  "dataset_hash": "481acee37a9c8cc92412c70ce85d59d86dd2f7386a3013a208c9f9f3c340ccb1",
+  "configuration_hashes": {
+    "openrouter-openai-gpt-oss-120b-o2048-rlow": "ed3c1fff914705489418edcbb0a4f769346fa5ca9e269e1c812fae723df21e7f",
+    "openrouter-openai-gpt-oss-20b-o2048-rlow": "07ceea34376b4419325dd148220e4ad15207a9036c2f90a7dedb5a9d60e15ae1",
+    "openai-gpt-6-luna-o2048": "672f5be6080f2f6dfa18211ce1a56acfcd9793813236bdb5070a56b660fe7bd4"
+  },
+  "costs_hash": "6e60871eb50487c5122a6b9bc7ece3d591fc3433451125fdcec7a76fe70b0584",
+  "accepted_by": "Huy: explicit global threshold instruction in chat",
+  "accepted_at": "2026-10-27T15:51:44.999057+00:00",
+  "decision": "User explicitly requests 20B=0.690085 and Luna=0.71 globally and Docker browser testing; development trial only, no formal qualification claimed.",
+  "scope": "development_chat",
+  "formal_qualification_passed": false,
+  "qualification_report_path": "config/router_operator_thresholds_evidence.json",
+  "qualification_report_sha256": "87c66da65485ae6599baed04922bf741c0e7b95d1e25e4f254ee22a6b6f600a1"
+}

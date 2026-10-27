@@ -24,11 +24,15 @@ export type SessionInfo = components["schemas"]["SessionInfo"];
 export type SessionDetail = components["schemas"]["SessionDetail"];
 export type Overview = components["schemas"]["Overview"];
 export type Flags = Required<components["schemas"]["FeatureFlags"]>;
+// Within the backend's existing hard ceiling; the production proxy allows 130s.
+export const CHAT_DEADLINE_MS = 120000;
 
 export class ApiError extends Error {
   constructor(
     public code: string,
     public status: number = 0,
+    public requestId?: string,
+    public retryAfterSeconds?: number | null,
   ) {
     super(code);
   }
@@ -42,7 +46,12 @@ export function unwrap<T>(result: {
   if (result.error || !result.response.ok) {
     const error = result.error as
       components["schemas"]["ErrorEnvelope"] | undefined;
-    throw new ApiError(error?.error?.code || "UNKNOWN", result.response.status);
+    throw new ApiError(
+      error?.error?.code || "UNKNOWN",
+      result.response.status,
+      error?.error?.request_id || undefined,
+      error?.error?.retry_after_seconds,
+    );
   }
   return result.data as T;
 }
@@ -57,7 +66,5 @@ export function requestFlags(
   mode: "baseline" | "optimized",
   flags: Flags,
 ): Flags {
-  return mode === "baseline"
-    ? { router: false, rewrite: false, context: false, memory: false }
-    : { ...flags };
+  return mode === "baseline" ? { ...flags, router: false } : { ...flags };
 }

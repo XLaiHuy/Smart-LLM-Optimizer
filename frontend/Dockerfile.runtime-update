@@ -1,0 +1,17 @@
+# Reuse this project's installed Node dependencies for a local source update.
+ARG BASE_IMAGE=smartllmplatform-frontend:pre-operator-20261027
+FROM ${BASE_IMAGE} AS builder
+USER root
+WORKDIR /app
+ENV BACKEND_URL=http://backend:8000 NEXT_TELEMETRY_DISABLED=1
+COPY src ./src
+COPY next.config.ts next.runtime.config.mjs tsconfig.json next-env.d.ts postcss.config.mjs ./
+# A previously deployed base may contain the generated runtime config. Build
+# from the source TypeScript config, then generate the runner config below.
+RUN rm -f /app/next.config.mjs && npm run build
+
+FROM ${BASE_IMAGE}
+WORKDIR /app
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder /app/next.runtime.config.mjs ./next.config.mjs
+USER nextjs

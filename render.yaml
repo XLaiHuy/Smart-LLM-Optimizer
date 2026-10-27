@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: smartllm-backend
+    runtime: docker
+    dockerfilePath: ./render-backend.Dockerfile
+    dockerContext: .
+    healthCheckPath: /v1/health/ready
+    plan: free
+    envVars:
+      - key: DATABASE_PATH
+        value: /app/data/smartllm.db
+      - key: MODEL_CATALOG_PATH
+        value: /etc/secrets/models.json
+      - key: PROVIDER_MODE
+        value: live
+      - key: APP_ENV
+        value: development
+      - key: ALLOWED_ORIGINS
+        value: '["https://smartoptimizer.vercel.app"]'
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: AUTO_ROUTING_STRATEGY
+        value: ml_multi_model
+      - key: ML_ROUTER_ARTIFACT_PATH
+        value: /app/config/router_multitask_vietnamese_model.json
+      - key: ML_ROUTER_LIVE_APPROVED
+        value: "false"
+      - key: ML_ROUTER_ALLOW_RESEARCH_CANDIDATE
+        value: "false"
+      - key: MEMORY_RETRIEVAL_ENABLED
+        value: "true"
+      - key: HYBRID_CONTEXT_ENABLED
+        value: "true"
+      - key: ADAPTIVE_PROMPT_ENABLED
+        value: "true"
+      - key: RESEARCH_LIVE_ENABLED
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

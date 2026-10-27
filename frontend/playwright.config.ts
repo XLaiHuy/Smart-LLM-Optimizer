@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: {
     command: "node ../scripts/e2e-server.mjs",
     url: "http://localhost:3001",
-    timeout: 120000,
+    timeout: 300000,
     reuseExistingServer: false,
   },
 });

@@ -1,3 +1,4 @@
 .next
+.next-e2e
 src/lib/generated
 node_modules

@@ -1,9 +1,28 @@
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class AnalyticsEpoch(Base):
+    __tablename__ = "analytics_epochs"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    started_at: Mapped[str] = mapped_column(String(40))
+    reason: Mapped[str] = mapped_column(Text)
+
+
+class ExecutionEvent(Base):
+    __tablename__ = "execution_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(
+        ForeignKey("request_attempts.id", ondelete="CASCADE"), index=True
+    )
+    stage: Mapped[str] = mapped_column(String(48))
+    status: Mapped[str] = mapped_column(String(24))
+    at: Mapped[str] = mapped_column(String(40))
+    details_json: Mapped[str] = mapped_column(Text, default="{}")
 
 
 class User(Base):
@@ -13,6 +32,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(String(16), default="user")
     quota_usd: Mapped[str] = mapped_column(String(64))
+    account_purpose: Mapped[str] = mapped_column(
+        String(24), default="standard", server_default="standard"
+    )
 
 
 class AuthSession(Base):
@@ -31,6 +53,25 @@ class Conversation(Base):
     active_attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40))
     updated_at: Mapped[str] = mapped_column(String(40))
+    tool_recovery_required: Mapped[bool] = mapped_column(default=False, server_default="0")
+
+
+class ToolInvocation(Base):
+    __tablename__ = "tool_invocations"
+    __table_args__ = (UniqueConstraint("operation_id", "call_id"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    operation_id: Mapped[str] = mapped_column(
+        ForeignKey("request_attempts.id", ondelete="CASCADE"), index=True
+    )
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    call_id: Mapped[str] = mapped_column(String(128))
+    name: Mapped[str] = mapped_column(String(100))
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    event_json: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[str] = mapped_column(String(40))
 
 
 class StoredMessage(Base):
@@ -56,11 +97,16 @@ class Attempt(Base):
     client_request_id: Mapped[str] = mapped_column(String(128))
     payload_hash: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(20))
+    traffic_class: Mapped[str] = mapped_column(String(24), default="chat", server_default="chat")
     dispatched: Mapped[bool] = mapped_column(default=False)
     execution_source: Mapped[str] = mapped_column(String(16), default="mock")
     created_at: Mapped[str] = mapped_column(String(40))
     response_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    e2e_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    research_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("research_runs.id"), nullable=True, index=True
+    )
 
 
 class InferenceCall(Base):
@@ -143,7 +189,7 @@ class UsageRecord(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     operation_id: Mapped[str] = mapped_column(String(64), index=True)
-    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[str] = mapped_column(String(40), index=True)
     category: Mapped[str] = mapped_column(String(40))
     execution_source: Mapped[str] = mapped_column(String(16))
@@ -166,3 +212,72 @@ class QuotaAudit(Base):
     after_usd: Mapped[str] = mapped_column(String(64))
     reason: Mapped[str] = mapped_column(String(300))
     created_at: Mapped[str] = mapped_column(String(40))
+
+
+class Reconciliation(Base):
+    __tablename__ = "billing_reconciliations"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    reservation_id: Mapped[str] = mapped_column(ForeignKey("budget_reservations.id"), unique=True)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    amount_usd: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(String(300))
+    evidence_reference: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[str] = mapped_column(String(40))
+
+
+class ResearchRun(Base):
+    __tablename__ = "research_runs"
+    __table_args__ = (UniqueConstraint("owner_user_id", "client_request_id"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    client_request_id: Mapped[str] = mapped_column(String(128))
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    snapshot_json: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    cancel_requested: Mapped[bool] = mapped_column(default=False)
+    budget_usd: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[str] = mapped_column(String(40))
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class ResearchTrial(Base):
+    __tablename__ = "research_trials"
+    __table_args__ = (UniqueConstraint("run_id", "position"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("research_runs.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    result_json: Mapped[str] = mapped_column(Text)
+
+
+class RouterOutcome(Base):
+    __tablename__ = "router_outcomes"
+    request_id: Mapped[str] = mapped_column(
+        ForeignKey("request_attempts.id", ondelete="CASCADE"), primary_key=True
+    )
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    artifact_hash: Mapped[str] = mapped_column(String(64))
+    config_id: Mapped[str] = mapped_column(String(100))
+    failed: Mapped[bool] = mapped_column(Boolean)
+    tool_error: Mapped[bool] = mapped_column(Boolean)
+    dislike: Mapped[bool] = mapped_column(Boolean)
+    retry: Mapped[bool] = mapped_column(Boolean)
+    created_at: Mapped[str] = mapped_column(String(40))
+
+
+class ProviderQuotaBucket(Base):
+    __tablename__ = "provider_quota_buckets"
+    scope_key: Mapped[str] = mapped_column(String(256), primary_key=True)
+    state_json: Mapped[str] = mapped_column(Text)
+
+
+class ProcessingEvent(Base):
+    __tablename__ = "processing_events"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(
+        ForeignKey("request_attempts.id", ondelete="CASCADE"), index=True
+    )
+    session_id: Mapped[str] = mapped_column(ForeignKey("sessions.id", ondelete="CASCADE"))
+    stage: Mapped[str] = mapped_column(String(24))
+    status: Mapped[str] = mapped_column(String(20))
+    started_at: Mapped[str] = mapped_column(String(40))
+    finished_at: Mapped[str | None] = mapped_column(String(40), nullable=True)

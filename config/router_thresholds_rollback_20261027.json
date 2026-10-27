@@ -1,0 +1,11 @@
+{
+  "environment": {
+    "AUTO_ROUTING_STRATEGY": "ml_multi_model",
+    "ML_ROUTER_ARTIFACT_PATH": "config/router_attention_operator_accepted.json",
+    "ML_ROUTER_LIVE_APPROVED": "false",
+    "ML_ROUTER_ALLOW_RESEARCH_CANDIDATE": "true",
+    "ML_ROUTER_RESEARCH_ACCEPTANCE_PATH": "config/router_research_acceptance.json"
+  },
+  "backend_image": "smartllmplatform-backend:three-model-final",
+  "frontend_image": "smartllmplatform-frontend:chat-transport-verified"
+}

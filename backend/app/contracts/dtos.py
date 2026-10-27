@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -12,6 +12,42 @@ class DTO(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class ToolDefinition(DTO):
+    name: str
+    description: str
+    parameters_json: str
+
+
+class ProviderItem(DTO):
+    type: str
+    payload_json: str
+
+
+class ToolCall(DTO):
+    call_id: str
+    name: str
+    arguments: str
+
+
+class ToolEvent(DTO):
+    call_id: str
+    name: str
+    status: Literal["succeeded", "failed", "interrupted", "running"]
+    error_code: str | None = None
+    arguments_json: str | None = None
+    output_json: str | None = None
+    duration_ms: float | None = None
+
+
+class RoutingStage(DTO):
+    config_id: str
+    score: float | None = Field(default=None, ge=0, le=1)
+    threshold: float | None = Field(default=None, ge=0, le=1)
+    status: str
+    base_threshold: float | None = Field(default=None, ge=0, le=1)
+    drift_shift: float = Field(default=0, ge=0, le=1)
+
+
 class FeatureFlags(DTO):
     router: bool = False
     rewrite: bool = False
@@ -21,7 +57,7 @@ class FeatureFlags(DTO):
 
 class Constraints(DTO):
     max_total_usd: Decimal | None = Field(default=None, gt=0)
-    deadline_ms: int = Field(default=15000, ge=100, le=120000)
+    deadline_ms: int = Field(default=60000, ge=100, le=120000)
 
 
 class ChatRequest(DTO):
@@ -33,17 +69,26 @@ class ChatRequest(DTO):
     flags: FeatureFlags | None = None
     constraints: Constraints = Field(default_factory=Constraints)
     document_ids: tuple[str, ...] = Field(default=(), max_length=5)
+    response_schema: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def validate_mode(self) -> "ChatRequest":
+        if self.response_schema is not None:
+            from app.core.validation import validate_schema
+
+            validate_schema(self.response_schema)
         if not self.message.strip():
             raise ValueError("Message must not be blank")
         if self.mode == "baseline":
-            if self.policy_id not in (None, "baseline") or (
-                self.flags and any(self.flags.model_dump().values())
+            fixed_candidate = bool(self.policy_id and self.policy_id.startswith("fixed_candidate:"))
+            if (self.policy_id not in (None, "baseline") and not fixed_candidate) or (
+                self.flags and any(self.flags.model_dump().values()) and not fixed_candidate
             ):
                 raise ValueError("Baseline conflicts with policy/flags")
-        elif self.policy_id not in (None, "foundation-mock-v3", "quality-guarded-v3"):
+        elif self.policy_id is not None and not (
+            self.policy_id in ("foundation-mock-v3", "quality-guarded-v3")
+            or self.policy_id.startswith("fixed_candidate:")
+        ):
             raise ValueError("Only foundation-mock-v3 is available in G0")
         return self
 
@@ -52,6 +97,7 @@ class EffectiveConfiguration(DTO):
     policy_id: str
     policy_version: str = "g0.1"
     flags: FeatureFlags
+    candidate_id: str | None = None
 
 
 class Principal(DTO):
@@ -110,6 +156,7 @@ class SessionSnapshot(DTO):
 
 class SessionDetail(SessionInfo):
     messages: tuple[Message, ...]
+    active_client_request_id: str | None = None
 
 
 class DerivedMemory(DTO):
@@ -151,23 +198,30 @@ class ContextFeatures(DTO):
     flags: FeatureFlags
     approved_current_content: str | None = None
     evidence: tuple[Message, ...] = ()
+    memory: tuple[Message, ...] = ()
 
 
 class ContextResult(DTO):
     messages: tuple[Message, ...]
     provenance: tuple[str, ...]
     state: OptimizationState
+    tools: tuple[ToolDefinition, ...] = ()
+    continuation_items: tuple[ProviderItem, ...] = ()
     token_estimates: tuple[TokenEstimate, ...] = ()
     summary_needed: bool = False
 
 
 class MemoryPlan(DTO):
     enabled: bool = False
+    query: str = ""
+    token_budget: int = Field(default=0, ge=0)
+    top_k: int | None = Field(default=None, ge=1)
 
 
 class MemoryResult(DTO):
     snapshot: SessionSnapshot
     state: OptimizationState
+    memory_messages: tuple[Message, ...] = ()
 
 
 class OptimizedPrompt(DTO):
@@ -181,6 +235,17 @@ class TaskProfile(DTO):
     domain: str = "unknown"
     difficulty: str = "unknown"
     reason: str = "not_implemented_g0"
+    language: str = "unknown"
+    requires_structured: bool = False
+    rules_matched: tuple[str, ...] = ()
+    input_utf8_bytes: int = 0
+    length_tier: Literal["short", "long"] = "short"
+    total_input_bytes: int = 0
+    has_rag_context: bool = False
+    code_ratio: float = Field(default=0, ge=0, le=1)
+    json_schema_required: bool = False
+    tool_count: int = 0
+    tool_recovery_required: bool = False
 
 
 class ModelConfiguration(DTO):
@@ -189,6 +254,13 @@ class ModelConfiguration(DTO):
     execution_source: Literal["mock", "live"] = "mock"
     context_window: int | None = None
     available: bool = True
+    availability_reason: str = "configured_mock"
+    endpoint: str = "responses"
+    max_output_tokens: int = 1024
+    structured_output: bool = False
+    supported_parameters: tuple[str, ...] = ()
+    function_calling: bool = False
+    reasoning_effort: str | None = None
 
 
 class RegistrySnapshot(DTO):
@@ -198,23 +270,91 @@ class RegistrySnapshot(DTO):
 
 class CostSnapshot(DTO):
     version: str = "g0-no-live-prices"
+    rates: tuple["RouteRate", ...] = ()
+
+
+class RouteRate(DTO):
+    config_id: str
+    input_per_million: Decimal = Field(ge=0, allow_inf_nan=False)
+    output_per_million: Decimal = Field(ge=0, allow_inf_nan=False)
 
 
 class PolicySnapshot(EffectiveConfiguration):
-    pass
+    strategy: Literal[
+        "fixed_reference",
+        "fixed_candidate",
+        "cheapest_feasible",
+        "random_feasible",
+        "rule_guarded",
+        "ml_router",
+        "ml_multi_model",
+    ] = "rule_guarded"
+    candidate_id: str | None = None
+    seed: int = 0
+    sandbox: bool = False
+    evidence: tuple["RouteEvidence", ...] = ()
+    evidence_version: str | None = None
+    ml_artifact_hash: str | None = None
+
+
+class RouteEvidence(DTO):
+    config_id: str
+    domain: str
+    qualifies: bool | None = None
+    latency_ms: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    provenance: Literal["fixture", "qualified_dev"] = "fixture"
 
 
 class RemainingBudget(DTO):
     usd: Decimal | None = None
+    deadline_ms: float | None = None
 
 
 class RouteDecision(DTO):
+    task_family: str | None = None
+    task_confidence: float | None = None
+    classifier_source: str | None = None
+    group_policy_version: str | None = None
+    group_profile_applied: bool = False
+    group_thresholds: dict[str, float] = Field(default_factory=dict)
     model_id: str
     config_id: str
     effort: str = "none"
     policy_id: str
     reason: str = "foundation_fixed_mock"
     fallback_used: bool = False
+    rules_matched: tuple[str, ...] = ()
+    exclusions: tuple["CandidateExclusion", ...] = ()
+    estimates: tuple["RouteEstimate", ...] = ()
+    policy_hash: str | None = None
+    evidence_version: str | None = None
+    use_original_context: bool = False
+    ml_score: float | None = Field(default=None, ge=0, le=1)
+    calibrated_threshold: float | None = Field(default=None, ge=0, le=1)
+    reason_code: str | None = None
+    ml_artifact_hash: str | None = None
+    ml_model_version: str | None = None
+    stages: tuple[RoutingStage, ...] = ()
+    ml_loaded: bool | None = None
+    ml_executed: bool | None = None
+    attention_loaded: bool | None = None
+    attention_executed: bool | None = None
+    attention_features: tuple[float, ...] | None = None
+    attention_backend: str | None = None
+    initial_config_id: str | None = None
+    initial_model_id: str | None = None
+
+
+class CandidateExclusion(DTO):
+    config_id: str
+    reason: str
+
+
+class RouteEstimate(DTO):
+    config_id: str
+    input_bound: int
+    upper_usd: Decimal | None
+    provenance: str = "utf8_byte_bound_v1"
 
 
 class Usage(DTO):
@@ -246,6 +386,10 @@ class ProviderOptions(DTO):
     call_id: str
     config_id: str
     model_id: str
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    top_p: float | None = Field(default=None, gt=0, le=1)
+    tools: tuple[ToolDefinition, ...] = ()
+    continuation_items: tuple[ProviderItem, ...] = ()
 
 
 class ProviderResult(DTO):
@@ -256,9 +400,18 @@ class ProviderResult(DTO):
     usage: Usage = Field(default_factory=lambda: Usage(scope="call"))
     cost: CostEstimate = Field(default_factory=lambda: CostEstimate(scope="call"))
     duration_ms: float
+    status: Literal["completed", "tool_calls", "incomplete"] = "completed"
+    tool_calls: tuple[ToolCall, ...] = ()
+    output_items: tuple[ProviderItem, ...] = ()
 
 
 class CallRecord(DTO):
+    config_id: str | None = None
+    provider_host: str | None = None
+    error_code: str | None = None
+    upstream_status: int | None = None
+    retry_after_seconds: float | None = None
+    dispatch_state: Literal["not_dispatched", "rejected", "completed", "unknown"] = "unknown"
     provider_response_id: str | None = None
     native_usage_json: str | None = None
     call_id: str
@@ -266,9 +419,31 @@ class CallRecord(DTO):
         "provider"
     )
     model_id: str
-    usage: Usage
-    cost: CostEstimate
-    duration_ms: float
+    usage: Usage = Field(default_factory=lambda: Usage(scope="call"))
+    cost: CostEstimate = Field(default_factory=lambda: CostEstimate(scope="call"))
+    duration_ms: float | None = None
+    reconciled_usd: Decimal | None = None
+    reconciliation_id: str | None = None
+
+
+class MeteringContext(DTO):
+    operation_id: str
+    principal: Principal
+    session_id: str | None = None
+    category: Literal["serving", "evaluation", "indexing"] = "serving"
+    max_total_usd: Decimal = Field(gt=0)
+
+    @classmethod
+    def from_execution(
+        cls, execution: ExecutionRequest, default_limit: Decimal
+    ) -> "MeteringContext":
+        return cls(
+            operation_id=execution.request_id,
+            principal=execution.principal,
+            session_id=execution.request.session_id,
+            category="evaluation" if execution.namespace == "eval" else "serving",
+            max_total_usd=execution.request.constraints.max_total_usd or default_limit,
+        )
 
 
 class Citation(DTO):
@@ -279,7 +454,16 @@ class Citation(DTO):
     excerpt: str
 
 
+class AnswerValidation(DTO):
+    status: Literal["pass", "fail", "unknown"]
+    reason: str
+    version: str = "answer-validator-v1"
+    call_id: str | None = None
+    config_id: str | None = None
+
+
 class ChatResponse(DTO):
+    validation_results: tuple[AnswerValidation, ...] = ()
     request_id: str
     session_id: str
     session_revision: int
@@ -296,9 +480,23 @@ class ChatResponse(DTO):
     quality_score: float | None = None
     cost_saving_ratio: float | None = None
     citations: tuple["Citation", ...] = ()
+    tool_events: tuple[ToolEvent, ...] = ()
+
+
+class PublicModel(DTO):
+    name: str
+    status: Literal["planned", "configured", "simulated"]
+
+
+class PlatformInfo(DTO):
+    name: str = "Smart LLM Optimizer"
+    execution_mode: Literal["mock", "live"]
+    models: tuple[PublicModel, ...]
+    tools_available: bool
 
 
 class RecentRequest(DTO):
+    execution_source: Literal["mock", "live"] = "mock"
     request_id: str
     session_id: str
     status: str
@@ -321,6 +519,7 @@ class Overview(DTO):
 
 
 class ErrorDetail(DTO):
+    retry_after_seconds: float | None = None
     code: str
     message: str
     request_id: str | None = None
@@ -388,9 +587,12 @@ class MetricBucket(DTO):
     unknown_calls: int
     p50_ms: float | None
     p95_ms: float | None
+    timing_samples: int = 0
+    reconciled_calls: int = 0
 
 
 class Analytics(DTO):
+    reporting_epoch: str | None = None
     scope: str
     execution_source: Literal["mock", "live"]
     timezone: str = "Asia/Ho_Chi_Minh"
@@ -398,6 +600,8 @@ class Analytics(DTO):
     end: str
     totals: MetricBucket
     daily: tuple[MetricBucket, ...]
+    granularity: Literal["hour", "day", "month"] = "day"
+    timeseries: tuple[MetricBucket, ...] = ()
     models: tuple[MetricBucket, ...]
     categories: tuple[MetricBucket, ...]
     sessions: tuple[MetricBucket, ...]

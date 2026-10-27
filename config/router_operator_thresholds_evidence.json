@@ -1,0 +1,16 @@
+{
+  "passed": false,
+  "artifact_hash": "0a9ca485fce8159ea3fbad539b25e11c26202f8d95d618267c08c96b71eebeef",
+  "dataset_hash": "481acee37a9c8cc92412c70ce85d59d86dd2f7386a3013a208c9f9f3c340ccb1",
+  "thresholds": {
+    "openrouter-openai-gpt-oss-20b-o2048-rlow": 0.690085,
+    "openai-gpt-6-luna-o2048": 0.71
+  },
+  "parent_artifact_hash": "5d7e83ef8127183ea3d3c3a4650d72c0e71699a66df8e871bdb167d1e39308fc",
+  "parent_evidence_path": "config/router_research_evidence.json",
+  "issues": [
+    "NEW_GLOBAL_THRESHOLDS_NOT_INDEPENDENTLY_QUALIFIED",
+    "OPERATOR_DEVELOPMENT_TRIAL_ONLY"
+  ],
+  "note": "No new training, HOLDOUT pass or E2E quality result is asserted. Older evidence is not relabeled as evidence for these global thresholds."
+}

@@ -5,15 +5,15 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, HttpUrl
+from pydantic import Field, HttpUrl, model_validator
 
-from app.contracts.dtos import DTO, CostEstimate, Usage
+from app.contracts.dtos import DTO, CostEstimate, CostSnapshot, RouteRate, Usage
 from app.contracts.errors import AppError
 
 
 class ModelEntry(DTO):
-    config_id: str
-    model_id: str
+    config_id: str = Field(min_length=1, max_length=100)
+    model_id: str = Field(min_length=1, max_length=100)
     kind: Literal["generation", "embedding"]
     context_window: int = Field(gt=0)
     max_output_tokens: int = Field(default=1024, gt=0)
@@ -22,17 +22,49 @@ class ModelEntry(DTO):
     cached_per_million: Decimal | None = Field(default=None, ge=0)
     cache_write_per_million: Decimal | None = Field(default=None, ge=0)
     source_url: HttpUrl
-    effective_at: str
+    effective_at: str = Field(min_length=1)
     verified_access: bool = False
     pricing_verified: bool = False
+    fallback_approved: bool = False
+    fallback_priority: int = Field(default=100, ge=0)
+    endpoint: Literal["responses", "embeddings", "chat_completions"] | None = None
+    base_url: str | None = None
+    api_key_env: str | None = None
+    structured_output: bool = False
+    function_calling: bool = False
+    reasoning_effort: Literal["none", "low", "medium", "high", "xhigh", "max"] | None = None
+    supported_parameters: tuple[Literal["temperature", "top_p"], ...] = ()
+
+    @model_validator(mode="after")
+    def capabilities(self) -> "ModelEntry":
+        if self.max_output_tokens > self.context_window:
+            raise ValueError("Output reserve exceeds context window")
+        if self.endpoint and self.endpoint not in (
+            ("responses", "chat_completions") if self.kind == "generation" else ("embeddings",)
+        ):
+            raise ValueError("Endpoint and model kind disagree")
+        return self
 
 
 class Catalog(DTO):
-    version: str
+    version: str = Field(min_length=1, max_length=100)
     baseline_config: str
     embedding_revision: str = "v1"
     embedding_config: str
     models: tuple[ModelEntry, ...]
+
+    @model_validator(mode="after")
+    def coherent(self) -> "Catalog":
+        entries = {m.config_id: m for m in self.models}
+        if not entries or len(entries) != len(self.models):
+            raise ValueError("Catalog needs nonempty, unique configuration IDs")
+        for key, kind in (
+            (self.baseline_config, "generation"),
+            (self.embedding_config, "embedding"),
+        ):
+            if key not in entries or entries[key].kind != kind:
+                raise ValueError(f"Missing {kind} configuration")
+        return self
 
     @classmethod
     def load(cls, path: Path) -> "Catalog":
@@ -44,12 +76,40 @@ class Catalog(DTO):
             ) from exc
 
     def entry(self, config_id: str) -> ModelEntry:
-        entry = next((m for m in self.models if m.config_id == config_id), None)
+        entry = next(
+            (m for m in self.models if m.config_id == config_id or m.model_id == config_id), None
+        )
         if not entry or not entry.verified_access or not entry.pricing_verified:
             raise AppError(
                 "NO_COMPATIBLE_MODEL", 422, "Model access not verified in configured catalog"
             )
         return entry
+
+    def cost_snapshot(self) -> CostSnapshot:
+        """Catalog identity uses published rates, not admission-bound substitutions."""
+        return CostSnapshot(
+            version=self.version,
+            rates=tuple(
+                RouteRate(
+                    config_id=m.config_id,
+                    input_per_million=m.input_per_million,
+                    output_per_million=m.output_per_million,
+                )
+                for m in self.models
+                if m.kind == "generation"
+            ),
+        )
+
+    def admission_input_rates(self) -> dict[str, Decimal]:
+        return {
+            m.config_id: max(
+                m.input_per_million,
+                m.cached_per_million or Decimal(0),
+                m.cache_write_per_million or Decimal(0),
+            )
+            for m in self.models
+            if m.kind == "generation"
+        }
 
 
 def price(
@@ -90,3 +150,119 @@ def upper_cost(entry: ModelEntry, input_bound: int) -> Decimal:
     return (
         Decimal(input_bound) * rate + Decimal(entry.max_output_tokens) * entry.output_per_million
     ) / Decimal(1000000)
+
+
+GROQ_MODELS: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        config_id="groq-llama-3.3-70b-versatile",
+        model_id="llama-3.3-70b-versatile",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://groq.com/pricing/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://api.groq.com/openai/v1",
+        api_key_env="GROQ_API_KEY",
+        function_calling=True,
+        structured_output=True,
+    ),
+    ModelEntry(
+        config_id="groq-qwen-2.5-coder-32b",
+        model_id="qwen-2.5-coder-32b",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://groq.com/pricing/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://api.groq.com/openai/v1",
+        api_key_env="GROQ_API_KEY",
+        function_calling=True,
+        structured_output=True,
+    ),
+)
+
+HUGGINGFACE_SERVERLESS_MODELS: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        config_id="hf-qwen-2.5-coder-32b-instruct",
+        model_id="Qwen/Qwen2.5-Coder-32B-Instruct",
+        kind="generation",
+        context_window=32768,
+        max_output_tokens=2048,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://huggingface.co/docs/api-inference/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://router.huggingface.co/hf-inference/v1",
+        api_key_env="HUGGINGFACE_API_KEY",
+    ),
+    ModelEntry(
+        config_id="hf-llama-3.3-70b-instruct",
+        model_id="meta-llama/Llama-3.3-70B-Instruct",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=2048,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://huggingface.co/docs/api-inference/"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://router.huggingface.co/hf-inference/v1",
+        api_key_env="HUGGINGFACE_API_KEY",
+    ),
+)
+
+OPENROUTER_FREE_MODELS: tuple[ModelEntry, ...] = (
+    ModelEntry(
+        config_id="openrouter-llama-3.3-70b-instruct-free",
+        model_id="meta-llama/llama-3.3-70b-instruct:free",
+        kind="generation",
+        context_window=128000,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://openrouter.ai/models/meta-llama/llama-3.3-70b-instruct:free"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://openrouter.ai/api/v1",
+        api_key_env="OPENROUTER_API_KEY",
+    ),
+    ModelEntry(
+        config_id="openrouter-qwen-2.5-coder-32b-instruct-free",
+        model_id="qwen/qwen-2.5-coder-32b-instruct:free",
+        kind="generation",
+        context_window=32768,
+        max_output_tokens=4096,
+        input_per_million=Decimal(0),
+        output_per_million=Decimal(0),
+        source_url=HttpUrl("https://openrouter.ai/models/qwen/qwen-2.5-coder-32b-instruct:free"),
+        effective_at="2026-10-22-free-tier",
+        verified_access=True,
+        pricing_verified=True,
+        endpoint="chat_completions",
+        base_url="https://openrouter.ai/api/v1",
+        api_key_env="OPENROUTER_API_KEY",
+    ),
+)
+
+FREE_TIER_MODELS: tuple[ModelEntry, ...] = (
+    *GROQ_MODELS,
+    *HUGGINGFACE_SERVERLESS_MODELS,
+    *OPENROUTER_FREE_MODELS,
+)

@@ -171,7 +171,7 @@ class DocumentTaskProcessor:
             citations=tuple(citations),
             timing=Timing(
                 e2e_ms=(perf_counter() - started) * 1000,
-                provider_ms=sum(c.duration_ms for c in calls),
+                provider_ms=sum(c.duration_ms for c in calls if c.duration_ms is not None),
             ),
         )
         await self.sessions.commit(execution, response)

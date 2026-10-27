@@ -229,8 +229,17 @@ async def test_live_metering_fakes_settlement_failure_and_dedupe(client, app):
     catalog = Catalog(
         version="fixture-v1",
         baseline_config="fixture",
-        embedding_config="fixture",
-        models=(entry(),),
+        embedding_config="embedding",
+        models=(
+            entry(),
+            entry().model_copy(
+                update={
+                    "config_id": "embedding",
+                    "kind": "embedding",
+                    "model_id": "fixture-embedding",
+                }
+            ),
+        ),
     )
     c.metering.catalog = catalog
     # Existing mock route is remapped only for this deterministic metered fake.
@@ -244,7 +253,8 @@ async def test_live_metering_fakes_settlement_failure_and_dedupe(client, app):
             ),
         }
     )
-    c.orchestrator.provider = AsyncMock()
+    c.orchestrator.provider = AsyncMock(spec=["generate"])
+    c.orchestrator.provider.generate = AsyncMock()
     usage = Usage(
         scope="call",
         input_tokens=100,
@@ -349,8 +359,17 @@ async def test_native_responses_adapter_normalizes_usage_without_network():
     catalog = Catalog(
         version="fixture-v2",
         baseline_config="fixture",
-        embedding_config="fixture",
-        models=(entry(),),
+        embedding_config="embedding",
+        models=(
+            entry(),
+            entry().model_copy(
+                update={
+                    "config_id": "embedding",
+                    "kind": "embedding",
+                    "model_id": "fixture-embedding",
+                }
+            ),
+        ),
     )
     provider = OpenAIProvider("test-not-a-real-key", catalog)
     await provider.client.close()
@@ -473,14 +492,52 @@ async def test_upgrade_g0_preserves_accounts_and_history(tmp_path):
     await asyncio.to_thread(command.upgrade, config, "70542f1078a5")
     db = Database(Settings(database_path=path, app_env="test"))
     try:
-        auth = AuthService(db, Settings(database_path=path, app_env="test"))
-        user = await auth.create_user("legacy", "password-legacy")
-        store = SqlSessionStore(db)
-        created = await store.create(user, "Legacy history")
+        # Seed with the actual legacy schema, not the current ORM (which
+        # correctly requires the new columns after startup migration).
+        import sqlite3
+
+        from app.auth.service import password_hasher
+
+        with sqlite3.connect(path) as legacy:
+            legacy.execute(
+                "INSERT INTO users VALUES (?, ?, ?, ?, ?)",
+                ("legacy-user", "legacy", password_hasher.hash("password-legacy"), "user", "5"),
+            )
+            legacy.execute(
+                "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "legacy-session",
+                    "legacy-user",
+                    "Legacy history",
+                    1,
+                    None,
+                    "2026-10-01T00:00:00+00:00",
+                    "2026-10-01T00:00:00+00:00",
+                ),
+            )
+            for position, role, content in (
+                (0, "user", "Old question"),
+                (1, "assistant", "Old answer"),
+            ):
+                legacy.execute(
+                    "INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        f"legacy-{position}",
+                        "legacy-session",
+                        position,
+                        role,
+                        content,
+                        "legacy-request",
+                    ),
+                )
         await asyncio.to_thread(command.upgrade, config, "head")
+        auth = AuthService(db, Settings(database_path=path, app_env="test"))
+        store = SqlSessionStore(db)
         principal, token = await auth.login("legacy", "password-legacy")
-        assert principal.id == user.id
-        assert (await store.detail(principal, created.id)).title == "Legacy history"
+        assert principal.id == "legacy-user"
+        detail = await store.detail(principal, "legacy-session")
+        assert detail.title == "Legacy history"
+        assert [m.content for m in detail.messages] == ["Old question", "Old answer"]
         await auth.logout(token)
     finally:
         await db.close()

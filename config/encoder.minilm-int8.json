@@ -1,0 +1,12 @@
+{
+  "repository": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+  "revision": "2c4055b12046f11709e9df2c122e59ffbdc2f900",
+  "model_path": "data/router-assets/minilm-int8/model_int8.onnx",
+  "model_sha256": "d6ea442ff6a891daefed7c83b2f596fc5dc66bf697e4d006236f64f34bbcf4c8",
+  "tokenizer_path": "data/router-assets/minilm-int8/tokenizer.json",
+  "tokenizer_sha256": "b60b6b43406a48bf3638526314f3d232d97058bc93472ff2de930d43686fa441",
+  "hidden_size": 384,
+  "max_tokens": 128,
+  "recipe": "feature-view-v2-balanced-token-budget",
+  "quantization": "int8"
+}

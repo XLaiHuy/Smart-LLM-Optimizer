@@ -1,0 +1,25 @@
+{
+  "case_count": 4,
+  "case_set_id": "four-suite-synthetic-smoke-v1",
+  "cases_file": "cases.jsonl",
+  "data_sha256": "c2014208e8cb2667fc9932e14b0dd78725e30be365614dfc2055cbd22c82e892",
+  "qualification_statuses": [
+    "synthetic"
+  ],
+  "schema_version": "eval-case-set-v1",
+  "splits": [
+    "smoke"
+  ],
+  "suite_names": [
+    "sea-ifeval-synthetic",
+    "uit-viquad-synthetic",
+    "vi-dialog-memory-synthetic",
+    "vmlu-synthetic"
+  ],
+  "task_families": [
+    "instruction",
+    "extractive_qa",
+    "conversation_memory",
+    "multidisciplinary_mcq"
+  ]
+}

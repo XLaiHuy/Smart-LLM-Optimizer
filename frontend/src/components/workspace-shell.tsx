@@ -3,7 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   Plus,
   MessageSquare,
@@ -13,58 +17,92 @@ import {
   Trash2,
   RefreshCw,
   History,
+  Layers,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { api, unwrap, type User, type SessionInfo } from "@/lib/api";
 import { LanguageSwitch } from "./language-switch";
 import { Drawer, ErrorNotice, Spinner } from "./ui";
-import { TraceInspector } from "./trace-inspector";
-import { OverviewPanel } from "./overview";
+import dynamic from "next/dynamic";
+const TraceInspector = dynamic(() =>
+  import("./trace-inspector").then((m) => m.TraceInspector),
+);
+const OverviewPanel = dynamic(
+  () => import("./overview").then((m) => m.OverviewPanel),
+  {
+    loading: () => (
+      <div className="metric-skeleton">
+        <Spinner />
+      </div>
+    ),
+  },
+);
+const PipelineFlow3D = dynamic(
+  () => import("./3d/pipeline-flow-3d").then((m) => m.PipelineFlow3D),
+  {
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center p-8">
+        <Spinner />
+      </div>
+    ),
+  },
+);
 import { ChatPanel } from "./chat-panel";
+import { SettingsPanel } from "./settings-panel";
 
 export function AuthenticatedWorkspace({
   user,
   dashboard,
+  settings = false,
+  pipeline = false,
   onLogout,
 }: {
   user: User;
   dashboard: boolean;
+  settings?: boolean;
+  pipeline?: boolean;
   onLogout: () => void;
 }) {
   const t = useTranslations("App");
   const client = useQueryClient();
   const router = useRouter();
-  const models = useQuery({
-    queryKey: ["models", user.id],
-    queryFn: async () => unwrap(await api.GET("/v1/models")),
-  });
-  const source = models.data?.[0]?.execution_source ?? "mock";
-  const selected = useSearchParams().get("session");
-  function setSelected(id: string | null) {
-    router.replace(id ? `/?session=${encodeURIComponent(id)}` : "/");
-  }
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const params = useSearchParams();
+  const paramSession = params.get("session");
+  const [selected, setSelected] = useState<string | null>(paramSession);
   const [trace, setTrace] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<SessionInfo | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [operation, setOperation] = useState(false);
   const [error, setError] = useState<unknown>();
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [requestBusy, setRequestBusy] = useState(false);
   const sessions = useInfiniteQuery({
-    queryKey: ["sessions", user.id],
-    initialPageParam:0,
-    queryFn: async ({pageParam}) => unwrap(await api.GET("/v1/sessions",{params:{query:{offset:pageParam,limit:50}}})),
-    getNextPageParam: (last, pages)=>last.length===50?pages.length*50:undefined,
+    queryKey: ["sessions"],
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: SessionInfo[], allPages) =>
+      lastPage.length === 30 ? allPages.length * 30 : undefined,
+    queryFn: async ({ pageParam = 0 }) =>
+      unwrap(
+        await api.GET("/v1/sessions", {
+          params: { query: { offset: pageParam, limit: 30 } },
+        }),
+      ),
   });
-  const sessionRows=sessions.data?.pages.flat()??[];
-  const mvp=useTranslations("MVP");
-  async function newSession(title?: string) {
+  const sourceQuery = useQuery({
+    queryKey: ["source-indicator"],
+    queryFn: async () => unwrap(await api.GET("/v1/usage")),
+    staleTime: 30000,
+  });
+  const source = sourceQuery.data?.execution_source ?? "mock";
+  const sessionRows = (sessions.data?.pages.flat() ?? []) as SessionInfo[];
+  async function newSession(title?: string): Promise<string> {
     const created = unwrap(
       await api.POST("/v1/sessions", {
         body: { title: title?.slice(0, 80) || t("newChat") },
       }),
     );
-    await client.invalidateQueries({ queryKey: ["sessions", user.id] });
+    await client.invalidateQueries({ queryKey: ["sessions"] });
     setSelected(created.id);
     setMobileOpen(false);
     return created.id;
@@ -87,16 +125,15 @@ export function AuthenticatedWorkspace({
     try {
       unwrap(
         await api.DELETE("/v1/sessions/{session_id}", {
-          params: { path: { session_id: deleting.id } },
+          params: { path: { session_id: deleting } },
         }),
       );
-      if (selected === deleting.id) setSelected(null);
+      await client.invalidateQueries({ queryKey: ["sessions"] });
+      if (selected === deleting) {
+        setSelected(null);
+        router.push("/");
+      }
       setDeleting(null);
-      setTrace(null);
-      client.removeQueries({ queryKey: ["session", user.id, deleting.id] });
-      client.removeQueries({ queryKey: ["trace"] });
-      await client.invalidateQueries({ queryKey: ["sessions", user.id] });
-      await client.invalidateQueries({ queryKey: ["overview", user.id] });
     } catch (e) {
       setError(e);
     } finally {
@@ -105,19 +142,19 @@ export function AuthenticatedWorkspace({
   }
   async function logout() {
     setOperation(true);
-    setError(undefined);
     try {
       unwrap(await api.POST("/v1/auth/logout"));
-      await client.cancelQueries();
       onLogout();
+      router.push("/");
     } catch (e) {
       setError(e);
+    } finally {
       setOperation(false);
     }
   }
   const navigation = (
     <>
-      <div className="brand">
+      <div className="brand-header">
         <Image
           src="/brand/ou-logo.jpg"
           alt="OU"
@@ -127,7 +164,6 @@ export function AuthenticatedWorkspace({
         />
         <div>
           <strong>Smart LLM</strong>
-          <span>Optimizer</span>
         </div>
       </div>
       <button
@@ -139,23 +175,37 @@ export function AuthenticatedWorkspace({
         {t("newChat")}
       </button>
       <nav className="main-nav" aria-label={t("workspace")}>
-        <Link href="/" className={!dashboard ? "active" : ""}>
+        <Link
+          href="/"
+          className={!dashboard && !settings && !pipeline ? "active" : ""}
+        >
           <MessageSquare size={18} />
           {t("chat")}
+        </Link>
+        <Link href="/pipeline" className={pipeline ? "active" : ""}>
+          <Layers size={18} />
+          {t("pipeline")}
+        </Link>
+        <Link href="/settings" className={settings ? "active" : ""}>
+          <SettingsIcon size={18} />{t("settings")}
         </Link>
         <Link href="/dashboard" className={dashboard ? "active" : ""}>
           <LayoutDashboard size={18} />
           {t("dashboard")}
         </Link>
       </nav>
-      <div className="history-heading">
+      <div className="history-header">
         <span>{t("history")}</span>
         <button
           className="icon-button"
-          aria-label={t("refreshHistory")}
           onClick={() => sessions.refetch()}
+          aria-label={t("refreshHistory")}
+          disabled={sessions.isFetching}
         >
-          <RefreshCw size={14} />
+          <RefreshCw
+            size={14}
+            className={sessions.isFetching ? "spin" : ""}
+          />
         </button>
       </div>
       <div className="history-list">
@@ -173,7 +223,7 @@ export function AuthenticatedWorkspace({
             className={`history-row ${selected === session.id ? "selected" : ""}`}
             key={session.id}
           >
-            {dashboard ? (
+            {dashboard || settings || pipeline ? (
               <Link
                 className="history-select"
                 href={`/?session=${encodeURIComponent(session.id)}`}
@@ -196,32 +246,36 @@ export function AuthenticatedWorkspace({
               </button>
             )}
             <button
-              className="icon-button delete-button"
-              aria-label={`${t("delete")} ${session.title}`}
-              disabled={requestBusy || operation}
-              onClick={() => {
-                setError(undefined);
-                setDeleting(session);
+              className="icon-button history-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleting(session.id);
               }}
+              disabled={operation || requestBusy}
+              aria-label={t("deleteSession")}
             >
               <Trash2 size={14} />
             </button>
           </div>
         ))}
-        {sessions.hasNextPage&&<button className="button small" disabled={sessions.isFetchingNextPage||requestBusy} onClick={()=>void sessions.fetchNextPage()}>{sessions.isFetchingNextPage?<Spinner/>:mvp("next")}</button>}
+        {sessions.hasNextPage && (
+          <button
+            className="button secondary small load-more"
+            onClick={() => sessions.fetchNextPage()}
+            disabled={sessions.isFetchingNextPage}
+          >
+            {sessions.isFetchingNextPage ? <Spinner /> : t("loadMore")}
+          </button>
+        )}
       </div>
-      <div className="sidebar-footer">
-        <div className="foundation-note">
-          <span className="environment-dot">{t("foundation")}</span>
-          <p>{t("school")}</p>
-        </div>
+      <div className="user-footer">
         <div className="user-row">
           <span className="avatar">
             {user.username.slice(0, 1).toUpperCase()}
           </span>
           <div>
             <strong>{user.username}</strong>
-            <span>{user.role}</span>
+            <span>{t(user.role === "admin" ? "roleAdmin" : "roleUser")}</span>
           </div>
           <button
             className="icon-button"
@@ -258,12 +312,16 @@ export function AuthenticatedWorkspace({
             </button>
             <span>{t("workspace")}</span>
             <span className="slash">/</span>
-            <strong>{dashboard ? t("dashboard") : t("chat")}</strong>
+            <strong>
+              {pipeline ? t("pipeline") : settings ? t("settings") : dashboard ? t("dashboard") : t("chat")}
+            </strong>
           </div>
           <div className="topbar-actions">
             <span className="mock-badge">
               <span />
-              {source.toUpperCase()}
+              {t(
+                source === "mock" ? "simulationMode" : "liveMode",
+              )}
             </span>
             <LanguageSwitch />
           </div>
@@ -273,7 +331,11 @@ export function AuthenticatedWorkspace({
             <ErrorNotice error={error} />
           </div>
         )}
-        {dashboard ? (
+        {pipeline ? (
+          <PipelineFlow3D />
+        ) : settings ? (
+          <SettingsPanel user={user} />
+        ) : dashboard ? (
           <OverviewPanel user={user} onTrace={setTrace} />
         ) : (
           <ChatPanel
@@ -285,7 +347,7 @@ export function AuthenticatedWorkspace({
           />
         )}
       </main>
-      <TraceInspector requestId={trace} onClose={() => setTrace(null)} />
+      <TraceInspector userId={user.id} requestId={trace} onClose={() => setTrace(null)} />
       <Dialog.Root
         open={!!deleting}
         onOpenChange={(open) => {
@@ -295,14 +357,16 @@ export function AuthenticatedWorkspace({
         <Dialog.Portal>
           <Dialog.Overlay className="overlay" />
           <Dialog.Content className="confirm-dialog">
-            <Trash2 size={24} />
             <Dialog.Title>{t("deleteTitle")}</Dialog.Title>
             <Dialog.Description>{t("deleteHint")}</Dialog.Description>
-            {error !== undefined && <ErrorNotice error={error} />}
             <div className="dialog-actions">
-              <Dialog.Close className="button" disabled={operation}>
+              <button
+                className="button secondary"
+                onClick={() => setDeleting(null)}
+                disabled={operation}
+              >
                 {t("cancel")}
-              </Dialog.Close>
+              </button>
               <button
                 className="button danger"
                 disabled={operation}

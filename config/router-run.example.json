@@ -1,0 +1,9 @@
+{
+  "client_request_id": "replace-with-new-run-id",
+  "execution_source": "simulation",
+  "config_ids": ["fixture-reference", "fixture-small"],
+  "policies": ["fixed_reference", "fixed_candidate", "cheapest_feasible", "random_feasible", "rule_guarded"],
+  "seed": 42,
+  "repeats": 1,
+  "budget_usd": "1"
+}

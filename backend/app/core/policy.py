@@ -9,7 +9,19 @@ from app.contracts.dtos import (
 
 def resolve_configuration(req: ChatRequest) -> EffectiveConfiguration:
     if req.mode == "baseline":
-        return EffectiveConfiguration(policy_id="baseline", flags=FeatureFlags())
+        candidate_id = None
+        policy_id = req.policy_id or "baseline"
+        if policy_id.startswith("fixed_candidate:"):
+            candidate_id = policy_id.split(":", 1)[1]
+        return EffectiveConfiguration(
+            policy_id=policy_id,
+            flags=(
+                (req.flags or FeatureFlags()).model_copy(update={"router": False})
+                if candidate_id is not None
+                else FeatureFlags(router=False, rewrite=False, context=False, memory=False)
+            ),
+            candidate_id=candidate_id,
+        )
     return EffectiveConfiguration(
         policy_id="foundation-mock-v3",
         flags=req.flags or FeatureFlags(router=True, rewrite=True, context=True, memory=True),
