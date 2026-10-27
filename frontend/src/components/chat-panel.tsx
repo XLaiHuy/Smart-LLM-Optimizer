@@ -396,8 +396,10 @@ export function ChatPanel({
         flags: requestFlags(effectiveMode, flags),
         ...(effectiveMode === "optimized"
           ? {
-              policy_id:
-                source === "live" ? "quality-guarded-v3" : "foundation-mock-v3",
+              // The backend may expose catalog rows with a mock/planned
+              // execution_source even while PROVIDER_MODE=live. Optimized
+              // chat must use the live policy in that mode.
+              policy_id: "quality-guarded-v3",
             }
           : selectedCandidate
             ? { policy_id: `fixed_candidate:${selectedCandidate}` }

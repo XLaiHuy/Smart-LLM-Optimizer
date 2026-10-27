@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
 COPY backend/pyproject.toml backend/requirements.lock ./
-RUN pip install --no-cache-dir -r requirements.lock
+RUN pip install --no-cache-dir --default-timeout=180 --retries=10 -r requirements.lock
 
 COPY backend/app ./app
 COPY backend/alembic.ini ./
