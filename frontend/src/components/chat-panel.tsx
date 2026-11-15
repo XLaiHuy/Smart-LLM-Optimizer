@@ -416,9 +416,9 @@ export function ChatPanel({
           ...(effectiveMode === "optimized"
             ? {
                 policy_id:
-                  source === "mock"
-                    ? "foundation-mock-v3"
-                    : "quality-guarded-v3",
+                  source === "live"
+                    ? "quality-guarded-v3"
+                    : "foundation-mock-v3",
               }
             : selectedCandidate
               ? { policy_id: `fixed_candidate:${selectedCandidate}` }

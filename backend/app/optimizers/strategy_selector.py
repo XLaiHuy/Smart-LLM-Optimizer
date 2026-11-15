@@ -12,8 +12,8 @@ Strategy = Literal[
 def select_strategy(
     analysis: PromptAnalyzer,
     model_available: bool = True,
-    min_compress_tokens: int = 100,
-    llm_threshold: int = 500,
+    min_compress_tokens: int = 300,
+    llm_threshold: int = 1000,
 ) -> Strategy:
     if min_compress_tokens < 0:
         raise ValueError("min_compress_tokens must be non-negative")

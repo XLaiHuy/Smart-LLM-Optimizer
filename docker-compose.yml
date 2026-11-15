@@ -24,6 +24,7 @@ services:
       - ML_ROUTER_RESEARCH_ACCEPTANCE_PATH=${ML_ROUTER_RESEARCH_ACCEPTANCE_PATH:-config/router_research_acceptance.json}
       - LOG_LEVEL=INFO
       # Persistent pinned model assets; preparation is a separate operator step.
+      - UPLOAD_DIRECTORY=${UPLOAD_DIRECTORY:-/app/data/uploads}
       - HF_HUB_CACHE=/app/data/huggingface/hub
       - OMP_NUM_THREADS=2
       - MKL_NUM_THREADS=2

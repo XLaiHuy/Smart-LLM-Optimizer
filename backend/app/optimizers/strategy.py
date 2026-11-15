@@ -23,7 +23,7 @@ class StrategyDecision:
 
 
 class AdaptiveStrategySelector:
-    def __init__(self, rule_threshold: int = 80, llm_threshold: int = 400) -> None:
+    def __init__(self, rule_threshold: int = 300, llm_threshold: int = 1000) -> None:
         self.rule_threshold = rule_threshold
         self.llm_threshold = llm_threshold
 

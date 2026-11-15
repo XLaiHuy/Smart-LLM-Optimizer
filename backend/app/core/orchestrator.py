@@ -446,7 +446,9 @@ class Orchestrator:
                     before_tokens=rewrite.state.before_tokens,
                     after_tokens=rewrite.state.after_tokens,
                 )
-                if rewrite.proposed != request.message:
+                if rewrite.messages is not None:
+                    prepared = prepared.model_copy(update={"messages": rewrite.messages})
+                elif rewrite.proposed != request.message:
                     prepared = prepared.model_copy(
                         update={
                             "messages": self._replace_current_user_message(
