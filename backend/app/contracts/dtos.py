@@ -229,6 +229,10 @@ class OptimizedPrompt(DTO):
     proposed: str
     validation: Literal["preserved", "violation", "unknown"] = "unknown"
     state: OptimizationState
+    # Optional full prepared-message result.  Keeping this separate from
+    # ``proposed`` preserves the original single-message contract while
+    # allowing context/history messages to be rewritten safely.
+    messages: tuple[Message, ...] | None = None
 
 
 class TaskProfile(DTO):

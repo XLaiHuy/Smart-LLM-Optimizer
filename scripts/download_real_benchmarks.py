@@ -19,8 +19,7 @@ from pathlib import Path
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "data" / "benchmarks"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+DEFAULT_OUT_DIR = ROOT / "data" / "benchmarks"
 
 
 def fetch_vmlu(limit: int) -> list[dict]:
@@ -118,6 +117,19 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     print("=== Downloading Real Benchmark Datasets with Verified Ground Truth ===")
 
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUT_DIR,
+        help="Writable directory for generated benchmark JSON files",
+    )
+    args = parser.parse_args()
+    out_dir = args.output_dir.resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     # Target counts:
     # 50:  25 VMLU + 25 ViQuAD
     # 200: 100 VMLU + 100 ViQuAD
@@ -142,7 +154,7 @@ def main():
             if i < len(subset_viquad):
                 combined.append(subset_viquad[i])
 
-        out_file = OUT_DIR / f"real_benchmark_{count}.json"
+        out_file = out_dir / f"real_benchmark_{count}.json"
         payload = {
             "version": "1.0.0",
             "purpose": "scientific_benchmark",

@@ -50,12 +50,18 @@ def main() -> None:
     )
     args = parser.parse_args()
     args.directory.mkdir(parents=True, exist_ok=True)
-    image = subprocess.run(
-        ["docker", "image", "inspect", "python:3.11-slim", "--format", "{{.Id}}"],
-        capture_output=True,
-        check=True,
-        text=True,
-    ).stdout.strip()
+    # Dataset preparation should not fail just because the optional MBPP
+    # execution sandbox is unavailable. The image is required later for code
+    # grading, not for downloading GSM8K/Aya/MBPP records.
+    try:
+        image = subprocess.run(
+            ["docker", "image", "inspect", "python:3.11-slim", "--format", "{{.Id}}"],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout.strip()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        image = "unavailable; MBPP execution grading is disabled"
     sources, provenance = [], []
     for repo, revision, filename, adapter, license_name in SOURCES:
         if adapter == "aya" and args.without_aya:

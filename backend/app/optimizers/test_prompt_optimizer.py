@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.contracts.dtos import ContextResult, FeatureFlags, OptimizationState
+from app.contracts.dtos import ContextResult, FeatureFlags, Message, OptimizationState
 from app.optimizers.prompt_optimizer import AdaptivePromptOptimizer
 
 
@@ -11,6 +11,14 @@ def context() -> ContextResult:
         messages=(),
         provenance=(),
         state=OptimizationState(module="context", status="disabled", reason="test"),
+    )
+
+
+def context_with_messages(*messages: Message) -> ContextResult:
+    return ContextResult(
+        messages=messages,
+        provenance=tuple(message.id or message.role for message in messages),
+        state=OptimizationState(module="context", status="applied", reason="test"),
     )
 
 
@@ -102,6 +110,43 @@ async def test_llm_without_token_savings_is_skipped() -> None:
 
     assert result.state.status == "skipped"
     assert result.state.reason == "llmlingua_no_token_savings"
+
+
+@pytest.mark.asyncio
+async def test_context_messages_are_compressed_not_only_current_request() -> None:
+    calls: list[str] = []
+
+    def compress(prompt: str) -> dict[str, object]:
+        calls.append(prompt)
+        return {
+            "compressed": "compressed history",
+            "status": "applied",
+            "preservation": "preserved",
+            "original_tokens": 600,
+            "compressed_tokens": 200,
+        }
+
+    history = "long history " * 5
+    current = "Please answer using the history."
+    result = await AdaptivePromptOptimizer(
+        llm_compressor=SimpleNamespace(compress=compress),
+        min_compress_tokens=1,
+        llm_threshold=5,
+    ).optimize(
+        request(current),  # type: ignore[arg-type]
+        context_with_messages(
+            Message(role="system", content="Keep system instructions."),
+            Message(role="assistant", id="history", content=history),
+            Message(role="user", id="current", content=current),
+        ),
+        FeatureFlags(rewrite=True),
+    )
+
+    assert result.state.status == "applied"
+    assert calls == [history, current]
+    assert result.messages is not None
+    assert result.messages[0].content == "Keep system instructions."
+    assert result.messages[1].content == "compressed history"
 
 
 def test_invalid_thresholds_are_rejected() -> None:

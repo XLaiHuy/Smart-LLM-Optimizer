@@ -83,3 +83,65 @@ def extract_explicit_facts(content: str, source_message_id: str) -> tuple[Fact, 
         if value:
             facts.append(Fact(key=key, value=value, source_message_ids=(source_message_id,)))
     return tuple(facts)
+
+
+# The original patterns above include legacy mojibake spellings kept for old
+# fixtures. These normal-Unicode patterns handle current Vietnamese UI input.
+_NORMALIZED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("name", re.compile(r"\b(?:tên tôi là|tôi tên(?: là)?)\s+([^.!?\n]{1,80})", re.I)),
+    (
+        "preference",
+        re.compile(r"\b(?:tôi thích|tôi ưu tiên)\s+([^.!?\n]{1,120})", re.I),
+    ),
+    (
+        "deadline",
+        re.compile(
+            r"\b(?:hạn chót|hạn cuối)(?:\s+(?:nộp(?: báo cáo)?|báo cáo))?"
+            r"\s*(?:(?:là)\s+|:\s*)([^.!?\n]{1,80})",
+            re.I,
+        ),
+    ),
+    (
+        "major",
+        re.compile(
+            r"\b(?:tôi học ngành|ngành học của tôi là|ngành của tôi là)\s+([^.!?\n]{1,120})",
+            re.I,
+        ),
+    ),
+    (
+        "school",
+        re.compile(
+            r"\b(?:tôi học tại|tôi là sinh viên (?:của|tại)|trường của tôi là)\s+"
+            r"((?:[^.!?\n]|\.(?=\S)){1,120})",
+            re.I,
+        ),
+    ),
+    (
+        "research_topic",
+        re.compile(
+            r"\b(?:đề tài nghiên cứu của tôi là|đề tài của tôi là|tôi đang nghiên cứu(?: về)?)"
+            r"\s+([^.!?\n]{1,160})",
+            re.I,
+        ),
+    ),
+)
+
+_LEGACY_EXTRACT_EXPLICIT_FACTS = extract_explicit_facts
+
+
+def extract_explicit_facts(content: str, source_message_id: str) -> tuple[Fact, ...]:
+    """Extract explicit facts from both legacy and normal Unicode Vietnamese."""
+
+    facts = list(_LEGACY_EXTRACT_EXPLICIT_FACTS(content, source_message_id))
+    existing = {fact.key for fact in facts}
+    for key, pattern in _NORMALIZED_PATTERNS:
+        match = pattern.search(content)
+        if match is None or key in existing:
+            continue
+        if content[match.end() :].lstrip().startswith("?"):
+            continue
+        value = " ".join(match.group(1).strip().split())
+        if value:
+            facts.append(Fact(key=key, value=value, source_message_ids=(source_message_id,)))
+            existing.add(key)
+    return tuple(facts)
